@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Box, Flex, Text, chakra } from '@chakra-ui/react';
 import { ChevronDown, FolderOpen, AlertTriangle, Check } from 'lucide-react';
 import { useDashboardStore, type ActiveProject } from '../../stores/dashboardStore';
+import { useButtonPress } from '../../hooks/useButtonPress';
 
 interface ProjectSwitcherProps {
   projects: ActiveProject[];
@@ -13,6 +15,7 @@ export function ProjectSwitcher({ projects, onSwitch }: ProjectSwitcherProps) {
   const [showWarning, setShowWarning] = useState(false);
   const [pendingProject, setPendingProject] = useState<ActiveProject | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerPress = useButtonPress();
 
   const activeSessions = sessions.filter((s) => s.status === 'running');
 
@@ -76,226 +79,212 @@ export function ProjectSwitcher({ projects, onSwitch }: ProjectSwitcherProps) {
   if (!activeProject) return null;
 
   return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
+    <Box ref={containerRef} position="relative">
       {/* Trigger button */}
-      <button
+      <chakra.button
         onClick={() => setOpen(!open)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '4px 10px',
-          backgroundColor: 'transparent',
-          border: '1px solid transparent',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          color: '#E8EDF4',
-          fontFamily: "'Inter', system-ui, sans-serif",
-          fontSize: '1.5rem',
-          fontWeight: 700,
-          letterSpacing: '-0.03em',
-          lineHeight: 1.2,
-          outline: 'none',
-          transition: 'all 150ms ease',
-        }}
-        onMouseDown={(e) => {
-          e.currentTarget.style.transform = 'scale(0.97)';
-          e.currentTarget.style.transition = 'transform 100ms cubic-bezier(0.4, 0, 1, 1)';
-        }}
-        onMouseUp={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-        }}
+        display="flex"
+        alignItems="center"
+        gap="2"
+        p="1 2.5"
+        bg="transparent"
+        border="1px solid transparent"
+        borderRadius="md"
+        cursor="pointer"
+        color="text.primary"
+        fontFamily="heading"
+        fontSize="2xl"
+        fontWeight={700}
+        letterSpacing="-0.03em"
+        lineHeight={1.2}
+        outline="none"
+        transition="all 150ms ease"
+        {...triggerPress}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = '#1C2333';
           e.currentTarget.style.borderColor = '#1E2A3B';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
-          e.currentTarget.style.borderColor = 'transparent';
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
+          triggerPress.onMouseLeave(e);
+          e.currentTarget.style.backgroundColor = '';
+          e.currentTarget.style.borderColor = '';
         }}
       >
         {activeProject.name}
-        <ChevronDown
-          size={16}
-          color="#8B99B3"
-          style={{
-            transition: 'transform 200ms ease',
-            transform: open ? 'rotate(180deg)' : 'rotate(0)',
-          }}
-        />
-      </button>
+        <Box
+          as="span"
+          display="inline-flex"
+          transition="transform 200ms ease"
+          transform={open ? 'rotate(180deg)' : 'rotate(0)'}
+        >
+          <ChevronDown size={16} color="#8B99B3" />
+        </Box>
+      </chakra.button>
 
       {/* Dropdown */}
       {open && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            marginTop: '4px',
-            minWidth: '320px',
-            maxHeight: '400px',
-            overflowY: 'auto',
-            backgroundColor: '#232D3F',
-            border: '1px solid #2A3750',
-            borderRadius: '12px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.4)',
-            zIndex: 1000,
-            padding: '4px',
-          }}
+        <Box
+          position="absolute"
+          top="100%"
+          left={0}
+          mt="1"
+          minW="320px"
+          maxH="400px"
+          overflowY="auto"
+          bg="bg.elevated"
+          border="1px solid"
+          borderColor="border.default"
+          borderRadius="lg"
+          boxShadow="lg"
+          zIndex={1000}
+          p="1"
         >
           {/* Warning banner */}
           {showWarning && pendingProject && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                padding: '12px',
-                margin: '4px',
-                backgroundColor: '#422006',
-                border: '1px solid #D97706',
-                borderRadius: '8px',
-              }}
+            <Flex
+              direction="column"
+              gap="2"
+              p="3"
+              m="1"
+              bg="semantic.warning.bg"
+              border="1px solid"
+              borderColor="semantic.warning.border"
+              borderRadius="md"
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: '#F59E0B',
-                }}
+              <Flex
+                align="center"
+                gap="2"
+                fontSize="sm"
+                fontWeight={600}
+                color="semantic.warning"
               >
                 <AlertTriangle size={14} />
                 {activeSessions.length} active session{activeSessions.length !== 1 ? 's' : ''} running
-              </div>
-              <div
-                style={{
-                  fontSize: '0.6875rem',
-                  color: '#FDE68A',
-                  lineHeight: 1.4,
-                }}
+              </Flex>
+              <Text
+                fontSize="xs"
+                color="accent.amber.200"
+                lineHeight={1.4}
               >
                 Sessions will continue running in the background. Switch to{' '}
                 <strong>{pendingProject.name}</strong>?
-              </div>
-              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                <button
+              </Text>
+              <Flex gap="6px" justify="flex-end">
+                <chakra.button
                   onClick={() => {
                     setShowWarning(false);
                     setPendingProject(null);
                   }}
-                  style={{
-                    padding: '4px 12px',
-                    backgroundColor: 'transparent',
-                    border: '1px solid #D97706',
-                    borderRadius: '6px',
-                    color: '#FDE68A',
-                    fontSize: '0.6875rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    fontFamily: "'Inter', system-ui, sans-serif",
-                  }}
+                  p="1 3"
+                  bg="transparent"
+                  border="1px solid"
+                  borderColor="semantic.warning.border"
+                  borderRadius="6px"
+                  color="accent.amber.200"
+                  fontSize="xs"
+                  fontWeight={500}
+                  cursor="pointer"
+                  fontFamily="body"
                 >
                   Cancel
-                </button>
-                <button
+                </chakra.button>
+                <chakra.button
                   onClick={confirmSwitch}
-                  style={{
-                    padding: '4px 12px',
-                    backgroundColor: '#D97706',
-                    border: 'none',
-                    borderRadius: '6px',
-                    color: '#0D1117',
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: "'Inter', system-ui, sans-serif",
-                  }}
+                  p="1 3"
+                  bg="semantic.warning.border"
+                  border="none"
+                  borderRadius="6px"
+                  color="bg.canvas"
+                  fontSize="xs"
+                  fontWeight={600}
+                  cursor="pointer"
+                  fontFamily="body"
                 >
                   Switch anyway
-                </button>
-              </div>
-            </div>
+                </chakra.button>
+              </Flex>
+            </Flex>
           )}
 
           {/* Project list */}
           {projects.map((project) => {
             const isActive = project.path === activeProject.path;
             return (
-              <button
+              <ProjectListItem
                 key={project.path}
-                onClick={() => handleSelect(project)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  width: '100%',
-                  backgroundColor: isActive ? '#1C233366' : 'transparent',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  outline: 'none',
-                  transition: 'background-color 100ms ease',
-                  fontFamily: "'Inter', system-ui, sans-serif",
-                }}
-                onMouseDown={(e) => {
-                  e.currentTarget.style.transform = 'scale(0.97)';
-                  e.currentTarget.style.transition = 'transform 100ms cubic-bezier(0.4, 0, 1, 1)';
-                }}
-                onMouseUp={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = '#1C2333';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-                }}
-              >
-                <FolderOpen size={16} color={isActive ? '#8B5CF6' : '#4E5C72'} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: '0.875rem',
-                      fontWeight: isActive ? 600 : 500,
-                      color: isActive ? '#E8EDF4' : '#8B99B3',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {project.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.6875rem',
-                      color: '#4E5C72',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                    }}
-                  >
-                    {project.path}
-                  </div>
-                </div>
-                {isActive && <Check size={14} color="#22C55E" />}
-              </button>
+                project={project}
+                isActive={isActive}
+                onSelect={handleSelect}
+              />
             );
           })}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
+  );
+}
+
+/** Extracted to keep the map callback clean and allow hook usage */
+function ProjectListItem({
+  project,
+  isActive,
+  onSelect,
+}: {
+  project: ActiveProject;
+  isActive: boolean;
+  onSelect: (p: ActiveProject) => void;
+}) {
+  const pressHandlers = useButtonPress();
+
+  return (
+    <chakra.button
+      onClick={() => onSelect(project)}
+      display="flex"
+      alignItems="center"
+      gap="10px"
+      p="10px 12px"
+      w="100%"
+      bg={isActive ? 'rgba(28, 35, 51, 0.4)' : 'transparent'}
+      border="none"
+      borderRadius="md"
+      cursor="pointer"
+      textAlign="left"
+      outline="none"
+      transition="background-color 100ms ease"
+      fontFamily="body"
+      {...pressHandlers}
+      onMouseEnter={(e) => {
+        if (!isActive) e.currentTarget.style.backgroundColor = '#1C2333';
+      }}
+      onMouseLeave={(e) => {
+        pressHandlers.onMouseLeave(e);
+        if (!isActive) e.currentTarget.style.backgroundColor = '';
+      }}
+    >
+      <FolderOpen size={16} color={isActive ? '#8B5CF6' : '#4E5C72'} />
+      <Box flex={1} minW={0}>
+        <Text
+          fontSize="base"
+          fontWeight={isActive ? 600 : 500}
+          color={isActive ? 'text.primary' : 'text.secondary'}
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+        >
+          {project.name}
+        </Text>
+        <Text
+          fontSize="xs"
+          color="text.muted"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+          fontFamily="mono"
+        >
+          {project.path}
+        </Text>
+      </Box>
+      {isActive && <Check size={14} color="#22C55E" />}
+    </chakra.button>
   );
 }

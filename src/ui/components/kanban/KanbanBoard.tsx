@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
+import { Box, Flex, Skeleton } from '@chakra-ui/react';
 import { KanbanColumn } from './KanbanColumn';
-import type { Deliverable, DeliverableStatus, WsMessage } from '@shared/types';
+import { useConfig } from '../../hooks/useConfig';
+import type { Deliverable, ColumnConfig, WsMessage } from '@shared/types';
 
 interface KanbanBoardProps {
   deliverables: Deliverable[];
@@ -8,103 +10,120 @@ interface KanbanBoardProps {
   wsSend: (msg: WsMessage) => void;
 }
 
-interface ColumnDef {
-  id: string;
-  label: string;
-  statuses: DeliverableStatus[];
-  color: string;
+/**
+ * Maps a column's id or semantic color name to a hex color value.
+ * Priority: column ID lookup in the known column palette, then color name lookup.
+ */
+const columnIdColors: Record<string, string> = {
+  idea: '#A78BFA',
+  spec: '#60A5FA',
+  plan: '#34D399',
+  'in-progress': '#F59E0B',
+  inprogress: '#F59E0B',
+  review: '#FB923C',
+  complete: '#22C55E',
+  blocked: '#F87171',
+};
+
+const colorNameMap: Record<string, string> = {
+  gray: '#8B99B3',
+  blue: '#60A5FA',
+  purple: '#A78BFA',
+  violet: '#A78BFA',
+  orange: '#F59E0B',
+  yellow: '#FB923C',
+  green: '#22C55E',
+  red: '#F87171',
+  amber: '#F59E0B',
+};
+
+function resolveColumnColor(col: ColumnConfig): string {
+  // Try by column id first
+  if (columnIdColors[col.id]) return columnIdColors[col.id];
+  // Try by color name
+  if (colorNameMap[col.color]) return colorNameMap[col.color];
+  // If the color is already a hex value, use it directly
+  if (col.color.startsWith('#')) return col.color;
+  // Fallback
+  return '#8B99B3';
 }
 
-const defaultColumns: ColumnDef[] = [
-  { id: 'idea', label: 'Idea', statuses: ['idea'], color: '#A78BFA' },
-  { id: 'spec', label: 'Spec', statuses: ['spec'], color: '#60A5FA' },
-  { id: 'plan', label: 'Plan', statuses: ['plan'], color: '#34D399' },
-  { id: 'inprogress', label: 'In Progress', statuses: ['in-progress'], color: '#F59E0B' },
-  { id: 'review', label: 'Review', statuses: ['review'], color: '#FB923C' },
-  { id: 'complete', label: 'Complete', statuses: ['complete'], color: '#22C55E' },
-  { id: 'blocked', label: 'Blocked', statuses: ['blocked'], color: '#F87171' },
-];
-
-function SkeletonCard() {
+function SkeletonColumn({ color, extraCards }: { color: string; extraCards?: boolean }) {
   return (
-    <div
-      style={{
-        height: '88px',
-        backgroundColor: '#232D3F',
-        borderRadius: '8px',
-        overflow: 'hidden',
-        position: 'relative',
-      }}
+    <Flex
+      w="260px"
+      minW="260px"
+      direction="column"
+      gap="2"
     >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'linear-gradient(90deg, #232D3F 0%, #2A3750 50%, #232D3F 100%)',
-          backgroundSize: '200% 100%',
-          animation: 'shimmer 1.6s ease-in-out infinite',
-        }}
+      {/* Skeleton column header */}
+      <Box
+        h="52px"
+        bg={`${color}14`}
+        borderTop={`2px solid ${color}99`}
+        borderRadius="md md 0 0"
       />
-    </div>
+      <Skeleton h="88px" borderRadius="md" />
+      <Skeleton h="88px" borderRadius="md" />
+      {extraCards && <Skeleton h="88px" borderRadius="md" />}
+    </Flex>
   );
 }
 
+/** Placeholder skeleton columns shown while config is loading */
+const fallbackSkeletonColors = [
+  '#A78BFA', '#60A5FA', '#34D399', '#F59E0B', '#FB923C', '#22C55E', '#F87171',
+];
+
 export function KanbanBoard({ deliverables, loading, wsSend }: KanbanBoardProps) {
+  const { columns: configColumns, loading: configLoading } = useConfig();
+
   const columnData = useMemo(() => {
-    return defaultColumns.map((col) => ({
+    return configColumns.map((col) => ({
       ...col,
+      resolvedColor: resolveColumnColor(col),
       deliverables: deliverables.filter((d) =>
         col.statuses.includes(d.status)
       ),
     }));
-  }, [deliverables]);
+  }, [configColumns, deliverables]);
+
+  const showSkeleton = loading || configLoading;
 
   return (
-    <div
-      style={{
-        flex: 1,
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        padding: '16px 20px 24px 20px',
-        display: 'flex',
-        gap: '12px',
-        minWidth: 0,
-      }}
+    <Flex
+      flex={1}
+      overflowX="auto"
+      overflowY="hidden"
+      p="4 5 6 5"
+      gap="3"
+      minW={0}
     >
-      {loading
-        ? defaultColumns.map((col) => (
-            <div
-              key={col.id}
-              style={{
-                width: '260px',
-                minWidth: '260px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-              }}
-            >
-              {/* Skeleton column header */}
-              <div
-                style={{
-                  height: '52px',
-                  backgroundColor: `${col.color}14`,
-                  borderTop: `2px solid ${col.color}99`,
-                  borderRadius: '8px 8px 0 0',
-                }}
+      {showSkeleton
+        ? (configColumns.length > 0 ? configColumns : fallbackSkeletonColors.map((c, i) => ({
+            id: String(i),
+            color: c,
+          }))).map((col, i) => {
+            const color = 'resolvedColor' in col
+              ? (col as (typeof columnData)[number]).resolvedColor
+              : typeof col === 'object' && 'color' in col
+                ? (col.color.startsWith('#') ? col.color : colorNameMap[col.color] || col.color)
+                : fallbackSkeletonColors[i] || '#8B99B3';
+            return (
+              <SkeletonColumn
+                key={'id' in col ? col.id : i}
+                color={color}
+                extraCards={i === 0}
               />
-              <SkeletonCard />
-              <SkeletonCard />
-              {col.id === 'idea' && <SkeletonCard />}
-            </div>
-          ))
+            );
+          })
         : columnData.map((col) => (
             <KanbanColumn
               key={col.id}
               label={col.label}
               statuses={col.statuses}
               deliverables={col.deliverables}
-              color={col.color}
+              color={col.resolvedColor}
               wsSend={wsSend}
             />
           ))}
@@ -116,6 +135,6 @@ export function KanbanBoard({ deliverables, loading, wsSend }: KanbanBoardProps)
           100% { background-position: -200% 0; }
         }
       `}</style>
-    </div>
+    </Flex>
   );
 }

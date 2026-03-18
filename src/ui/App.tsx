@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChakraProvider } from '@chakra-ui/react';
+import { ChakraProvider, Flex } from '@chakra-ui/react';
 import { system } from './theme';
 import { Dashboard } from './components/layout/Dashboard';
 import { ProjectPicker } from './components/layout/ProjectPicker';
@@ -84,38 +84,27 @@ export function App() {
     [setActiveProject, setProjectLoading]
   );
 
-  // Handle project switch from the header switcher
-  const handleSwitchProject = useCallback(
-    async (project: ActiveProject) => {
-      await handleSelectProject(project);
-    },
-    [handleSelectProject]
-  );
-
   // Show nothing during initial load
   if (initialLoad) {
     return (
       <ChakraProvider value={system}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-            width: '100vw',
-            backgroundColor: '#0D1117',
-            color: '#8B99B3',
-            fontFamily: "'Inter', system-ui, sans-serif",
-            fontSize: '0.875rem',
-          }}
+        <Flex
+          align="center"
+          justify="center"
+          h="100vh"
+          w="100vw"
+          bg="bg.canvas"
+          color="text.secondary"
+          fontFamily="body"
+          fontSize="base"
         >
           Loading...
-        </div>
+        </Flex>
       </ChakraProvider>
     );
   }
 
-  // No active project — show picker
+  // No active project -- show picker
   if (!activeProject) {
     return (
       <ChakraProvider value={system}>
@@ -128,7 +117,7 @@ export function App() {
     );
   }
 
-  // Active project — show dashboard
+  // Active project -- show dashboard
   return (
     <ChakraProvider value={system}>
       <Dashboard
@@ -139,7 +128,7 @@ export function App() {
         wsUnsubscribe={ws.unsubscribe}
         wsAddListener={ws.addListener}
         projects={projects}
-        onSwitchProject={handleSwitchProject}
+        onSwitchProject={handleSelectProject}
       />
     </ChakraProvider>
   );

@@ -1,6 +1,6 @@
 ---
 name: agent-name
-description: "Use this agent when [triggering conditions — be specific about what files, domains, or user requests should activate this agent].\\n\\nExamples:\\n\\n<example>\\nContext: [Situation description]\\nuser: \"[What the user says]\"\\nassistant: \"[How the assistant responds and uses this agent]\"\\n<commentary>\\n[Why this agent is the right choice]\\n</commentary>\\n</example>\\n\\n<example>\\nContext: [Different situation]\\nuser: \"[Different request]\"\\nassistant: \"[Response using this agent]\"\\n<commentary>\\n[Why this agent triggers here]\\n</commentary>\\n</example>"
+description: "Use this agent when [triggering conditions — be specific about what files, domains, or user requests should activate this agent].\n\nExamples:\n\n<example>\nContext: [Situation description]\nuser: \"[What the user says]\"\nassistant: \"[How the assistant responds and uses this agent]\"\n<commentary>\n[Why this agent is the right choice]\n</commentary>\n</example>\n\n<example>\nContext: [Different situation]\nuser: \"[Different request]\"\nassistant: \"[Response using this agent]\"\n<commentary>\n[Why this agent triggers here]\n</commentary>\n</example>"
 model: sonnet
 tools: Read, Write, Edit, Bash, Glob, Grep
 color: blue

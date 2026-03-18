@@ -47,7 +47,7 @@ export function createSessionsRouter(getProjectPath: string | (() => string)): R
   });
 
   // GET /api/sessions/history — past session logs
-  router.get('/history', (req, res) => {
+  router.get('/history', async (req, res) => {
     try {
       const targetPath = (req.query.project as string) || resolvePath();
       const search = req.query.search as string | undefined;
@@ -55,9 +55,9 @@ export function createSessionsRouter(getProjectPath: string | (() => string)): R
 
       let sessions;
       if (search) {
-        sessions = sessionStore.searchSessions(targetPath, search, limit);
+        sessions = await sessionStore.searchSessions(targetPath, search, limit);
       } else {
-        sessions = sessionStore.listSessions(targetPath, limit);
+        sessions = await sessionStore.listSessions(targetPath, limit);
       }
 
       res.json({ sessions });
@@ -68,10 +68,10 @@ export function createSessionsRouter(getProjectPath: string | (() => string)): R
   });
 
   // GET /api/sessions/history/:id/log — raw log content
-  router.get('/history/:id/log', (req, res) => {
+  router.get('/history/:id/log', async (req, res) => {
     try {
       const targetPath = (req.query.project as string) || resolvePath();
-      const log = sessionStore.getSessionLog(req.params.id, targetPath);
+      const log = await sessionStore.getSessionLog(req.params.id, targetPath);
 
       if (log === null) {
         res.status(404).json({ error: 'Session log not found' });

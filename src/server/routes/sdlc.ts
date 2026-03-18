@@ -10,9 +10,9 @@ export function createSdlcRouter(getProjectPath: string | (() => string)): Route
   const resolvePath = typeof getProjectPath === 'function' ? getProjectPath : () => getProjectPath;
 
   // GET /api/sdlc/deliverables — full kanban state
-  router.get('/deliverables', (_req, res) => {
+  router.get('/deliverables', async (_req, res) => {
     try {
-      const deliverables = parseDeliverables(resolvePath());
+      const deliverables = await parseDeliverables(resolvePath());
       res.json({ deliverables });
     } catch (err) {
       console.error('[sdlc] Error parsing deliverables:', err);
@@ -21,9 +21,9 @@ export function createSdlcRouter(getProjectPath: string | (() => string)): Route
   });
 
   // GET /api/sdlc/catalog — parsed _index.md
-  router.get('/catalog', (_req, res) => {
+  router.get('/catalog', async (_req, res) => {
     try {
-      const entries = parseCatalog(resolvePath());
+      const entries = await parseCatalog(resolvePath());
       res.json({ entries });
     } catch (err) {
       console.error('[sdlc] Error parsing catalog:', err);
@@ -32,9 +32,9 @@ export function createSdlcRouter(getProjectPath: string | (() => string)): Route
   });
 
   // GET /api/sdlc/deliverable/:id — single deliverable with timeline
-  router.get('/deliverable/:id', (req, res) => {
+  router.get('/deliverable/:id', async (req, res) => {
     try {
-      const deliverable = getDeliverable(resolvePath(), req.params.id);
+      const deliverable = await getDeliverable(resolvePath(), req.params.id);
       if (!deliverable) {
         res.status(404).json({ error: 'Deliverable not found' });
         return;
@@ -47,10 +47,10 @@ export function createSdlcRouter(getProjectPath: string | (() => string)): Route
   });
 
   // GET /api/sdlc/stats — summary counts
-  router.get('/stats', (_req, res) => {
+  router.get('/stats', async (_req, res) => {
     try {
       const projectPath = resolvePath();
-      const deliverables = parseDeliverables(projectPath);
+      const deliverables = await parseDeliverables(projectPath);
       const untracked = getUntrackedCommits(projectPath);
 
       const byStatus: Record<DeliverableStatus, number> = {
@@ -92,9 +92,9 @@ export function createSdlcRouter(getProjectPath: string | (() => string)): Route
   });
 
   // GET /api/sdlc/chronicle — archived deliverables
-  router.get('/chronicle', (_req, res) => {
+  router.get('/chronicle', async (_req, res) => {
     try {
-      const deliverables = parseChronicle(resolvePath());
+      const deliverables = await parseChronicle(resolvePath());
       res.json({ deliverables });
     } catch (err) {
       console.error('[sdlc] Error parsing chronicle:', err);

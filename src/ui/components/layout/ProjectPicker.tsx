@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Rocket, FolderOpen, Clock, FileText, GitBranch, Settings, ChevronRight } from 'lucide-react';
+import { Box, Flex, Text, chakra } from '@chakra-ui/react';
+import { Rocket, FolderOpen, Clock, ChevronRight } from 'lucide-react';
+import { useButtonPress } from '../../hooks/useButtonPress';
 import type { ActiveProject } from '../../stores/dashboardStore';
 
 interface ProjectPickerProps {
@@ -25,23 +27,23 @@ function formatRelativeTime(isoDate: string): string {
 
 function MarkerBadge({ label, active }: { label: string; active: boolean }) {
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        padding: '2px 8px',
-        borderRadius: '9999px',
-        fontSize: '0.6875rem',
-        fontWeight: 500,
-        backgroundColor: active ? '#0A1628' : '#1C2333',
-        color: active ? '#7EB8F7' : '#4E5C72',
-        border: `1px solid ${active ? '#2F74D033' : '#1E2A3B'}`,
-        transition: 'all 150ms ease',
-      }}
+    <Text
+      as="span"
+      display="inline-flex"
+      alignItems="center"
+      gap="1"
+      p="2px 8px"
+      borderRadius="full"
+      fontSize="xs"
+      fontWeight={500}
+      bg={active ? 'semantic.info.bg' : 'bg.surface'}
+      color={active ? 'text.accent' : 'text.muted'}
+      border="1px solid"
+      borderColor={active ? 'rgba(47,116,208,0.2)' : 'border.subtle'}
+      transition="all 150ms ease"
     >
       {label}
-    </span>
+    </Text>
   );
 }
 
@@ -76,383 +78,370 @@ export function ProjectPicker({ projects, onSelect, loading }: ProjectPickerProp
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        width: '100vw',
-        backgroundColor: '#0D1117',
-        fontFamily: "'Inter', system-ui, sans-serif",
-        overflow: 'auto',
-      }}
+    <Flex
+      direction="column"
+      align="center"
+      justify="center"
+      h="100vh"
+      w="100vw"
+      bg="bg.canvas"
+      fontFamily="body"
+      overflow="auto"
     >
       {/* Logo + Title */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          marginBottom: '40px',
-        }}
+      <Flex
+        direction="column"
+        align="center"
+        mb="10"
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '8px',
-          }}
+        <Flex
+          align="center"
+          gap="3"
+          mb="2"
         >
           <Rocket size={32} color="#8B5CF6" />
-          <h1
-            style={{
-              fontSize: '1.875rem',
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              color: '#E8EDF4',
-              margin: 0,
-            }}
+          <Text
+            as="h1"
+            fontSize="3xl"
+            fontWeight={700}
+            letterSpacing="-0.03em"
+            color="text.primary"
           >
             Mission Control
-          </h1>
-        </div>
-        <p
-          style={{
-            fontSize: '0.875rem',
-            color: '#8B99B3',
-            margin: 0,
-          }}
+          </Text>
+        </Flex>
+        <Text
+          fontSize="base"
+          color="text.secondary"
         >
           Select a project to get started
-        </p>
-      </div>
+        </Text>
+      </Flex>
 
       {/* Project list */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          width: '100%',
-          maxWidth: '560px',
-          padding: '0 24px',
-        }}
+      <Flex
+        direction="column"
+        gap="3"
+        w="100%"
+        maxW="560px"
+        px="6"
       >
         {loading && (
-          <div
-            style={{
-              textAlign: 'center',
-              color: '#8B99B3',
-              fontSize: '0.875rem',
-              padding: '32px 0',
-            }}
+          <Text
+            textAlign="center"
+            color="text.secondary"
+            fontSize="base"
+            py="8"
           >
             Loading projects...
-          </div>
+          </Text>
         )}
 
         {!loading && projects.length === 0 && !showInput && (
-          <div
-            style={{
-              textAlign: 'center',
-              color: '#4E5C72',
-              fontSize: '0.875rem',
-              padding: '32px 0',
-            }}
+          <Text
+            textAlign="center"
+            color="text.muted"
+            fontSize="base"
+            py="8"
           >
             No projects registered yet. Open a directory to get started.
-          </div>
+          </Text>
         )}
 
         {!loading &&
           projects.map((project) => (
-            <button
+            <ProjectCard
               key={project.path}
-              onClick={() => onSelect(project)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                padding: '16px 20px',
-                backgroundColor: '#232D3F',
-                border: '1px solid #1E2A3B',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-                width: '100%',
-                outline: 'none',
-              }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px) scale(0.97)';
-                e.currentTarget.style.transition = 'transform 100ms cubic-bezier(0.4, 0, 1, 1)';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px) scale(1)';
-                e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget;
-                el.style.backgroundColor = '#2A3750';
-                el.style.borderColor = '#3D5070';
-                el.style.transform = 'translateY(-1px)';
-                el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.5)';
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget;
-                el.style.backgroundColor = '#232D3F';
-                el.style.borderColor = '#1E2A3B';
-                el.style.transform = 'translateY(0) scale(1)';
-                el.style.boxShadow = 'none';
-              }}
-            >
-              {/* Icon */}
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '12px',
-                  backgroundColor: '#1C2333',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <FolderOpen size={20} color="#8B5CF6" />
-              </div>
-
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: '0.9375rem',
-                    fontWeight: 600,
-                    color: '#E8EDF4',
-                    marginBottom: '4px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {project.name}
-                </div>
-                <div
-                  style={{
-                    fontSize: '0.6875rem',
-                    color: '#4E5C72',
-                    marginBottom: '6px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                  }}
-                >
-                  {project.path}
-                </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <MarkerBadge label="CLAUDE.md" active={project.hasClaudeMd} />
-                  <MarkerBadge label="_index.md" active={project.hasIndex} />
-                  <MarkerBadge label=".claude/" active={project.hasClaude} />
-                  <MarkerBadge label=".mc.json" active={project.hasMcConfig} />
-                </div>
-              </div>
-
-              {/* Right: last opened + chevron */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-end',
-                  gap: '4px',
-                  flexShrink: 0,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.6875rem',
-                    color: '#4E5C72',
-                  }}
-                >
-                  <Clock size={12} />
-                  {formatRelativeTime(project.lastOpened)}
-                </div>
-                <ChevronRight size={16} color="#4E5C72" />
-              </div>
-            </button>
+              project={project}
+              onSelect={onSelect}
+            />
           ))}
 
         {/* Open directory button / input */}
         {!showInput ? (
-          <button
-            onClick={() => setShowInput(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '14px 20px',
-              backgroundColor: 'transparent',
-              border: '1px solid #2A3750',
-              borderRadius: '16px',
-              cursor: 'pointer',
-              color: '#8B99B3',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              fontFamily: "'Inter', system-ui, sans-serif",
-              transition: 'all 200ms ease',
-              width: '100%',
-              outline: 'none',
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = 'scale(0.97)';
-              e.currentTarget.style.transition = 'transform 100ms cubic-bezier(0.4, 0, 1, 1)';
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#3D5070';
-              e.currentTarget.style.color = '#E8EDF4';
-              e.currentTarget.style.backgroundColor = '#1C233322';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#2A3750';
-              e.currentTarget.style.color = '#8B99B3';
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-            }}
-          >
-            <FolderOpen size={16} />
-            Open a project directory
-          </button>
+          <OpenDirectoryButton onShow={() => setShowInput(true)} />
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              padding: '16px 20px',
-              backgroundColor: '#232D3F',
-              border: '1px solid #1E2A3B',
-              borderRadius: '16px',
+          <PathInputPanel
+            pathInput={pathInput}
+            setPathInput={setPathInput}
+            inputError={inputError}
+            setInputError={setInputError}
+            submitting={submitting}
+            onSubmit={handleOpenPath}
+            onCancel={() => {
+              setShowInput(false);
+              setPathInput('');
+              setInputError(null);
             }}
-          >
-            <label
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                color: '#8B99B3',
-              }}
-            >
-              Project path
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                value={pathInput}
-                onChange={(e) => {
-                  setPathInput(e.target.value);
-                  setInputError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleOpenPath();
-                  if (e.key === 'Escape') {
-                    setShowInput(false);
-                    setPathInput('');
-                    setInputError(null);
-                  }
-                }}
-                placeholder="/path/to/project"
-                autoFocus
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  backgroundColor: '#1A2236',
-                  border: `1px solid ${inputError ? '#F87171' : '#2A3750'}`,
-                  borderRadius: '8px',
-                  color: '#E8EDF4',
-                  fontSize: '0.875rem',
-                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                  outline: 'none',
-                  transition: 'border-color 150ms ease',
-                }}
-                onFocus={(e) => {
-                  if (!inputError) e.currentTarget.style.borderColor = '#2F74D0';
-                }}
-                onBlur={(e) => {
-                  if (!inputError) e.currentTarget.style.borderColor = '#2A3750';
-                }}
-              />
-              <button
-                onClick={handleOpenPath}
-                disabled={submitting || !pathInput.trim()}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: submitting ? '#1A4080' : '#2F74D0',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#E8EDF4',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: submitting ? 'wait' : 'pointer',
-                  fontFamily: "'Inter', system-ui, sans-serif",
-                  transition: 'background-color 150ms ease',
-                  opacity: !pathInput.trim() ? 0.5 : 1,
-                }}
-                onMouseDown={(e) => {
-                  e.currentTarget.style.transform = 'scale(0.97)';
-                  e.currentTarget.style.transition = 'transform 100ms cubic-bezier(0.4, 0, 1, 1)';
-                }}
-                onMouseUp={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-                }}
-                onMouseEnter={(e) => {
-                  if (!submitting) e.currentTarget.style.backgroundColor = '#4D8FE8';
-                }}
-                onMouseLeave={(e) => {
-                  if (!submitting) e.currentTarget.style.backgroundColor = '#2F74D0';
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-                }}
-              >
-                {submitting ? 'Opening...' : 'Open'}
-              </button>
-            </div>
-            {inputError && (
-              <div
-                style={{
-                  fontSize: '0.75rem',
-                  color: '#F87171',
-                }}
-              >
-                {inputError}
-              </div>
-            )}
-          </div>
+          />
         )}
-      </div>
+      </Flex>
 
       {/* Footer */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '24px',
-          color: '#4E5C72',
-          fontSize: '0.6875rem',
-        }}
+      <Text
+        position="absolute"
+        bottom="6"
+        color="text.muted"
+        fontSize="xs"
       >
         Mission Control v0.1.0
-      </div>
-    </div>
+      </Text>
+    </Flex>
+  );
+}
+
+/** Individual project card -- extracted to allow hook usage */
+function ProjectCard({
+  project,
+  onSelect,
+}: {
+  project: ActiveProject;
+  onSelect: (p: ActiveProject) => void;
+}) {
+  const pressHandlers = useButtonPress();
+
+  return (
+    <chakra.button
+      onClick={() => onSelect(project)}
+      display="flex"
+      alignItems="center"
+      gap="4"
+      p="4 5"
+      bg="bg.elevated"
+      border="1px solid"
+      borderColor="border.subtle"
+      borderRadius="xl"
+      cursor="pointer"
+      textAlign="left"
+      transition="all 200ms cubic-bezier(0.4, 0, 0.2, 1)"
+      w="100%"
+      outline="none"
+      {...pressHandlers}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget;
+        el.style.backgroundColor = '#2A3750';
+        el.style.borderColor = '#3D5070';
+        el.style.transform = 'translateY(-1px)';
+        el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.5)';
+      }}
+      onMouseLeave={(e) => {
+        pressHandlers.onMouseLeave(e);
+        const el = e.currentTarget;
+        el.style.backgroundColor = '';
+        el.style.borderColor = '';
+        el.style.transform = '';
+        el.style.boxShadow = '';
+      }}
+    >
+      {/* Icon */}
+      <Flex
+        w="40px"
+        h="40px"
+        borderRadius="lg"
+        bg="bg.surface"
+        align="center"
+        justify="center"
+        flexShrink={0}
+      >
+        <FolderOpen size={20} color="#8B5CF6" />
+      </Flex>
+
+      {/* Info */}
+      <Box flex={1} minW={0}>
+        <Text
+          fontSize="md"
+          fontWeight={600}
+          color="text.primary"
+          mb="1"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+        >
+          {project.name}
+        </Text>
+        <Text
+          fontSize="xs"
+          color="text.muted"
+          mb="6px"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+          fontFamily="mono"
+        >
+          {project.path}
+        </Text>
+        <Flex gap="6px" flexWrap="wrap" align="center">
+          <MarkerBadge label="CLAUDE.md" active={project.hasClaudeMd} />
+          <MarkerBadge label="_index.md" active={project.hasIndex} />
+          <MarkerBadge label=".claude/" active={project.hasClaude} />
+          <MarkerBadge label=".mc.json" active={project.hasMcConfig} />
+        </Flex>
+      </Box>
+
+      {/* Right: last opened + chevron */}
+      <Flex
+        direction="column"
+        align="flex-end"
+        gap="1"
+        flexShrink={0}
+      >
+        <Flex
+          align="center"
+          gap="1"
+          fontSize="xs"
+          color="text.muted"
+        >
+          <Clock size={12} />
+          {formatRelativeTime(project.lastOpened)}
+        </Flex>
+        <ChevronRight size={16} color="#4E5C72" />
+      </Flex>
+    </chakra.button>
+  );
+}
+
+/** Open directory button */
+function OpenDirectoryButton({ onShow }: { onShow: () => void }) {
+  const pressHandlers = useButtonPress();
+
+  return (
+    <chakra.button
+      onClick={onShow}
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      gap="2"
+      p="14px 20px"
+      bg="transparent"
+      border="1px solid"
+      borderColor="border.default"
+      borderRadius="xl"
+      cursor="pointer"
+      color="text.secondary"
+      fontSize="base"
+      fontWeight={500}
+      fontFamily="body"
+      transition="all 200ms ease"
+      w="100%"
+      outline="none"
+      {...pressHandlers}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = '#3D5070';
+        e.currentTarget.style.color = '#E8EDF4';
+        e.currentTarget.style.backgroundColor = 'rgba(28,35,51,0.13)';
+      }}
+      onMouseLeave={(e) => {
+        pressHandlers.onMouseLeave(e);
+        e.currentTarget.style.borderColor = '';
+        e.currentTarget.style.color = '';
+        e.currentTarget.style.backgroundColor = '';
+      }}
+    >
+      <FolderOpen size={16} />
+      Open a project directory
+    </chakra.button>
+  );
+}
+
+/** Path input panel for opening a project by path */
+function PathInputPanel({
+  pathInput,
+  setPathInput,
+  inputError,
+  setInputError,
+  submitting,
+  onSubmit,
+  onCancel,
+}: {
+  pathInput: string;
+  setPathInput: (v: string) => void;
+  inputError: string | null;
+  setInputError: (v: string | null) => void;
+  submitting: boolean;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  const submitPress = useButtonPress();
+
+  return (
+    <Flex
+      direction="column"
+      gap="2"
+      p="4 5"
+      bg="bg.elevated"
+      border="1px solid"
+      borderColor="border.subtle"
+      borderRadius="xl"
+    >
+      <Text
+        as="label"
+        fontSize="sm"
+        fontWeight={500}
+        color="text.secondary"
+      >
+        Project path
+      </Text>
+      <Flex gap="2">
+        <chakra.input
+          type="text"
+          value={pathInput}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            setPathInput(e.target.value);
+            setInputError(null);
+          }}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter') onSubmit();
+            if (e.key === 'Escape') onCancel();
+          }}
+          placeholder="/path/to/project"
+          autoFocus
+          flex={1}
+          p="2 3"
+          bg="bg.input"
+          border="1px solid"
+          borderColor={inputError ? 'semantic.error' : 'border.default'}
+          borderRadius="md"
+          color="text.primary"
+          fontSize="base"
+          fontFamily="mono"
+          outline="none"
+          transition="border-color 150ms ease"
+          _focus={{ borderColor: inputError ? 'semantic.error' : 'border.accent' }}
+        />
+        <chakra.button
+          onClick={onSubmit}
+          disabled={submitting || !pathInput.trim()}
+          p="2 4"
+          bg={submitting ? 'accent.blue.700' : 'accent.blue.500'}
+          border="none"
+          borderRadius="md"
+          color="text.primary"
+          fontSize="base"
+          fontWeight={600}
+          cursor={submitting ? 'wait' : 'pointer'}
+          fontFamily="body"
+          transition="background-color 150ms ease"
+          opacity={!pathInput.trim() ? 0.5 : 1}
+          {...submitPress}
+          onMouseEnter={(e) => {
+            if (!submitting) e.currentTarget.style.backgroundColor = '#4D8FE8';
+          }}
+          onMouseLeave={(e) => {
+            submitPress.onMouseLeave(e);
+            if (!submitting) e.currentTarget.style.backgroundColor = '';
+          }}
+        >
+          {submitting ? 'Opening...' : 'Open'}
+        </chakra.button>
+      </Flex>
+      {inputError && (
+        <Text
+          fontSize="sm"
+          color="semantic.error"
+        >
+          {inputError}
+        </Text>
+      )}
+    </Flex>
   );
 }

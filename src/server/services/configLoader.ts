@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { McConfig } from '../../shared/types.js';
 
@@ -6,13 +6,13 @@ const DEFAULT_CONFIG: McConfig = {
   port: 3002,
   bind: '127.0.0.1',
   columns: [
-    { id: 'idea', label: 'Idea', statuses: ['idea'] },
-    { id: 'spec', label: 'Spec', statuses: ['spec'] },
-    { id: 'plan', label: 'Plan', statuses: ['plan'] },
-    { id: 'in-progress', label: 'In Progress', statuses: ['in-progress'] },
-    { id: 'review', label: 'Review', statuses: ['review'] },
-    { id: 'complete', label: 'Complete', statuses: ['complete'] },
-    { id: 'blocked', label: 'Blocked', statuses: ['blocked'] },
+    { id: 'idea', label: 'Idea', color: 'gray', statuses: ['idea'] },
+    { id: 'spec', label: 'Spec', color: 'blue', statuses: ['spec'] },
+    { id: 'plan', label: 'Plan', color: 'purple', statuses: ['plan'] },
+    { id: 'in-progress', label: 'In Progress', color: 'orange', statuses: ['in-progress'] },
+    { id: 'review', label: 'Review', color: 'yellow', statuses: ['review'] },
+    { id: 'complete', label: 'Complete', color: 'green', statuses: ['complete'] },
+    { id: 'blocked', label: 'Blocked', color: 'red', statuses: ['blocked'] },
   ],
   actions: [
     { status: 'idea', label: 'Start Planning', command: '/sdlc-planning' },
@@ -24,15 +24,17 @@ const DEFAULT_CONFIG: McConfig = {
   ],
 };
 
-export function loadConfig(projectPath: string): McConfig {
+export async function loadConfig(projectPath: string): Promise<McConfig> {
   const configPath = path.join(projectPath, '.mc.json');
 
-  if (!fs.existsSync(configPath)) {
+  try {
+    await fs.access(configPath);
+  } catch {
     return { ...DEFAULT_CONFIG };
   }
 
   try {
-    const raw = fs.readFileSync(configPath, 'utf-8');
+    const raw = await fs.readFile(configPath, 'utf-8');
     const parsed = JSON.parse(raw);
 
     // Merge with defaults — user config overrides specific keys

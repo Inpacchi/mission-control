@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { CatalogEntry } from '../../shared/types.js';
 
@@ -53,16 +53,18 @@ function parseTableRow(line: string): ParsedRow | null {
   return { id, name, status, specLink, planLink, resultLink };
 }
 
-export function parse(projectPath: string): CatalogEntry[] {
+export async function parse(projectPath: string): Promise<CatalogEntry[]> {
   const indexPath = path.join(projectPath, 'docs', '_index.md');
 
-  if (!fs.existsSync(indexPath)) {
+  try {
+    await fs.access(indexPath);
+  } catch {
     return [];
   }
 
   let content: string;
   try {
-    content = fs.readFileSync(indexPath, 'utf-8');
+    content = await fs.readFile(indexPath, 'utf-8');
   } catch (err) {
     console.warn('[catalogParser] Failed to read _index.md:', err);
     return [];

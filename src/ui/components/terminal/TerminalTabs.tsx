@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, forwardRef } from 'react';
+import { Box, Flex, Text } from '@chakra-ui/react';
 import { X } from 'lucide-react';
 import { useDashboardStore } from '../../stores/dashboardStore';
 
@@ -28,33 +29,27 @@ export function TerminalTabs() {
 
   if (runningSessions.length === 0) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          height: '100%',
-          paddingLeft: '12px',
-          color: '#4E5C72',
-          fontSize: '0.75rem',
-          fontWeight: 500,
-        }}
+      <Flex
+        align="center"
+        h="100%"
+        pl="3"
+        color="text.muted"
+        fontSize="sm"
+        fontWeight={500}
       >
         No sessions
-      </div>
+      </Flex>
     );
   }
 
   return (
-    <div
+    <Flex
       ref={containerRef}
       role="tablist"
-      style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        height: '100%',
-        overflow: 'hidden',
-        position: 'relative',
-      }}
+      align="stretch"
+      h="100%"
+      overflow="hidden"
+      position="relative"
     >
       {runningSessions.map((session) => (
         <Tab
@@ -72,19 +67,17 @@ export function TerminalTabs() {
       ))}
 
       {/* Sliding underline indicator */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: `${indicatorStyle.left}px`,
-          width: `${indicatorStyle.width}px`,
-          height: '2px',
-          backgroundColor: '#8B5CF6',
-          transition: 'left 200ms cubic-bezier(0.4, 0, 0.2, 1), width 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-          pointerEvents: 'none',
-        }}
+      <Box
+        position="absolute"
+        bottom={0}
+        left={`${indicatorStyle.left}px`}
+        w={`${indicatorStyle.width}px`}
+        h="2px"
+        bg="accent.violet.400"
+        transition="left 200ms cubic-bezier(0.4, 0, 0.2, 1), width 200ms cubic-bezier(0.4, 0, 0.2, 1)"
+        pointerEvents="none"
       />
-    </div>
+    </Flex>
   );
 }
 
@@ -97,14 +90,12 @@ interface TabProps {
   onClose: () => void;
 }
 
-import { forwardRef } from 'react';
-
 const Tab = forwardRef<HTMLDivElement, TabProps>(
   function Tab({ sessionId: _sessionId, label, isActive, isExited, onSelect, onClose }, ref) {
     const [hovered, setHovered] = useState(false);
 
     return (
-      <div
+      <Flex
         ref={ref}
         role="tab"
         aria-selected={isActive}
@@ -112,80 +103,68 @@ const Tab = forwardRef<HTMLDivElement, TabProps>(
         onClick={onSelect}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '0 16px',
-          height: '100%',
-          cursor: 'pointer',
-          backgroundColor: isActive ? '#232D3F' : hovered ? '#2A3750' : 'transparent',
-          borderRight: '1px solid #1E2A3B',
-          color: isActive ? '#E8EDF4' : hovered ? '#E8EDF4' : '#8B99B3',
-          fontSize: '0.75rem',
-          fontWeight: 500,
-          transition: 'background-color 150ms ease, color 150ms ease',
-          position: 'relative',
-          maxWidth: '180px',
-          minWidth: '80px',
-        }}
+        align="center"
+        gap="2"
+        px="4"
+        h="100%"
+        cursor="pointer"
+        bg={isActive ? 'bg.elevated' : hovered ? 'bg.overlay' : 'transparent'}
+        borderRight="1px solid"
+        borderColor="border.subtle"
+        color={isActive ? 'text.primary' : hovered ? 'text.primary' : 'text.secondary'}
+        fontSize="sm"
+        fontWeight={500}
+        transition="background-color 150ms ease, color 150ms ease"
+        position="relative"
+        maxW="180px"
+        minW="80px"
       >
         {/* Session status dot */}
-        <div
-          style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '9999px',
-            backgroundColor: isExited ? '#F87171' : '#22C55E',
-            flexShrink: 0,
-          }}
+        <Box
+          w="6px"
+          h="6px"
+          borderRadius="full"
+          bg={isExited ? 'semantic.error' : 'semantic.success'}
+          flexShrink={0}
         />
 
         {/* Label */}
-        <span
-          style={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            flex: 1,
-          }}
+        <Text
+          as="span"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+          flex={1}
         >
           {label}
-        </span>
+        </Text>
 
         {/* Close button */}
-        <button
-          onClick={(e) => {
+        <Flex
+          as="button"
+          onClick={(e: React.MouseEvent) => {
             e.stopPropagation();
             onClose();
           }}
           aria-label="Kill session"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '14px',
-            height: '14px',
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: '#4E5C72',
-            cursor: 'pointer',
-            padding: 0,
-            opacity: hovered || isActive ? 1 : 0,
-            transition: 'opacity 150ms ease, color 100ms ease',
-            borderRadius: '2px',
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.color = '#8B99B3';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.color = '#4E5C72';
-          }}
+          align="center"
+          justify="center"
+          w="14px"
+          h="14px"
+          border="none"
+          bg="transparent"
+          color="text.muted"
+          cursor="pointer"
+          p={0}
+          opacity={hovered || isActive ? 1 : 0}
+          transition="opacity 150ms ease, color 100ms ease"
+          borderRadius="2px"
+          flexShrink={0}
+          _hover={{ color: 'text.secondary' }}
         >
           <X size={12} />
-        </button>
-      </div>
+        </Flex>
+      </Flex>
     );
   }
 );

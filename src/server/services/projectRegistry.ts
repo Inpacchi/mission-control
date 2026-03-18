@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import type { Project } from '../../shared/types.js';
 
 const MC_DIR = path.join(os.homedir(), '.mc');
@@ -9,6 +10,12 @@ const PROJECTS_FILE = path.join(MC_DIR, 'projects.json');
 interface ProjectsData {
   projects: Project[];
   lastUsed?: string;
+}
+
+export function generateSlug(projectPath: string): string {
+  const hash = crypto.createHash('sha256').update(projectPath).digest('hex').slice(0, 12);
+  const base = path.basename(projectPath).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `${base}-${hash}`;
 }
 
 function ensureMcDir(): void {
@@ -77,6 +84,7 @@ export function register(projectPath: string): Project {
   const project: Project = {
     path: absPath,
     name,
+    slug: generateSlug(absPath),
     lastOpened: now,
     ...markers,
   };

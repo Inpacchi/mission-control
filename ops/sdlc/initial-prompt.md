@@ -16,6 +16,23 @@ Please:
 
 ---
 
+## Migrating to Latest Framework
+
+After updating cc-sdlc and running `setup.sh` again, use this prompt to apply framework changes without losing project customizations:
+
+```
+Migrate my SDLC framework to the latest cc-sdlc version.
+
+Please:
+1. Read ops/sdlc/MIGRATE.md for instructions
+2. Check .sdlc-manifest.json for the previous source version
+3. Diff the cc-sdlc changes since that version
+4. Apply framework updates while preserving project customizations
+5. Show me a summary of what changed before committing
+```
+
+---
+
 ## For Existing Projects (with docs already organized)
 
 ```
@@ -39,6 +56,7 @@ Please read:
 | **Reconcile ad hoc work** | **"Let's catalog our ad hoc work"** |
 | **Audit compliance** | **"Let's run an SDLC compliance audit"** |
 | **Create a new agent** | **Use `/plugin-dev:agent-development`** |
+| **Migrate framework** | **"Migrate my SDLC framework to the latest cc-sdlc version"** |
 | Check process | "What's our SDLC workflow?" |
 
 ---
@@ -64,6 +82,7 @@ Please:
 | File | Purpose |
 |------|---------|
 | `ops/sdlc/BOOTSTRAP.md` | How to initialize a project |
+| `ops/sdlc/MIGRATE.md` | How to update an existing project to latest framework |
 | `ops/sdlc/process/overview.md` | The workflow |
 | `ops/sdlc/process/ad_hoc_reconciliation.md` | Rejoining process after ad hoc work |
 | `ops/sdlc/templates/` | Document templates |

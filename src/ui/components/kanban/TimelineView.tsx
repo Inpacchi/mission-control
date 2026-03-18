@@ -1,4 +1,6 @@
+import { Box, Flex, Text } from '@chakra-ui/react';
 import { FileText, Map, CheckSquare, Clock } from 'lucide-react';
+import { formatDate } from '../../utils/formatters';
 import type { Deliverable } from '@shared/types';
 
 interface TimelineViewProps {
@@ -13,18 +15,6 @@ interface TimelineEntry {
   filename: string;
 }
 
-function formatDate(isoDate: string): string {
-  try {
-    const d = new Date(isoDate);
-    const month = d.toLocaleString('en-US', { month: 'short' });
-    const day = d.getDate().toString().padStart(2, ' ');
-    const hours = d.getHours().toString().padStart(2, '0');
-    const mins = d.getMinutes().toString().padStart(2, '0');
-    return `${month} ${day}  ${hours}:${mins}`;
-  } catch {
-    return '';
-  }
-}
 
 function getTimelineEntries(deliverable: Deliverable): TimelineEntry[] {
   const entries: TimelineEntry[] = [];
@@ -82,136 +72,114 @@ export function TimelineView({ deliverable, expanded }: TimelineViewProps) {
   const hasEntries = entries.length > 0;
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateRows: expanded ? '1fr' : '0fr',
-        transition: expanded
+    <Box
+      display="grid"
+      gridTemplateRows={expanded ? '1fr' : '0fr'}
+      transition={
+        expanded
           ? 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)'
-          : 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)',
-      }}
+          : 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
+      }
     >
-      <div style={{ overflow: 'hidden' }}>
-        <div
-          style={{
-            marginTop: '8px',
-            paddingTop: '8px',
-            borderTop: '1px solid #1E2A3B',
-          }}
+      <Box overflow="hidden">
+        <Box
+          mt="2"
+          pt="2"
+          borderTop="1px solid"
+          borderColor="border.subtle"
         >
           {hasEntries ? (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px',
-                position: 'relative',
-              }}
+            <Flex
+              direction="column"
+              gap="2px"
+              position="relative"
             >
               {/* Timeline line */}
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '7px',
-                  top: '10px',
-                  bottom: '10px',
-                  width: '1px',
-                  backgroundColor: '#1E2A3B',
-                }}
+              <Box
+                position="absolute"
+                left="7px"
+                top="10px"
+                bottom="10px"
+                w="1px"
+                bg="border.subtle"
               />
 
               {entries.map((entry, i) => {
                 const Icon = entry.icon;
                 return (
-                  <div
+                  <Flex
                     key={i}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      height: '28px',
-                      position: 'relative',
-                    }}
+                    align="center"
+                    gap="2"
+                    h="28px"
+                    position="relative"
                   >
                     {/* Dot */}
-                    <div
-                      style={{
-                        width: '14px',
-                        height: '14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        zIndex: 1,
-                      }}
+                    <Flex
+                      w="14px"
+                      h="14px"
+                      align="center"
+                      justify="center"
+                      flexShrink={0}
+                      zIndex={1}
                     >
                       <Icon size={11} color={entry.color} />
-                    </div>
+                    </Flex>
 
                     {/* Label */}
-                    <span
-                      style={{
-                        fontSize: '0.6875rem',
-                        fontWeight: 500,
-                        color: entry.color,
-                        whiteSpace: 'nowrap',
-                      }}
+                    <Text
+                      fontSize="xs"
+                      fontWeight={500}
+                      color={entry.color}
+                      whiteSpace="nowrap"
                     >
                       {entry.label}
-                    </span>
+                    </Text>
 
                     {/* Filename */}
                     {entry.filename && (
-                      <span
-                        style={{
-                          fontSize: '0.6875rem',
-                          color: '#4E5C72',
-                          fontFamily: "'JetBrains Mono', monospace",
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          flex: 1,
-                          minWidth: 0,
-                        }}
+                      <Text
+                        fontSize="xs"
+                        color="text.muted"
+                        fontFamily="mono"
+                        whiteSpace="nowrap"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        flex={1}
+                        minW={0}
                       >
                         {entry.filename}
-                      </span>
+                      </Text>
                     )}
-                  </div>
+                  </Flex>
                 );
               })}
-            </div>
+            </Flex>
           ) : (
-            <div
-              style={{
-                height: '28px',
-                display: 'flex',
-                alignItems: 'center',
-                color: '#4E5C72',
-                fontSize: '0.6875rem',
-              }}
+            <Flex
+              h="28px"
+              align="center"
+              color="text.muted"
+              fontSize="xs"
             >
               No artifacts yet
-            </div>
+            </Flex>
           )}
 
           {/* Last modified */}
-          <div
-            style={{
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              color: '#4E5C72',
-              fontSize: '0.6875rem',
-              fontFamily: "'JetBrains Mono', monospace",
-              marginTop: '4px',
-            }}
+          <Flex
+            h="24px"
+            align="center"
+            justify="flex-end"
+            color="text.muted"
+            fontSize="xs"
+            fontFamily="mono"
+            mt="1"
           >
             Last modified: {formatDate(deliverable.lastModified)}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Flex>
+        </Box>
+      </Box>
+    </Box>
   );
 }

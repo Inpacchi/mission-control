@@ -1,6 +1,6 @@
 # Project Deliverable Catalog
 
-Next ID: **D2**
+Next ID: **D3**
 
 This is the single source of truth for all deliverable IDs and their statuses.
 
@@ -8,6 +8,7 @@ This is the single source of truth for all deliverable IDs and their statuses.
 
 | ID | Name | Status | Spec | Plan | Result |
 |----|------|--------|------|------|--------|
+| D2 | Tech Debt Cleanup | Complete | [spec](specs/d2_tech_debt_cleanup_spec.md) | [plan](planning/d2_tech_debt_cleanup_plan.md) | [result](results/d2_tech_debt_cleanup_result.md) |
 
 ## Completed Deliverables
 

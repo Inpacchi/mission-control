@@ -7,10 +7,10 @@ export function createConfigRouter(getProjectPath: string | (() => string)): Rou
   const resolvePath = typeof getProjectPath === 'function' ? getProjectPath : () => getProjectPath;
 
   // GET /api/config — current config (merged defaults + .mc.json)
-  router.get('/', (_req, res) => {
+  router.get('/', async (_req, res) => {
     try {
       const projectPath = resolvePath();
-      const config = loadConfig(projectPath);
+      const config = await loadConfig(projectPath);
       res.json({ ...config, projectPath });
     } catch (err) {
       console.error('[config] Error loading config:', err);

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useMemo } from 'react';
+import { Box, Flex, Text, Heading, Code, Link } from '@chakra-ui/react';
+import { chakra } from '@chakra-ui/react';
 import 'highlight.js/styles/github-dark.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,8 +12,36 @@ interface MarkdownPreviewProps {
 }
 
 /**
+ * Module-level promise that resolves to the initialised mermaid instance.
+ * Dynamic import ensures mermaid is code-split; the promise is created once
+ * so initialize() is called exactly once regardless of how many MermaidBlock
+ * components mount or re-render.
+ */
+const mermaidReady: Promise<typeof import('mermaid').default> = import('mermaid').then(
+  (mod) => {
+    const mermaid = mod.default;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#0D1117',
+        primaryColor: '#2F74D0',
+        primaryTextColor: '#E8EDF4',
+        primaryBorderColor: '#2A3750',
+        lineColor: '#4E5C72',
+        secondaryColor: '#1C2333',
+        tertiaryColor: '#232D3F',
+      },
+    });
+    return mermaid;
+  }
+);
+
+/**
  * Renders a Mermaid diagram block.
- * Uses dynamic import so mermaid is code-split and only loaded when needed.
+ * Uses the module-scoped mermaidReady promise so mermaid is code-split and
+ * initialize() is called exactly once.
  */
 function MermaidBlock({ code }: { code: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,21 +51,7 @@ function MermaidBlock({ code }: { code: string }) {
     let cancelled = false;
 
     async function render() {
-      const mermaid = (await import('mermaid')).default;
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: 'dark',
-        themeVariables: {
-          darkMode: true,
-          background: '#0D1117',
-          primaryColor: '#2F74D0',
-          primaryTextColor: '#E8EDF4',
-          primaryBorderColor: '#2A3750',
-          lineColor: '#4E5C72',
-          secondaryColor: '#1C2333',
-          tertiaryColor: '#232D3F',
-        },
-      });
+      const mermaid = await mermaidReady;
 
       if (cancelled || !containerRef.current) return;
 
@@ -58,18 +74,16 @@ function MermaidBlock({ code }: { code: string }) {
   }, [code]);
 
   return (
-    <div
+    <Flex
       ref={containerRef}
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        padding: '16px',
-        backgroundColor: '#0D1117',
-        border: '1px solid #1E2A3B',
-        borderRadius: '8px',
-        margin: '12px 0',
-        overflow: 'auto',
-      }}
+      justify="center"
+      p="4"
+      bg="bg.canvas"
+      border="1px solid"
+      borderColor="border.subtle"
+      borderRadius="md"
+      my="3"
+      overflow="auto"
     />
   );
 }
@@ -89,297 +103,279 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
         // Inline code
         if (!match) {
           return (
-            <code
-              style={{
-                fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-                fontSize: '0.8125rem',
-                backgroundColor: '#0D1117',
-                border: '1px solid #1E2A3B',
-                borderRadius: '4px',
-                padding: '2px 6px',
-                color: '#E8EDF4',
-              }}
+            <Code
+              fontFamily="mono"
+              fontSize="0.8125rem"
+              bg="bg.canvas"
+              border="1px solid"
+              borderColor="border.subtle"
+              borderRadius="sm"
+              px="6px"
+              py="2px"
+              color="text.primary"
               {...props}
             >
               {children}
-            </code>
+            </Code>
           );
         }
 
         // Block code with syntax highlighting
         return (
-          <code
+          <chakra.code
             className={className}
-            style={{
-              fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-              fontSize: '0.8125rem',
-              lineHeight: 1.6,
-            }}
+            fontFamily="mono"
+            fontSize="0.8125rem"
+            lineHeight={1.6}
             {...props}
           >
             {children}
-          </code>
+          </chakra.code>
         );
       },
 
       pre({ children }) {
         return (
-          <pre
-            style={{
-              backgroundColor: '#0D1117',
-              border: '1px solid #1E2A3B',
-              borderRadius: '8px',
-              padding: '16px',
-              margin: '12px 0',
-              overflowX: 'auto',
-              fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-              fontSize: '0.8125rem',
-              lineHeight: 1.6,
-            }}
+          <chakra.pre
+            bg="bg.canvas"
+            border="1px solid"
+            borderColor="border.subtle"
+            borderRadius="md"
+            p="4"
+            my="3"
+            overflowX="auto"
+            fontFamily="mono"
+            fontSize="0.8125rem"
+            lineHeight={1.6}
           >
             {children}
-          </pre>
+          </chakra.pre>
         );
       },
 
       h1({ children }) {
         return (
-          <h1
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              color: '#E8EDF4',
-              lineHeight: 1.2,
-              letterSpacing: '-0.03em',
-              marginTop: '24px',
-              marginBottom: '12px',
-              paddingBottom: '8px',
-              borderBottom: '1px solid #1E2A3B',
-            }}
+          <Heading
+            as="h1"
+            fontSize="2xl"
+            fontWeight={700}
+            color="text.primary"
+            lineHeight={1.2}
+            letterSpacing="-0.03em"
+            mt="6"
+            mb="3"
+            pb="2"
+            borderBottom="1px solid"
+            borderColor="border.subtle"
           >
             {children}
-          </h1>
+          </Heading>
         );
       },
 
       h2({ children }) {
         return (
-          <h2
-            style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: '#E8EDF4',
-              lineHeight: 1.3,
-              letterSpacing: '-0.02em',
-              marginTop: '20px',
-              marginBottom: '8px',
-              paddingBottom: '6px',
-              borderBottom: '1px solid #1E2A3B',
-            }}
+          <Heading
+            as="h2"
+            fontSize="xl"
+            fontWeight={600}
+            color="text.primary"
+            lineHeight={1.3}
+            letterSpacing="-0.02em"
+            mt="5"
+            mb="2"
+            pb="6px"
+            borderBottom="1px solid"
+            borderColor="border.subtle"
           >
             {children}
-          </h2>
+          </Heading>
         );
       },
 
       h3({ children }) {
         return (
-          <h3
-            style={{
-              fontSize: '1.0625rem',
-              fontWeight: 600,
-              color: '#E8EDF4',
-              lineHeight: 1.4,
-              letterSpacing: '-0.01em',
-              marginTop: '16px',
-              marginBottom: '8px',
-            }}
+          <Heading
+            as="h3"
+            fontSize="lg"
+            fontWeight={600}
+            color="text.primary"
+            lineHeight={1.4}
+            letterSpacing="-0.01em"
+            mt="4"
+            mb="2"
           >
             {children}
-          </h3>
+          </Heading>
         );
       },
 
       p({ children }) {
         return (
-          <p
-            style={{
-              fontSize: '0.875rem',
-              fontWeight: 400,
-              color: '#E8EDF4',
-              lineHeight: 1.6,
-              margin: '8px 0',
-            }}
+          <Text
+            fontSize="base"
+            fontWeight={400}
+            color="text.primary"
+            lineHeight={1.6}
+            my="2"
           >
             {children}
-          </p>
+          </Text>
         );
       },
 
       a({ href, children }) {
         return (
-          <a
+          <Link
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              color: '#7EB8F7',
-              textDecoration: 'none',
-              borderBottom: '1px solid transparent',
-              transition: 'border-color 150ms ease',
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.borderBottomColor = '#7EB8F7';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.borderBottomColor = 'transparent';
-            }}
+            color="text.accent"
+            textDecoration="none"
+            borderBottom="1px solid transparent"
+            transition="border-color 150ms ease"
+            _hover={{ borderBottomColor: 'text.accent' }}
           >
             {children}
-          </a>
+          </Link>
         );
       },
 
       ul({ children }) {
         return (
-          <ul
-            style={{
-              paddingLeft: '20px',
-              margin: '8px 0',
-              fontSize: '0.875rem',
-              color: '#E8EDF4',
-              lineHeight: 1.6,
-            }}
+          <chakra.ul
+            pl="5"
+            my="2"
+            fontSize="base"
+            color="text.primary"
+            lineHeight={1.6}
           >
             {children}
-          </ul>
+          </chakra.ul>
         );
       },
 
       ol({ children }) {
         return (
-          <ol
-            style={{
-              paddingLeft: '20px',
-              margin: '8px 0',
-              fontSize: '0.875rem',
-              color: '#E8EDF4',
-              lineHeight: 1.6,
-            }}
+          <chakra.ol
+            pl="5"
+            my="2"
+            fontSize="base"
+            color="text.primary"
+            lineHeight={1.6}
           >
             {children}
-          </ol>
+          </chakra.ol>
         );
       },
 
       li({ children }) {
         return (
-          <li
-            style={{
-              marginBottom: '4px',
-              color: '#E8EDF4',
-            }}
+          <chakra.li
+            mb="1"
+            color="text.primary"
           >
             {children}
-          </li>
+          </chakra.li>
         );
       },
 
       blockquote({ children }) {
         return (
-          <blockquote
-            style={{
-              borderLeft: '3px solid #2F74D0',
-              paddingLeft: '16px',
-              margin: '12px 0',
-              color: '#8B99B3',
-              fontStyle: 'italic',
-            }}
+          <chakra.blockquote
+            borderLeft="3px solid"
+            borderColor="accent.blue.500"
+            pl="4"
+            my="3"
+            color="text.secondary"
+            fontStyle="italic"
           >
             {children}
-          </blockquote>
+          </chakra.blockquote>
         );
       },
 
       table({ children }) {
         return (
-          <div style={{ overflowX: 'auto', margin: '12px 0' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                fontSize: '0.8125rem',
-              }}
+          <Box overflowX="auto" my="3">
+            <chakra.table
+              w="100%"
+              css={{ borderCollapse: 'collapse' }}
+              fontSize="0.8125rem"
             >
               {children}
-            </table>
-          </div>
+            </chakra.table>
+          </Box>
         );
       },
 
       th({ children }) {
         return (
-          <th
-            style={{
-              textAlign: 'left',
-              padding: '8px 12px',
-              borderBottom: '2px solid #2A3750',
-              color: '#E8EDF4',
-              fontWeight: 600,
-              fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.03em',
-            }}
+          <chakra.th
+            textAlign="left"
+            p="2 3"
+            borderBottom="2px solid"
+            borderColor="border.default"
+            color="text.primary"
+            fontWeight={600}
+            fontSize="sm"
+            textTransform="uppercase"
+            letterSpacing="0.03em"
           >
             {children}
-          </th>
+          </chakra.th>
         );
       },
 
       td({ children }) {
         return (
-          <td
-            style={{
-              padding: '6px 12px',
-              borderBottom: '1px solid #1E2A3B',
-              color: '#E8EDF4',
-            }}
+          <chakra.td
+            p="6px 12px"
+            borderBottom="1px solid"
+            borderColor="border.subtle"
+            color="text.primary"
           >
             {children}
-          </td>
+          </chakra.td>
         );
       },
 
       hr() {
         return (
-          <hr
-            style={{
-              border: 'none',
-              borderTop: '1px solid #1E2A3B',
-              margin: '16px 0',
-            }}
+          <Box
+            as="hr"
+            border="none"
+            borderTop="1px solid"
+            borderColor="border.subtle"
+            my="4"
           />
         );
       },
 
       strong({ children }) {
-        return <strong style={{ fontWeight: 600, color: '#E8EDF4' }}>{children}</strong>;
+        return (
+          <Text as="strong" fontWeight={600} color="text.primary">
+            {children}
+          </Text>
+        );
       },
 
       em({ children }) {
-        return <em style={{ color: '#8B99B3' }}>{children}</em>;
+        return (
+          <Text as="em" color="text.secondary">
+            {children}
+          </Text>
+        );
       },
     }),
     []
   );
 
   return (
-    <div
-      style={{
-        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-        color: '#E8EDF4',
-        lineHeight: 1.6,
-      }}
+    <Box
+      fontFamily="body"
+      color="text.primary"
+      lineHeight={1.6}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
@@ -388,6 +384,6 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
       >
         {content}
       </ReactMarkdown>
-    </div>
+    </Box>
   );
 }

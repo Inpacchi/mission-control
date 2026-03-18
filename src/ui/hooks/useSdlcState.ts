@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Deliverable, SdlcStats, WsMessage } from '@shared/types';
+import type { Deliverable, DeliverableStatus, SdlcStats, WsMessage } from '@shared/types';
 
 interface UseSdlcStateReturn {
   deliverables: Deliverable[];
@@ -47,6 +47,19 @@ export function useSdlcState({
     }
   }, []);
 
+  // Fetch only untracked count via REST (untracked is not in WebSocket broadcast)
+  const fetchUntrackedCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sdlc/stats');
+      if (!res.ok) return;
+      const data = await res.json();
+      // Only update untracked, preserving WebSocket-driven total/byStatus
+      setStats((prev) => prev ? { ...prev, untracked: data.untracked ?? 0 } : data);
+    } catch {
+      // Non-critical
+    }
+  }, []);
+
   // Initial fetch
   useEffect(() => {
     const load = async () => {
@@ -75,17 +88,29 @@ export function useSdlcState({
   // Listen for WebSocket updates
   useEffect(() => {
     const remove = addListener((msg: WsMessage) => {
-      if (msg.channel === 'watcher:sdlc' && msg.type === 'update') {
+      if (msg.channel !== 'watcher:sdlc') return;
+
+      if (msg.type === 'update') {
         const data = msg.data as { deliverables?: Deliverable[] };
         if (data.deliverables) {
           setDeliverables(data.deliverables);
         }
-        // Also refresh stats on SDLC updates
-        fetchStats();
+      }
+
+      if (msg.type === 'stats') {
+        const data = msg.data as { total: number; byStatus: Record<DeliverableStatus, number> };
+        // Merge WebSocket stats with existing untracked count (REST-only)
+        setStats((prev) => ({
+          total: data.total,
+          byStatus: data.byStatus,
+          untracked: prev?.untracked ?? 0,
+        }));
+        // Refresh untracked count since deliverables changed
+        fetchUntrackedCount();
       }
     });
     return remove;
-  }, [addListener, fetchStats]);
+  }, [addListener, fetchUntrackedCount]);
 
   return { deliverables, stats, loading, error };
 }

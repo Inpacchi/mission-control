@@ -22,7 +22,7 @@ function writeIndex(content: string): void {
 
 describe('catalogParser', () => {
   describe('well-formed catalog', () => {
-    it('should parse a table with deliverable rows', () => {
+    it('should parse a table with deliverable rows', async () => {
       writeIndex(`# Deliverable Catalog
 
 | ID | Name | Status |
@@ -32,14 +32,14 @@ describe('catalogParser', () => {
 | D3 | Search | Idea |
 `);
 
-      const entries = parse(tmpDir);
+      const entries = await parse(tmpDir);
       expect(entries).toHaveLength(3);
       expect(entries[0]).toMatchObject({ id: 'D1', name: 'Authentication', status: 'Complete' });
       expect(entries[1]).toMatchObject({ id: 'D2', name: 'Dashboard', status: 'In Progress' });
       expect(entries[2]).toMatchObject({ id: 'D3', name: 'Search', status: 'Idea' });
     });
 
-    it('should extract links from table cells', () => {
+    it('should extract links from table cells', async () => {
       writeIndex(`# Catalog
 
 | ID | Name | Status | Spec | Plan |
@@ -47,13 +47,13 @@ describe('catalogParser', () => {
 | D1 | Auth | Done | [spec](specs/d1_auth_spec.md) | [plan](planning/d1_auth_plan.md) |
 `);
 
-      const entries = parse(tmpDir);
+      const entries = await parse(tmpDir);
       expect(entries).toHaveLength(1);
       expect(entries[0].specLink).toBe('specs/d1_auth_spec.md');
       expect(entries[0].planLink).toBe('planning/d1_auth_plan.md');
     });
 
-    it('should extract result/complete links', () => {
+    it('should extract result/complete links', async () => {
       writeIndex(`# Catalog
 
 | ID | Name | Status | Result |
@@ -61,20 +61,20 @@ describe('catalogParser', () => {
 | D1 | Auth | Done | [result](results/d1_auth_result.md) |
 `);
 
-      const entries = parse(tmpDir);
+      const entries = await parse(tmpDir);
       expect(entries[0].resultLink).toBe('results/d1_auth_result.md');
     });
   });
 
   describe('missing _index.md', () => {
-    it('should return empty array when _index.md does not exist', () => {
-      const entries = parse(tmpDir);
+    it('should return empty array when _index.md does not exist', async () => {
+      const entries = await parse(tmpDir);
       expect(entries).toEqual([]);
     });
   });
 
   describe('malformed table rows', () => {
-    it('should skip rows without a deliverable ID', () => {
+    it('should skip rows without a deliverable ID', async () => {
       writeIndex(`# Catalog
 
 | ID | Name | Status |
@@ -84,13 +84,13 @@ describe('catalogParser', () => {
 | D2 | Search | Idea |
 `);
 
-      const entries = parse(tmpDir);
+      const entries = await parse(tmpDir);
       expect(entries).toHaveLength(2);
       expect(entries[0].id).toBe('D1');
       expect(entries[1].id).toBe('D2');
     });
 
-    it('should skip rows with too few cells', () => {
+    it('should skip rows with too few cells', async () => {
       writeIndex(`# Catalog
 
 | ID | Name | Status |
@@ -100,22 +100,22 @@ describe('catalogParser', () => {
 | D2 | Search | Idea |
 `);
 
-      const entries = parse(tmpDir);
+      const entries = await parse(tmpDir);
       // The single-pipe row has no meaningful cells, should be skipped
       expect(entries).toHaveLength(2);
     });
   });
 
   describe('empty file', () => {
-    it('should return empty array for empty _index.md', () => {
+    it('should return empty array for empty _index.md', async () => {
       writeIndex('');
-      const entries = parse(tmpDir);
+      const entries = await parse(tmpDir);
       expect(entries).toEqual([]);
     });
   });
 
   describe('case insensitive ID matching', () => {
-    it('should handle lowercase d prefix', () => {
+    it('should handle lowercase d prefix', async () => {
       writeIndex(`# Catalog
 
 | ID | Name | Status |
@@ -123,14 +123,14 @@ describe('catalogParser', () => {
 | d5 | Feature | Idea |
 `);
 
-      const entries = parse(tmpDir);
+      const entries = await parse(tmpDir);
       expect(entries).toHaveLength(1);
       expect(entries[0].id).toBe('D5');
     });
   });
 
   describe('sub-deliverable IDs', () => {
-    it('should parse IDs with letter suffixes', () => {
+    it('should parse IDs with letter suffixes', async () => {
       writeIndex(`# Catalog
 
 | ID | Name | Status |
@@ -139,7 +139,7 @@ describe('catalogParser', () => {
 | D1b | Sub-feature B | Idea |
 `);
 
-      const entries = parse(tmpDir);
+      const entries = await parse(tmpDir);
       expect(entries).toHaveLength(2);
       expect(entries[0].id).toBe('D1a');
       expect(entries[1].id).toBe('D1b');

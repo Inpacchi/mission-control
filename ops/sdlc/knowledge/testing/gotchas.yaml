@@ -112,15 +112,30 @@
 
 
 # ─── Project-Specific Gotchas ───
-# Add project-specific gotchas here as they are discovered.
-# Use the same structure: id, severity, symptom, cause, resolution, prevention, discovered, applies_to
-#
-# Example:
-# - id: your-gotcha-id
-#   severity: medium
-#   symptom: "What the tester sees"
-#   cause: "Why it happens (code-level explanation)"
-#   resolution: "How to fix it when it happens"
-#   prevention: "How to avoid it in future tests"
-#   discovered: "YYYY-MM-DD — context"
-#   applies_to: "your-project (affected area)"
+
+- id: mission-control-jsdom-missing
+  severity: high
+  symptom: "vitest reports '2 unhandled errors: Cannot find package jsdom' every run; ui test project silently produces 0 tests"
+  cause: "vitest.config.ts declares environment: 'jsdom' for the ui project but jsdom is not in devDependencies"
+  resolution: "npm install -D jsdom — then the ui vitest project initializes correctly"
+  prevention: "Before writing any src/ui test that touches DOM APIs or React rendering, verify jsdom is installed"
+  discovered: "2026-03-16 — D2 unit test authoring"
+  applies_to: "mission-control (src/ui test project)"
+
+- id: mission-control-formatdate-timezone
+  severity: medium
+  symptom: "formatDate/formatTimestamp tests produce different output on CI vs local — hour/minute values differ"
+  cause: "formatDate calls Date.prototype.getHours() and getMinutes() which return local time, not UTC"
+  resolution: "Set process.env.TZ = 'UTC' at the TOP of the test file, before any import statements that might construct a Date"
+  prevention: "Any test asserting exact formatted date output must pin timezone via TZ env var before imports"
+  discovered: "2026-03-16 — D2 formatters.test.ts authoring"
+  applies_to: "mission-control (src/ui/utils/formatters.ts)"
+
+- id: mission-control-slug-os-homedir-mock
+  severity: low
+  symptom: "Importing projectRegistry in tests triggers real ~/.mc filesystem access; test contamination"
+  cause: "projectRegistry.ts sets MC_DIR = path.join(os.homedir(), '.mc') at module load time"
+  resolution: "Use vi.hoisted + vi.mock('node:os') with mockReturnValue(tmpDir) BEFORE the dynamic import. See projectRegistry.test.ts for the full pattern."
+  prevention: "Only needed when tests exercise register/list/remove/getProject — not needed for generateSlug-only tests"
+  discovered: "2026-03-16 — confirmed from projectRegistry.test.ts pattern; generateSlug tests skip the mock safely"
+  applies_to: "mission-control (src/server/services/projectRegistry.ts)"

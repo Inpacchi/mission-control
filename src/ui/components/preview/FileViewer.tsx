@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Box, Flex, Text } from '@chakra-ui/react';
 import { X, FileText, Map, CheckSquare, AlertTriangle, RotateCcw } from 'lucide-react';
 import { MarkdownPreview } from './MarkdownPreview';
 import type { Deliverable } from '@shared/types';
@@ -118,217 +119,179 @@ export function FileViewer({ deliverable, open, onClose }: FileViewerProps) {
   const showTabs = tabs.length > 1;
 
   return (
-    <div
+    <Box
       ref={panelRef}
       role="complementary"
       aria-label={deliverable ? `${deliverable.name} preview` : 'Preview panel'}
-      style={{
-        width: open ? '380px' : '0px',
-        minWidth: open ? '380px' : '0px',
-        height: '100%',
-        overflow: 'hidden',
-        transition: open
-          ? 'width 250ms cubic-bezier(0, 0, 0.2, 1), min-width 250ms cubic-bezier(0, 0, 0.2, 1)'
-          : 'width 200ms cubic-bezier(0.4, 0, 1, 1), min-width 200ms cubic-bezier(0.4, 0, 1, 1)',
-        position: 'relative',
-      }}
+      w={open ? '380px' : '0px'}
+      minW={open ? '380px' : '0px'}
+      h="100%"
+      overflow="hidden"
+      transition={open
+        ? 'width 250ms cubic-bezier(0, 0, 0.2, 1), min-width 250ms cubic-bezier(0, 0, 0.2, 1)'
+        : 'width 200ms cubic-bezier(0.4, 0, 1, 1), min-width 200ms cubic-bezier(0.4, 0, 1, 1)'}
+      position="relative"
     >
-      <div
-        style={{
-          width: '380px',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: '#1C2333',
-          borderLeft: '1px solid #2A3750',
-          boxShadow: open ? '-4px 0 24px rgba(0,0,0,0.5)' : 'none',
-          transform: open ? 'translateX(0)' : 'translateX(100%)',
-          opacity: open ? 1 : 0.6,
-          transition: open
-            ? 'transform 250ms cubic-bezier(0, 0, 0.2, 1), opacity 250ms cubic-bezier(0, 0, 0.2, 1)'
-            : 'transform 200ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms cubic-bezier(0.4, 0, 1, 1)',
-        }}
+      <Flex
+        w="380px"
+        h="100%"
+        direction="column"
+        bg="bg.surface"
+        borderLeft="1px solid"
+        borderColor="border.default"
+        boxShadow={open ? '-4px 0 24px rgba(0,0,0,0.5)' : 'none'}
+        transform={open ? 'translateX(0)' : 'translateX(100%)'}
+        opacity={open ? 1 : 0.6}
+        transition={open
+          ? 'transform 250ms cubic-bezier(0, 0, 0.2, 1), opacity 250ms cubic-bezier(0, 0, 0.2, 1)'
+          : 'transform 200ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms cubic-bezier(0.4, 0, 1, 1)'}
       >
-        {/* Header — 48px */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            height: '48px',
-            minHeight: '48px',
-            padding: '0 16px',
-            borderBottom: '1px solid #1E2A3B',
-          }}
+        {/* Header -- 48px */}
+        <Flex
+          align="center"
+          h="48px"
+          minH="48px"
+          px="4"
+          borderBottom="1px solid"
+          borderColor="border.subtle"
         >
           {deliverable && (
             <>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '2px 6px',
-                  backgroundColor: '#0D1117',
-                  border: '1px solid #1E2A3B',
-                  borderRadius: '4px',
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: '#7EB8F7',
-                  flexShrink: 0,
-                  marginRight: '8px',
-                }}
+              <Text
+                as="span"
+                display="inline-flex"
+                alignItems="center"
+                p="2px 6px"
+                bg="bg.canvas"
+                border="1px solid"
+                borderColor="border.subtle"
+                borderRadius="sm"
+                fontFamily="mono"
+                fontSize="sm"
+                fontWeight={600}
+                color="text.accent"
+                flexShrink={0}
+                mr="2"
               >
                 {deliverable.id.toUpperCase()}
-              </span>
-              <span
-                style={{
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: '#E8EDF4',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  flex: 1,
-                }}
+              </Text>
+              <Text
+                as="span"
+                fontSize="base"
+                fontWeight={500}
+                color="text.primary"
+                whiteSpace="nowrap"
+                overflow="hidden"
+                textOverflow="ellipsis"
+                flex={1}
               >
                 {deliverable.name}
-              </span>
+              </Text>
             </>
           )}
 
-          <button
+          <Flex
+            as="button"
             onClick={onClose}
             aria-label="Close preview"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: '#4E5C72',
-              cursor: 'pointer',
-              borderRadius: '8px',
-              flexShrink: 0,
-              marginLeft: '8px',
-              transition: 'background-color 100ms ease, color 100ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#2A3750';
-              e.currentTarget.style.color = '#8B99B3';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#4E5C72';
-            }}
+            align="center"
+            justify="center"
+            w="32px"
+            h="32px"
+            border="none"
+            bg="transparent"
+            color="text.muted"
+            cursor="pointer"
+            borderRadius="md"
+            flexShrink={0}
+            ml="2"
+            transition="background-color 100ms ease, color 100ms ease"
+            _hover={{ bg: 'bg.overlay', color: 'text.secondary' }}
           >
             <X size={16} />
-          </button>
-        </div>
+          </Flex>
+        </Flex>
 
-        {/* Tab bar — 40px, only if multiple docs */}
+        {/* Tab bar -- 40px, only if multiple docs */}
         {showTabs && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'stretch',
-              height: '40px',
-              minHeight: '40px',
-              backgroundColor: '#1C2333',
-              borderBottom: '1px solid #1E2A3B',
-              position: 'relative',
-            }}
+          <Flex
+            align="stretch"
+            h="40px"
+            minH="40px"
+            bg="bg.surface"
+            borderBottom="1px solid"
+            borderColor="border.subtle"
+            position="relative"
           >
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
               return (
-                <button
+                <Flex
                   key={tab.key}
+                  as="button"
                   onClick={() => switchTab(tab.key)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '0 16px',
-                    height: '100%',
-                    border: 'none',
-                    borderBottom: isActive ? '2px solid #4D8FE8' : '2px solid transparent',
-                    backgroundColor: 'transparent',
-                    color: isActive ? '#E8EDF4' : '#8B99B3',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'color 150ms ease, background-color 150ms ease, border-color 250ms cubic-bezier(0.4, 0, 0.2, 1)',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.backgroundColor = '#2A3750';
-                      e.currentTarget.style.color = '#E8EDF4';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#8B99B3';
-                    }
-                  }}
+                  align="center"
+                  gap="6px"
+                  px="4"
+                  h="100%"
+                  border="none"
+                  borderBottom="2px solid"
+                  borderColor={isActive ? 'accent.blue.400' : 'transparent'}
+                  bg="transparent"
+                  color={isActive ? 'text.primary' : 'text.secondary'}
+                  fontSize="sm"
+                  fontWeight={500}
+                  cursor="pointer"
+                  transition="color 150ms ease, background-color 150ms ease, border-color 250ms cubic-bezier(0.4, 0, 0.2, 1)"
+                  _hover={isActive ? {} : { bg: 'bg.overlay', color: 'text.primary' }}
                 >
                   <Icon size={14} />
                   {tab.label}
-                </button>
+                </Flex>
               );
             })}
-          </div>
+          </Flex>
         )}
 
         {/* Body */}
-        <div
-          style={{
-            flex: 1,
-            padding: '20px 24px',
-            overflowY: 'auto',
-            opacity: fadeState === 'fading-out' ? 0 : 1,
-            transition:
-              fadeState === 'fading-out'
-                ? 'opacity 80ms ease-in'
-                : 'opacity 150ms ease-out',
-          }}
+        <Box
+          flex={1}
+          p="5 6"
+          overflowY="auto"
+          opacity={fadeState === 'fading-out' ? 0 : 1}
+          transition={fadeState === 'fading-out'
+            ? 'opacity 80ms ease-in'
+            : 'opacity 150ms ease-out'}
         >
           {loading && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100px',
-                color: '#4E5C72',
-                fontSize: '0.75rem',
-              }}
+            <Flex
+              align="center"
+              justify="center"
+              h="100px"
+              color="text.muted"
+              fontSize="sm"
             >
               Loading...
-            </div>
+            </Flex>
           )}
 
           {error && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '24px',
-                textAlign: 'center',
-              }}
+            <Flex
+              direction="column"
+              align="center"
+              justify="center"
+              gap="2"
+              p="6"
+              textAlign="center"
             >
               <AlertTriangle size={28} color="#F87171" />
-              <span style={{ fontSize: '0.875rem', color: '#E8EDF4' }}>
+              <Text fontSize="base" color="text.primary">
                 Failed to load file
-              </span>
-              <span style={{ fontSize: '0.75rem', color: '#8B99B3' }}>{error}</span>
-              <button
+              </Text>
+              <Text fontSize="sm" color="text.secondary">{error}</Text>
+              <Flex
+                as="button"
                 onClick={() => {
                   setError(null);
                   // Re-trigger fetch by toggling tab off and back on
@@ -336,64 +299,55 @@ export function FileViewer({ deliverable, open, onClose }: FileViewerProps) {
                   setActiveTab(null);
                   setTimeout(() => setActiveTab(current), 0);
                 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  marginTop: '4px',
-                  padding: '6px 14px',
-                  backgroundColor: '#232D3F',
-                  border: '1px solid #2A3750',
-                  borderRadius: '8px',
-                  color: '#8B99B3',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#2A3750';
-                  e.currentTarget.style.borderColor = '#3D5070';
-                  e.currentTarget.style.color = '#E8EDF4';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#232D3F';
-                  e.currentTarget.style.borderColor = '#2A3750';
-                  e.currentTarget.style.color = '#8B99B3';
+                align="center"
+                gap="6px"
+                mt="1"
+                px="14px"
+                py="6px"
+                bg="bg.elevated"
+                border="1px solid"
+                borderColor="border.default"
+                borderRadius="md"
+                color="text.secondary"
+                fontSize="sm"
+                fontWeight={500}
+                cursor="pointer"
+                transition="background-color 150ms ease, border-color 150ms ease, color 150ms ease"
+                _hover={{
+                  bg: 'bg.overlay',
+                  borderColor: 'border.strong',
+                  color: 'text.primary',
                 }}
               >
                 <RotateCcw size={14} />
                 Retry
-              </button>
-            </div>
+              </Flex>
+            </Flex>
           )}
 
           {!loading && !error && content && <MarkdownPreview content={content} />}
 
           {!loading && !error && !content && deliverable && tabs.length === 0 && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '24px',
-                textAlign: 'center',
-                color: '#4E5C72',
-              }}
+            <Flex
+              direction="column"
+              align="center"
+              justify="center"
+              gap="2"
+              p="6"
+              textAlign="center"
+              color="text.muted"
             >
               <FileText size={28} />
-              <span style={{ fontSize: '0.875rem', color: '#8B99B3' }}>
+              <Text fontSize="base" color="text.secondary">
                 No documents yet
-              </span>
-              <span style={{ fontSize: '0.75rem' }}>
+              </Text>
+              <Text fontSize="sm">
                 Create a spec or plan to see it here
-              </span>
-            </div>
+              </Text>
+            </Flex>
           )}
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Flex>
+    </Box>
   );
 }

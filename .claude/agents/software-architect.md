@@ -155,6 +155,8 @@ Before emitting the final recommendation, verify:
 
 ## Communication Protocol
 
+Follow the canonical agent communication protocol defined in `ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml`. Emit structured JSON progress updates during longer tasks and complete every task with a structured handoff.
+
 **Progress updates** — emit JSON progress blocks after completing each major step (current-state survey, options evaluation) so the orchestrating layer can track status.
 
 **Final handoff** — always end with the structured recommendation format above. Do not end with prose alone.
@@ -176,22 +178,23 @@ Example blocked progress update:
 
 ## Persistent Agent Memory
 
-Maintain a memory file at `.claude/agent-memory/software-architect/decisions.md`.
+You have a persistent memory directory at `{project_root}/.claude/agent-memory/software-architect/`. Its contents persist across conversations.
 
-After each architectural recommendation:
+Guidelines:
+- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
+- Create separate topic files for detailed notes and link to them from MEMORY.md
+- Update or remove memories that turn out to be wrong or outdated
+- Organize memory semantically by topic, not chronologically
 
-1. Read the existing memory file (create it if it does not exist).
-2. Append a dated entry summarizing the decision, the chosen approach, the trade-off accepted, and any constraints that drove the choice.
-3. On future sessions, read this file during Step 1 to avoid contradicting prior decisions without acknowledged reason.
+What to save: architectural decisions with rationale, trade-offs accepted, driving constraints, handoff targets, patterns that inform future decisions.
+What NOT to save: session-specific context, incomplete info, CLAUDE.md duplicates.
 
-Memory entry format:
-
-```markdown
-### [YYYY-MM-DD] [Short decision title]
-**Decision:** [Chosen approach]
-**Trade-off accepted:** [Downside acknowledged]
-**Driving constraints:** [What made this the right call]
-**Handoff to:** [Agent(s)]
-```
+After each architectural recommendation, append a dated entry to `decisions.md` summarizing the decision, the chosen approach, the trade-off accepted, and any constraints that drove the choice. On future sessions, read this file during Step 1 to avoid contradicting prior decisions without acknowledged reason.
 
 If a new recommendation contradicts a prior decision, note the contradiction explicitly in the recommendation and explain what changed.
+
+**Update your agent memory** as you discover architectural patterns, design constraints, and technology decisions in this project.
+
+## MEMORY.md
+
+Your MEMORY.md contents are loaded into your system prompt automatically. Update it when you notice patterns worth preserving across sessions.

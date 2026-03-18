@@ -1,31 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Box, Flex, Text, chakra } from '@chakra-ui/react';
 import { AlertCircle, ChevronDown, GitBranch, GitCommit } from 'lucide-react';
-import type { UntrackedCommit, WsMessage } from '@shared/types';
+import { useButtonPress } from '../../hooks/useButtonPress';
+import { formatCommitDate } from '../../utils/formatters';
+import type { UntrackedCommit } from '@shared/types';
 import { useDashboardStore } from '../../stores/dashboardStore';
 
 interface AdHocTrackerProps {
-  wsSend: (msg: WsMessage) => void;
   defaultCollapsed?: boolean;
 }
 
-function formatCommitDate(isoDate: string): string {
-  try {
-    const d = new Date(isoDate);
-    const month = d.toLocaleString('en-US', { month: 'short' });
-    const day = d.getDate().toString().padStart(2, ' ');
-    return `${month} ${day}`;
-  } catch {
-    return '';
-  }
-}
-
-export function AdHocTracker({ wsSend, defaultCollapsed = true }: AdHocTrackerProps) {
+export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [commits, setCommits] = useState<UntrackedCommit[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reconciling, setReconciling] = useState(false);
   const { addSession, toggleTerminal } = useDashboardStore();
+  const pressHandlers = useButtonPress();
 
   const fetchUntracked = useCallback(async () => {
     setLoading(true);
@@ -66,73 +58,61 @@ export function AdHocTracker({ wsSend, defaultCollapsed = true }: AdHocTrackerPr
         toggleTerminal(false); // Expand terminal
       }
     } catch {
-      // Session creation failed — user can see in terminal
+      // Session creation failed -- user can see in terminal
     } finally {
       setReconciling(false);
     }
   }, []);
 
   return (
-    <div
-      style={{
-        backgroundColor: '#1C2333',
-        borderRadius: '12px',
-        border: '1px solid #1E2A3B',
-        overflow: 'hidden',
-      }}
+    <Box
+      bg="bg.surface"
+      borderRadius="lg"
+      border="1px solid"
+      borderColor="border.subtle"
+      overflow="hidden"
     >
       {/* Header */}
-      <button
+      <Flex
+        as="button"
         onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          width: '100%',
-          padding: '12px 16px',
-          border: 'none',
-          backgroundColor: 'transparent',
-          cursor: 'pointer',
-          color: '#E8EDF4',
-          transition: 'background-color 100ms ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#232D3F';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }}
+        align="center"
+        gap="2"
+        w="100%"
+        p="3 4"
+        border="none"
+        bg="transparent"
+        cursor="pointer"
+        color="text.primary"
+        transition="background-color 100ms ease"
+        _hover={{ bg: 'bg.elevated' }}
       >
         <GitBranch size={16} color="#A78BFA" />
-        <span
-          style={{
-            fontSize: '0.9375rem',
-            fontWeight: 600,
-            letterSpacing: '-0.01em',
-            flex: 1,
-            textAlign: 'left',
-          }}
+        <Text
+          fontSize="md"
+          fontWeight={600}
+          letterSpacing="-0.01em"
+          flex={1}
+          textAlign="left"
         >
           Ad Hoc Commits
-        </span>
+        </Text>
         {commits.length > 0 && (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: '20px',
-              height: '20px',
-              padding: '0 6px',
-              backgroundColor: '#A78BFA26',
-              color: '#A78BFA',
-              borderRadius: '9999px',
-              fontSize: '0.6875rem',
-              fontWeight: 700,
-            }}
+          <Flex
+            as="span"
+            align="center"
+            justify="center"
+            minW="20px"
+            h="20px"
+            px="6px"
+            bg="#A78BFA26"
+            color="column.idea"
+            borderRadius="full"
+            fontSize="xs"
+            fontWeight={700}
           >
             {commits.length}
-          </span>
+          </Flex>
         )}
         <ChevronDown
           size={14}
@@ -142,182 +122,145 @@ export function AdHocTracker({ wsSend, defaultCollapsed = true }: AdHocTrackerPr
             transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
           }}
         />
-      </button>
+      </Flex>
 
       {/* Collapsible body */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateRows: collapsed ? '0fr' : '1fr',
-          transition: collapsed
-            ? 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
-            : 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)',
-        }}
+      <Box
+        display="grid"
+        gridTemplateRows={collapsed ? '0fr' : '1fr'}
+        transition={collapsed
+          ? 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
+          : 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)'}
       >
-        <div style={{ overflow: 'hidden' }}>
-          <div
-            style={{
-              borderTop: '1px solid #1E2A3B',
-              padding: '12px 16px',
-            }}
+        <Box overflow="hidden">
+          <Box
+            borderTop="1px solid"
+            borderColor="border.subtle"
+            p="3 4"
           >
             {loading && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '16px',
-                  color: '#4E5C72',
-                  fontSize: '0.75rem',
-                }}
+              <Text
+                textAlign="center"
+                p="4"
+                color="text.muted"
+                fontSize="sm"
               >
                 Loading...
-              </div>
+              </Text>
             )}
 
             {error && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  backgroundColor: '#2D0A0A',
-                  borderRadius: '8px',
-                  color: '#F87171',
-                  fontSize: '0.75rem',
-                }}
+              <Flex
+                align="center"
+                gap="2"
+                p="2 3"
+                bg="semantic.error.bg"
+                borderRadius="md"
+                color="semantic.error"
+                fontSize="sm"
               >
                 <AlertCircle size={16} color="#F87171" style={{ flexShrink: 0 }} />
                 {error}
-              </div>
+              </Flex>
             )}
 
             {!loading && !error && commits.length === 0 && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '16px',
-                  color: '#4E5C72',
-                  fontSize: '0.75rem',
-                }}
+              <Text
+                textAlign="center"
+                p="4"
+                color="text.muted"
+                fontSize="sm"
               >
                 No untracked ad hoc commits
-              </div>
+              </Text>
             )}
 
             {!loading && !error && commits.length > 0 && (
               <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
+                <Flex direction="column" gap="1" mb="3">
                   {commits.map((commit) => (
-                    <div
+                    <Flex
                       key={commit.hash}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        transition: 'background-color 100ms ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#232D3F';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
+                      align="center"
+                      gap="2"
+                      p="6px 10px"
+                      borderRadius="sm"
+                      transition="background-color 100ms ease"
+                      _hover={{ bg: 'bg.elevated' }}
                     >
                       <GitCommit size={12} color="#4E5C72" style={{ flexShrink: 0 }} />
-                      <span
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: '0.6875rem',
-                          color: '#7EB8F7',
-                          flexShrink: 0,
-                        }}
+                      <Text
+                        as="span"
+                        fontFamily="mono"
+                        fontSize="xs"
+                        color="text.accent"
+                        flexShrink={0}
                       >
                         {commit.hash.slice(0, 7)}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.8125rem',
-                          color: '#E8EDF4',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          flex: 1,
-                          minWidth: 0,
-                        }}
+                      </Text>
+                      <Text
+                        as="span"
+                        fontSize="0.8125rem"
+                        color="text.primary"
+                        whiteSpace="nowrap"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        flex={1}
+                        minW={0}
                       >
                         {commit.message}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.625rem',
-                          color: '#4E5C72',
-                          fontFamily: "'JetBrains Mono', monospace",
-                          whiteSpace: 'nowrap',
-                          flexShrink: 0,
-                        }}
+                      </Text>
+                      <Text
+                        as="span"
+                        fontSize="0.625rem"
+                        color="text.muted"
+                        fontFamily="mono"
+                        whiteSpace="nowrap"
+                        flexShrink={0}
                       >
                         {formatCommitDate(commit.date)}
-                      </span>
-                    </div>
+                      </Text>
+                    </Flex>
                   ))}
-                </div>
+                </Flex>
 
                 {/* Reconcile button */}
-                <button
-                  onClick={handleReconcile}
-                  disabled={reconciling}
+                <chakra.button
+                  onClick={reconciling ? undefined : handleReconcile}
+                  aria-disabled={reconciling}
                   aria-label="Reconcile untracked commits"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    width: '100%',
-                    padding: '8px 16px',
-                    backgroundColor: '#232D3F',
-                    border: '1px solid #2A3750',
-                    borderRadius: '8px',
-                    color: '#8B99B3',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    cursor: reconciling ? 'not-allowed' : 'pointer',
-                    opacity: reconciling ? 0.4 : 1,
-                    transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease',
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  gap="6px"
+                  w="100%"
+                  px="4"
+                  py="2"
+                  bg="bg.elevated"
+                  border="1px solid"
+                  borderColor="border.default"
+                  borderRadius="md"
+                  color="text.secondary"
+                  fontSize="sm"
+                  fontWeight={500}
+                  cursor={reconciling ? 'not-allowed' : 'pointer'}
+                  opacity={reconciling ? 0.4 : 1}
+                  transition="background-color 150ms ease, border-color 150ms ease, color 150ms ease"
+                  _hover={reconciling ? {} : {
+                    bg: 'bg.overlay',
+                    borderColor: 'border.strong',
+                    color: 'text.primary',
                   }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'scale(0.97)';
-                    e.currentTarget.style.transition = 'transform 100ms cubic-bezier(0.4, 0, 1, 1)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!reconciling) {
-                      e.currentTarget.style.backgroundColor = '#2A3750';
-                      e.currentTarget.style.borderColor = '#3D5070';
-                      e.currentTarget.style.color = '#E8EDF4';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#232D3F';
-                    e.currentTarget.style.borderColor = '#2A3750';
-                    e.currentTarget.style.color = '#8B99B3';
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.transition = 'transform 150ms cubic-bezier(0, 0, 0.2, 1)';
-                  }}
+                  {...pressHandlers}
                 >
                   <GitBranch size={14} />
                   {reconciling ? 'Reconciling...' : 'Reconcile'}
-                </button>
+                </chakra.button>
               </>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }

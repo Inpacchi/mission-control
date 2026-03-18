@@ -1,3 +1,4 @@
+import { Flex, Text } from '@chakra-ui/react';
 import {
   Lightbulb,
   FileText,
@@ -52,97 +53,80 @@ export function KanbanColumn({ label, deliverables, color, wsSend }: KanbanColum
   const count = deliverables.length;
 
   return (
-    <div
-      style={{
-        width: '260px',
-        minWidth: '260px',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-      }}
+    <Flex
+      w="260px"
+      minW="260px"
+      direction="column"
+      h="100%"
     >
       {/* Column header */}
-      <div
-        style={{
-          height: '52px',
-          minHeight: '52px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 12px',
-          backgroundColor: columnHeaderBgMap[label] || `${color}14`,
-          borderTop: `2px solid ${color}99`,
-          borderBottom: '1px solid #1E2A3B',
-          borderRadius: '8px 8px 0 0',
-        }}
+      <Flex
+        h="52px"
+        minH="52px"
+        align="center"
+        justify="space-between"
+        px="3"
+        bg={columnHeaderBgMap[label] || `${color}14`}
+        borderTop={`2px solid ${color}99`}
+        borderBottom="1px solid"
+        borderBottomColor="border.subtle"
+        borderRadius="md md 0 0"
       >
-        <span
-          style={{
-            fontSize: '1.0625rem',
-            fontWeight: 600,
-            lineHeight: 1.4,
-            letterSpacing: '-0.01em',
-            color: color,
-          }}
+        <Text
+          fontSize="lg"
+          fontWeight={600}
+          lineHeight={1.4}
+          letterSpacing="-0.01em"
+          color={color}
         >
           {label}
-        </span>
+        </Text>
 
         {/* Count badge */}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: '22px',
-            height: '22px',
-            padding: '0 6px',
-            borderRadius: '9999px',
-            backgroundColor: `${color}26`, // ~15% opacity
-            color: color,
-            fontSize: '0.75rem',
-            fontWeight: 700,
-          }}
+        <Flex
+          as="span"
+          align="center"
+          justify="center"
+          minW="22px"
+          h="22px"
+          px="6px"
+          borderRadius="full"
+          bg={`${color}26`}
+          color={color}
+          fontSize="sm"
+          fontWeight={700}
         >
           {count}
-        </span>
-      </div>
+        </Flex>
+      </Flex>
 
       {/* Card list */}
-      <div
+      <Flex
         className="kanban-column-body"
         role="list"
         aria-label={`${label} column, ${count} items`}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '8px 8px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-        }}
+        flex={1}
+        overflowY="auto"
+        p="2"
+        direction="column"
+        gap="2"
       >
         {deliverables.length === 0 ? (
-          <div
-            style={{
-              minHeight: '80px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-            }}
+          <Flex
+            minH="80px"
+            direction="column"
+            align="center"
+            justify="center"
+            gap="2"
           >
             {emptyStateIcons[label] || <Lightbulb size={24} color="#4E5C72" />}
-            <span
-              style={{
-                fontSize: '0.75rem',
-                color: '#4E5C72',
-              }}
+            <Text
+              fontSize="sm"
+              color="text.muted"
             >
               {emptyStateMessages[label] || 'Empty'}
-            </span>
-          </div>
+            </Text>
+          </Flex>
         ) : (
           deliverables.map((d) => (
             <DeliverableCard
@@ -153,7 +137,7 @@ export function KanbanColumn({ label, deliverables, color, wsSend }: KanbanColum
             />
           ))
         )}
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 }

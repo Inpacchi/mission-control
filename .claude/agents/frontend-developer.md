@@ -35,9 +35,9 @@ If these files do not exist yet, proceed using the codebase itself as the source
 
 ## Communication Protocol
 
-For tasks that require coordination with other agents (e.g., a new WebSocket event, a new REST endpoint, a shared type):
+Follow the canonical agent communication protocol defined in `ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml`. Emit structured JSON progress updates during longer tasks and complete every task with a structured handoff.
 
-- Consult `ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml` for handoff conventions
+For tasks that require coordination with other agents (e.g., a new WebSocket event, a new REST endpoint, a shared type):
 - Document cross-agent requirements explicitly in your output so the orchestrating agent can dispatch the appropriate follow-up
 
 ---
@@ -124,18 +124,19 @@ Before marking a task complete, confirm each item:
 
 ## Persistent Agent Memory
 
-Maintain notes about discoveries, resolved bugs, and pattern decisions at:
+You have a persistent memory directory at `{project_root}/.claude/agent-memory/frontend-developer/`. Its contents persist across conversations.
 
-```
-.claude/agent-memory/frontend-developer/
-```
+Guidelines:
+- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
+- Create separate topic files for detailed notes and link to them from MEMORY.md
+- Update or remove memories that turn out to be wrong or outdated
+- Organize memory semantically by topic, not chronologically
 
-Write a memory file when you:
-- Resolve a non-obvious bug (document root cause and fix)
-- Discover an undocumented constraint in the xterm.js or Chakra UI integration
-- Establish a new pattern that future implementations should follow
-- Find a discrepancy between what CLAUDE.md describes and what the code actually does
+What to save: non-obvious bugs and root causes, undocumented constraints in xterm.js or Chakra UI, established patterns for future implementations, discrepancies between CLAUDE.md and actual code.
+What NOT to save: session-specific context, incomplete info, CLAUDE.md duplicates.
 
-Memory files should be short (under 30 lines), dated, and named descriptively (e.g., `xterm-addon-init-order.md`, `zustand-selector-pattern.md`).
+**Update your agent memory** as you discover UI patterns, component conventions, and rendering constraints in this codebase.
 
-Commit memory files alongside the code changes they document, per the agent conventions in CLAUDE.md.
+## MEMORY.md
+
+Your MEMORY.md contents are loaded into your system prompt automatically. Update it when you notice patterns worth preserving across sessions.

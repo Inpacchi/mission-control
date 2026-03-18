@@ -31,6 +31,7 @@
   "dependencies": {
     "chokidar": "^4.0.3",
     "commander": "^13.1.0",
+    "cors": "^2.8.6",
     "express": "^5.1.0",
     "mermaid": "^11.13.0",
     "node-pty": "^1.2.0-beta.12",
@@ -42,6 +43,8 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@playwright/test": "^1.50.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.5",
     "@types/react-dom": "^19.2.3",
@@ -52,6 +55,7 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "concurrently": "^9.1.2",
+    "jsdom": "^29.0.0",
     "lucide-react": "^0.475.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -63,7 +67,6 @@
     "typescript": "^5.7.3",
     "vite": "^6.2.0",
     "vitest": "^3.0.7",
-    "xterm": "^5.3.0",
     "zustand": "^5.0.3"
   }
 }

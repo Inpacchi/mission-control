@@ -2,20 +2,19 @@ import { describe, it, expect, afterEach, afterAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { generateSlug } from '../projectRegistry.js';
 
-// Check if node-pty is available
-function checkPtyAvailable(): boolean {
+// Check if node-pty is available (ESM-compatible: use dynamic import)
+async function checkPtyAvailable(): Promise<boolean> {
   try {
-    // Attempt a dynamic require check — if node-pty is installed and compiled
-    // this will succeed
-    require.resolve('node-pty');
+    await import('node-pty');
     return true;
   } catch {
     return false;
   }
 }
 
-const canSpawnPty = checkPtyAvailable();
+const canSpawnPty = await checkPtyAvailable();
 
 let tmpProjectPath: string;
 const sessionIds: string[] = [];
@@ -26,7 +25,7 @@ function makeTmpProjectDir(): string {
 
 function cleanup() {
   if (tmpProjectPath) {
-    const slug = path.basename(tmpProjectPath).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const slug = generateSlug(tmpProjectPath);
     const sessionDir = path.join(os.homedir(), '.mc', 'sessions', slug);
     if (fs.existsSync(sessionDir)) {
       fs.rmSync(sessionDir, { recursive: true, force: true });
@@ -61,7 +60,7 @@ describe.skipIf(!canSpawnPty)('Session lifecycle (PTY integration)', () => {
     // terminalManager if claude binary is available.
 
     // Test session store lifecycle directly
-    const entry = sessionStore.createSession(tmpProjectPath, 'echo hello');
+    const entry = await sessionStore.createSession(tmpProjectPath, 'echo hello');
     sessionIds.push(entry.id);
 
     expect(entry.id).toBeTruthy();
@@ -69,17 +68,17 @@ describe.skipIf(!canSpawnPty)('Session lifecycle (PTY integration)', () => {
     expect(fs.existsSync(entry.logFile)).toBe(true);
 
     // Append some log data (simulating PTY output)
-    sessionStore.appendLog(entry.id, tmpProjectPath, 'hello\r\n');
+    await sessionStore.appendLog(entry.id, tmpProjectPath, 'hello\r\n');
 
-    const log = sessionStore.getSessionLog(entry.id, tmpProjectPath);
+    const log = await sessionStore.getSessionLog(entry.id, tmpProjectPath);
     expect(log).toBe('hello\r\n');
 
     // Finalize (simulating PTY exit)
-    sessionStore.finalizeSession(entry.id, tmpProjectPath);
+    await sessionStore.finalizeSession(entry.id, tmpProjectPath);
 
     // Verify session is finalized
-    const sessions = sessionStore.listSessions(tmpProjectPath);
-    const finalized = sessions.find((s) => s.id === entry.id);
+    const sessions = await sessionStore.listSessions(tmpProjectPath);
+    const finalized = sessions.find((s: { id: string }) => s.id === entry.id);
     expect(finalized).toBeTruthy();
     expect(finalized!.endedAt).toBeTruthy();
   });

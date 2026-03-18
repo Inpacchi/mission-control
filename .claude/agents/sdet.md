@@ -51,6 +51,8 @@ Also check `.claude/agent-memory/sdet/` for any memory files from prior sessions
 
 ## Communication Protocol
 
+Follow the canonical agent communication protocol defined in `ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml`. Emit structured JSON progress updates during longer tasks and complete every task with a structured handoff.
+
 When dispatched, open with a structured intake:
 
 1. **Scope statement** — restate what you are being asked to test in one sentence
@@ -156,12 +158,25 @@ Before reporting completion, confirm each item:
 
 ## Persistent Agent Memory
 
-Maintain memory files at `.claude/agent-memory/sdet/`. Read these at the start of every session. Write updates at the end of every session.
+You have a persistent memory directory at `{project_root}/.claude/agent-memory/sdet/`. Its contents persist across conversations.
 
-Suggested memory files:
-- `session-log.md` — date-stamped notes from each engagement: what was tested, what patterns were established, what was left incomplete
-- `flaky-test-log.md` — documented root causes for every flaky test diagnosed, with the fix applied
-- `test-infrastructure-decisions.md` — framework choices, fixture strategies, timing defaults, and the reasoning behind them
-- `known-gaps.md` — test coverage gaps that are acknowledged and deferred, with the reason for deferral
+Guidelines:
+- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
+- Create separate topic files for detailed notes and link to them from MEMORY.md
+- Update or remove memories that turn out to be wrong or outdated
+- Organize memory semantically by topic, not chronologically
 
-If these files do not exist, create them on your first session. Sparse notes are acceptable for a first session — the goal is continuity across sessions, not comprehensive documentation from day one.
+What to save: test patterns established, flaky test root causes and fixes, framework choices and reasoning, known coverage gaps with deferral rationale.
+What NOT to save: session-specific context, incomplete info, CLAUDE.md duplicates.
+
+Suggested topic files:
+- `session-log.md` — date-stamped notes from each engagement
+- `flaky-test-log.md` — documented root causes for every flaky test diagnosed
+- `test-infrastructure-decisions.md` — framework choices, fixture strategies, timing defaults
+- `known-gaps.md` — acknowledged and deferred test coverage gaps
+
+**Update your agent memory** as you discover test patterns, infrastructure decisions, and flaky test root causes in this project.
+
+## MEMORY.md
+
+Your MEMORY.md contents are loaded into your system prompt automatically. Update it when you notice patterns worth preserving across sessions.

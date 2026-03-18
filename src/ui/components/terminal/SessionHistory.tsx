@@ -1,22 +1,11 @@
 import { useCallback, useState } from 'react';
+import { Box, Flex, Text, chakra } from '@chakra-ui/react';
 import { History, Search, ChevronDown, Terminal, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { useSessionHistory } from '../../hooks/useSessionHistory';
+import { formatDate } from '../../utils/formatters';
 
 interface SessionHistoryProps {
   defaultCollapsed?: boolean;
-}
-
-function formatDate(isoDate: string): string {
-  try {
-    const d = new Date(isoDate);
-    const month = d.toLocaleString('en-US', { month: 'short' });
-    const day = d.getDate().toString().padStart(2, ' ');
-    const hours = d.getHours().toString().padStart(2, '0');
-    const mins = d.getMinutes().toString().padStart(2, '0');
-    return `${month} ${day}  ${hours}:${mins}`;
-  } catch {
-    return '';
-  }
 }
 
 function formatBytes(bytes: number): string {
@@ -65,57 +54,45 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
   );
 
   return (
-    <div
-      style={{
-        backgroundColor: '#1C2333',
-        borderRadius: '12px',
-        border: '1px solid #1E2A3B',
-        overflow: 'hidden',
-      }}
+    <Box
+      bg="bg.surface"
+      borderRadius="lg"
+      border="1px solid"
+      borderColor="border.subtle"
+      overflow="hidden"
     >
       {/* Header */}
-      <button
+      <Flex
+        as="button"
         onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          width: '100%',
-          padding: '12px 16px',
-          border: 'none',
-          backgroundColor: 'transparent',
-          cursor: 'pointer',
-          color: '#E8EDF4',
-          transition: 'background-color 100ms ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#232D3F';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }}
+        align="center"
+        gap="2"
+        w="100%"
+        p="3 4"
+        border="none"
+        bg="transparent"
+        cursor="pointer"
+        color="text.primary"
+        transition="background-color 100ms ease"
+        _hover={{ bg: 'bg.elevated' }}
       >
         <History size={16} color="#8B5CF6" />
-        <span
-          style={{
-            fontSize: '0.9375rem',
-            fontWeight: 600,
-            letterSpacing: '-0.01em',
-            flex: 1,
-            textAlign: 'left',
-          }}
+        <Text
+          fontSize="md"
+          fontWeight={600}
+          letterSpacing="-0.01em"
+          flex={1}
+          textAlign="left"
         >
           Session History
-        </span>
-        <span
-          style={{
-            fontSize: '0.6875rem',
-            color: '#4E5C72',
-            fontWeight: 500,
-          }}
+        </Text>
+        <Text
+          fontSize="xs"
+          color="text.muted"
+          fontWeight={500}
         >
           {sessions.length} sessions
-        </span>
+        </Text>
         <ChevronDown
           size={14}
           color="#4E5C72"
@@ -124,156 +101,132 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
             transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
           }}
         />
-      </button>
+      </Flex>
 
       {/* Collapsible body */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateRows: collapsed ? '0fr' : '1fr',
-          transition: collapsed
-            ? 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
-            : 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)',
-        }}
+      <Box
+        display="grid"
+        gridTemplateRows={collapsed ? '0fr' : '1fr'}
+        transition={collapsed
+          ? 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
+          : 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)'}
       >
-        <div style={{ overflow: 'hidden' }}>
-          <div
-            style={{
-              borderTop: '1px solid #1E2A3B',
-              padding: '12px 16px',
-            }}
+        <Box overflow="hidden">
+          <Box
+            borderTop="1px solid"
+            borderColor="border.subtle"
+            p="3 4"
           >
             {/* Search + Date filter */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 12px',
-                  backgroundColor: '#1A2236',
-                  border: '1px solid #1E2A3B',
-                  borderRadius: '8px',
-                  flex: 1,
-                }}
+            <Flex gap="2" mb="3">
+              <Flex
+                align="center"
+                gap="2"
+                px="3"
+                py="6px"
+                bg="bg.input"
+                border="1px solid"
+                borderColor="border.subtle"
+                borderRadius="md"
+                flex={1}
               >
                 <Search size={14} color="#4E5C72" />
-                <input
+                <chakra.input
                   type="text"
                   placeholder="Search sessions..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    flex: 1,
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: '#E8EDF4',
-                    fontSize: '0.75rem',
-                    outline: 'none',
-                    fontFamily: "'Inter', system-ui, sans-serif",
-                  }}
+                  flex={1}
+                  border="none"
+                  bg="transparent"
+                  color="text.primary"
+                  fontSize="sm"
+                  outline="none"
+                  fontFamily="body"
                 />
-              </div>
-              <input
+              </Flex>
+              <chakra.input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                style={{
-                  padding: '6px 10px',
-                  backgroundColor: '#1A2236',
-                  border: '1px solid #1E2A3B',
-                  borderRadius: '8px',
-                  color: '#8B99B3',
-                  fontSize: '0.75rem',
-                  outline: 'none',
-                  fontFamily: "'JetBrains Mono', monospace",
-                  colorScheme: 'dark',
-                }}
+                px="10px"
+                py="6px"
+                bg="bg.input"
+                border="1px solid"
+                borderColor="border.subtle"
+                borderRadius="md"
+                color="text.secondary"
+                fontSize="sm"
+                outline="none"
+                fontFamily="mono"
+                colorScheme="dark"
               />
-            </div>
+            </Flex>
 
             {loading && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '16px',
-                  color: '#4E5C72',
-                  fontSize: '0.75rem',
-                }}
+              <Text
+                textAlign="center"
+                p="4"
+                color="text.muted"
+                fontSize="sm"
               >
                 Loading...
-              </div>
+              </Text>
             )}
 
             {error && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#2D0A0A',
-                  borderRadius: '8px',
-                  color: '#F87171',
-                  fontSize: '0.75rem',
-                }}
+              <Box
+                p="2 3"
+                bg="semantic.error.bg"
+                borderRadius="md"
+                color="semantic.error"
+                fontSize="sm"
               >
                 {error}
-              </div>
+              </Box>
             )}
 
             {!loading && !error && sessions.length === 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '24px',
-                  textAlign: 'center',
-                }}
+              <Flex
+                direction="column"
+                align="center"
+                gap="2"
+                p="6"
+                textAlign="center"
               >
                 <History size={32} color="#4E5C72" />
-                <span style={{ fontSize: '0.875rem', color: '#8B99B3' }}>
+                <Text fontSize="base" color="text.secondary">
                   No session history yet
-                </span>
-                <span style={{ fontSize: '0.75rem', color: '#4E5C72' }}>
+                </Text>
+                <Text fontSize="sm" color="text.muted">
                   Sessions are saved automatically when closed
-                </span>
-              </div>
+                </Text>
+              </Flex>
             )}
 
             {!loading && !error && sessions.length > 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  maxHeight: '320px',
-                  overflowY: 'auto',
-                }}
+              <Flex
+                direction="column"
+                gap="1"
+                maxH="320px"
+                overflowY="auto"
               >
                 {sessions.map((session) => {
                   const isViewing = viewingLog === session.id;
                   const exitOk = session.exitCode === 0;
 
                   return (
-                    <div key={session.id}>
-                      <div
+                    <Box key={session.id}>
+                      <Flex
                         onClick={() => handleViewLog(session.id)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '8px 10px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          backgroundColor: isViewing ? '#232D3F' : 'transparent',
-                          transition: 'background-color 100ms ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isViewing) e.currentTarget.style.backgroundColor = '#232D3F';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isViewing) e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
+                        align="center"
+                        gap="2"
+                        p="2 10px"
+                        borderRadius="sm"
+                        cursor="pointer"
+                        bg={isViewing ? 'bg.elevated' : 'transparent'}
+                        transition="background-color 100ms ease"
+                        _hover={{ bg: 'bg.elevated' }}
                       >
                         {/* Exit code indicator */}
                         {session.exitCode !== undefined ? (
@@ -287,94 +240,88 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
                         )}
 
                         {/* Command */}
-                        <span
-                          style={{
-                            fontSize: '0.8125rem',
-                            color: '#E8EDF4',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            flex: 1,
-                            minWidth: 0,
-                            fontFamily: "'JetBrains Mono', monospace",
-                          }}
+                        <Text
+                          as="span"
+                          fontSize="0.8125rem"
+                          color="text.primary"
+                          whiteSpace="nowrap"
+                          overflow="hidden"
+                          textOverflow="ellipsis"
+                          flex={1}
+                          minW={0}
+                          fontFamily="mono"
                         >
                           {session.command || 'claude'}
-                        </span>
+                        </Text>
 
                         {/* Date */}
-                        <span
-                          style={{
-                            fontSize: '0.625rem',
-                            color: '#4E5C72',
-                            fontFamily: "'JetBrains Mono', monospace",
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                          }}
+                        <Text
+                          as="span"
+                          fontSize="0.625rem"
+                          color="text.muted"
+                          fontFamily="mono"
+                          whiteSpace="nowrap"
+                          flexShrink={0}
                         >
                           {formatDate(session.startedAt)}
-                        </span>
+                        </Text>
 
                         {/* Log size */}
                         {session.logSize !== undefined && session.logSize > 0 && (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              fontSize: '0.625rem',
-                              color: '#4E5C72',
-                              flexShrink: 0,
-                            }}
+                          <Text
+                            as="span"
+                            display="inline-flex"
+                            alignItems="center"
+                            gap="3px"
+                            fontSize="0.625rem"
+                            color="text.muted"
+                            flexShrink={0}
                           >
                             <FileText size={10} />
                             {formatBytes(session.logSize)}
-                          </span>
+                          </Text>
                         )}
-                      </div>
+                      </Flex>
 
                       {/* Log viewer */}
                       {isViewing && (
-                        <div
-                          style={{
-                            margin: '4px 0 4px 24px',
-                            padding: '12px',
-                            backgroundColor: '#0D1117',
-                            border: '1px solid #1E2A3B',
-                            borderRadius: '8px',
-                            maxHeight: '200px',
-                            overflowY: 'auto',
-                          }}
+                        <Box
+                          m="1 0 1 24px"
+                          p="3"
+                          bg="bg.canvas"
+                          border="1px solid"
+                          borderColor="border.subtle"
+                          borderRadius="md"
+                          maxH="200px"
+                          overflowY="auto"
                         >
                           {logLoading ? (
-                            <span style={{ color: '#4E5C72', fontSize: '0.75rem' }}>
+                            <Text color="text.muted" fontSize="sm">
                               Loading log...
-                            </span>
+                            </Text>
                           ) : (
-                            <pre
-                              style={{
-                                fontFamily: "'JetBrains Mono', monospace",
-                                fontSize: '0.6875rem',
-                                lineHeight: 1.5,
-                                color: '#C9D1D9',
-                                margin: 0,
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-all',
-                              }}
+                            <chakra.pre
+                              fontFamily="mono"
+                              fontSize="xs"
+                              lineHeight={1.5}
+                              color="#C9D1D9"
+                              m={0}
+                              whiteSpace="pre-wrap"
+                              wordBreak="break-all"
                             >
                               {logContent || 'No log content available'}
-                            </pre>
+                            </chakra.pre>
                           )}
-                        </div>
+                        </Box>
                       )}
-                    </div>
+                    </Box>
                   );
                 })}
-              </div>
+              </Flex>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }

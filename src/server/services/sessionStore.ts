@@ -1,7 +1,8 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { generateSlug } from './projectRegistry.js';
 
 const MC_DIR = path.join(os.homedir(), '.mc');
 const SESSIONS_DIR = path.join(MC_DIR, 'sessions');
@@ -24,15 +25,9 @@ export interface SessionLogEntry {
   logFile: string;
 }
 
-function projectSlug(projectPath: string): string {
-  return path.basename(projectPath).replace(/[^a-zA-Z0-9_-]/g, '_');
-}
-
-function ensureSessionDir(projectPath: string): string {
-  const dir = path.join(SESSIONS_DIR, projectSlug(projectPath));
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+async function ensureSessionDir(projectPath: string): Promise<string> {
+  const dir = path.join(SESSIONS_DIR, generateSlug(projectPath));
+  await fs.mkdir(dir, { recursive: true });
   return dir;
 }
 
@@ -44,9 +39,9 @@ function logPath(sessionDir: string, sessionId: string): string {
   return path.join(sessionDir, `${sessionId}.log`);
 }
 
-export function createSession(projectPath: string, command?: string): SessionLogEntry {
+export async function createSession(projectPath: string, command?: string): Promise<SessionLogEntry> {
   const id = crypto.randomUUID();
-  const dir = ensureSessionDir(projectPath);
+  const dir = await ensureSessionDir(projectPath);
   const now = new Date().toISOString();
   const logFile = logPath(dir, id);
 
@@ -59,60 +54,64 @@ export function createSession(projectPath: string, command?: string): SessionLog
   };
 
   // Write metadata
-  fs.writeFileSync(metaPath(dir, id), JSON.stringify(entry, null, 2), 'utf-8');
+  await fs.writeFile(metaPath(dir, id), JSON.stringify(entry, null, 2), 'utf-8');
 
   // Create empty log file
-  fs.writeFileSync(logFile, '', 'utf-8');
+  await fs.writeFile(logFile, '', 'utf-8');
 
   return entry;
 }
 
-export function appendLog(sessionId: string, projectPath: string, data: string): void {
+export async function appendLog(sessionId: string, projectPath: string, data: string): Promise<void> {
   validateSessionId(sessionId);
-  const dir = ensureSessionDir(projectPath);
+  const dir = await ensureSessionDir(projectPath);
   const lp = logPath(dir, sessionId);
 
   // Check size cap
   try {
-    const stat = fs.statSync(lp);
+    const stat = await fs.stat(lp);
     if (stat.size >= MAX_LOG_SIZE) return;
   } catch {
     // File might not exist yet
     return;
   }
 
-  fs.appendFileSync(lp, data, 'utf-8');
+  await fs.appendFile(lp, data, 'utf-8');
 }
 
-export function finalizeSession(sessionId: string, projectPath: string): void {
+export async function finalizeSession(sessionId: string, projectPath: string): Promise<void> {
   validateSessionId(sessionId);
-  const dir = ensureSessionDir(projectPath);
+  const dir = await ensureSessionDir(projectPath);
   const mp = metaPath(dir, sessionId);
 
-  if (!fs.existsSync(mp)) return;
+  try {
+    await fs.access(mp);
+  } catch {
+    return;
+  }
 
   try {
-    const entry = JSON.parse(fs.readFileSync(mp, 'utf-8')) as SessionLogEntry;
+    const entry = JSON.parse(await fs.readFile(mp, 'utf-8')) as SessionLogEntry;
     entry.endedAt = new Date().toISOString();
-    fs.writeFileSync(mp, JSON.stringify(entry, null, 2), 'utf-8');
+    await fs.writeFile(mp, JSON.stringify(entry, null, 2), 'utf-8');
   } catch {
     // Ignore parse errors
   }
 
   // Run pruning
-  pruneOldSessions(projectPath);
+  await pruneOldSessions(projectPath);
 }
 
-export function listSessions(projectPath: string, limit = 50): SessionLogEntry[] {
-  const dir = ensureSessionDir(projectPath);
+export async function listSessions(projectPath: string, limit = 50): Promise<SessionLogEntry[]> {
+  const dir = await ensureSessionDir(projectPath);
   const entries: SessionLogEntry[] = [];
 
   try {
-    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.meta.json'));
+    const files = (await fs.readdir(dir)).filter((f) => f.endsWith('.meta.json'));
 
     for (const file of files) {
       try {
-        const raw = fs.readFileSync(path.join(dir, file), 'utf-8');
+        const raw = await fs.readFile(path.join(dir, file), 'utf-8');
         entries.push(JSON.parse(raw) as SessionLogEntry);
       } catch {
         // Skip unparseable files
@@ -127,22 +126,20 @@ export function listSessions(projectPath: string, limit = 50): SessionLogEntry[]
   return entries.slice(0, limit);
 }
 
-export function getSessionLog(sessionId: string, projectPath: string): string | null {
+export async function getSessionLog(sessionId: string, projectPath: string): Promise<string | null> {
   validateSessionId(sessionId);
-  const dir = ensureSessionDir(projectPath);
+  const dir = await ensureSessionDir(projectPath);
   const lp = logPath(dir, sessionId);
 
-  if (!fs.existsSync(lp)) return null;
-
   try {
-    return fs.readFileSync(lp, 'utf-8');
+    return await fs.readFile(lp, 'utf-8');
   } catch {
     return null;
   }
 }
 
-export function searchSessions(projectPath: string, query: string, limit = 20): SessionLogEntry[] {
-  const all = listSessions(projectPath, 100);
+export async function searchSessions(projectPath: string, query: string, limit = 20): Promise<SessionLogEntry[]> {
+  const all = await listSessions(projectPath, 100);
   const results: SessionLogEntry[] = [];
 
   for (const entry of all) {
@@ -155,11 +152,9 @@ export function searchSessions(projectPath: string, query: string, limit = 20): 
     }
 
     try {
-      if (fs.existsSync(entry.logFile)) {
-        const content = fs.readFileSync(entry.logFile, 'utf-8');
-        if (content.includes(query)) {
-          results.push(entry);
-        }
+      const content = await fs.readFile(entry.logFile, 'utf-8');
+      if (content.includes(query)) {
+        results.push(entry);
       }
     } catch {
       // Skip unreadable logs
@@ -169,16 +164,16 @@ export function searchSessions(projectPath: string, query: string, limit = 20): 
   return results;
 }
 
-function pruneOldSessions(projectPath: string): void {
-  const dir = ensureSessionDir(projectPath);
+async function pruneOldSessions(projectPath: string): Promise<void> {
+  const dir = await ensureSessionDir(projectPath);
   const cutoff = Date.now() - PRUNE_AGE_MS;
 
   try {
-    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.meta.json'));
+    const files = (await fs.readdir(dir)).filter((f) => f.endsWith('.meta.json'));
 
     for (const file of files) {
       try {
-        const raw = fs.readFileSync(path.join(dir, file), 'utf-8');
+        const raw = await fs.readFile(path.join(dir, file), 'utf-8');
         const entry = JSON.parse(raw) as SessionLogEntry;
         const entryDate = new Date(entry.endedAt || entry.startedAt).getTime();
 
@@ -186,8 +181,12 @@ function pruneOldSessions(projectPath: string): void {
           const sessionId = file.replace('.meta.json', '');
           const lp = logPath(dir, sessionId);
 
-          fs.unlinkSync(path.join(dir, file));
-          if (fs.existsSync(lp)) fs.unlinkSync(lp);
+          await fs.unlink(path.join(dir, file));
+          try {
+            await fs.unlink(lp);
+          } catch {
+            // Log file may not exist
+          }
         }
       } catch {
         // Skip unparseable, don't delete
@@ -199,9 +198,9 @@ function pruneOldSessions(projectPath: string): void {
 }
 
 // Run pruning on import (startup)
-export function initSessionStore(projectPath: string): void {
+export async function initSessionStore(projectPath: string): Promise<void> {
   try {
-    pruneOldSessions(projectPath);
+    await pruneOldSessions(projectPath);
   } catch {
     // Non-fatal
   }

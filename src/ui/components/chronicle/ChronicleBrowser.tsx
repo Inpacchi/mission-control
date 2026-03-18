@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Box, Flex, Text, chakra } from '@chakra-ui/react';
 import { AlertCircle, Archive, ChevronDown, Search } from 'lucide-react';
 import type { ChronicleEntry } from '@shared/types';
 
@@ -54,57 +55,45 @@ export function ChronicleBrowser({ defaultCollapsed = true }: ChronicleBrowserPr
   }, {});
 
   return (
-    <div
-      style={{
-        backgroundColor: '#1C2333',
-        borderRadius: '12px',
-        border: '1px solid #1E2A3B',
-        overflow: 'hidden',
-      }}
+    <Box
+      bg="bg.surface"
+      borderRadius="lg"
+      border="1px solid"
+      borderColor="border.subtle"
+      overflow="hidden"
     >
       {/* Header */}
-      <button
+      <Flex
+        as="button"
         onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          width: '100%',
-          padding: '12px 16px',
-          border: 'none',
-          backgroundColor: 'transparent',
-          cursor: 'pointer',
-          color: '#E8EDF4',
-          transition: 'background-color 100ms ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#232D3F';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }}
+        align="center"
+        gap="2"
+        w="100%"
+        p="3 4"
+        border="none"
+        bg="transparent"
+        cursor="pointer"
+        color="text.primary"
+        transition="background-color 100ms ease"
+        _hover={{ bg: 'bg.elevated' }}
       >
         <Archive size={16} color="#8B5CF6" />
-        <span
-          style={{
-            fontSize: '0.9375rem',
-            fontWeight: 600,
-            letterSpacing: '-0.01em',
-            flex: 1,
-            textAlign: 'left',
-          }}
+        <Text
+          fontSize="md"
+          fontWeight={600}
+          letterSpacing="-0.01em"
+          flex={1}
+          textAlign="left"
         >
           Chronicle
-        </span>
-        <span
-          style={{
-            fontSize: '0.6875rem',
-            color: '#4E5C72',
-            fontWeight: 500,
-          }}
+        </Text>
+        <Text
+          fontSize="xs"
+          color="text.muted"
+          fontWeight={500}
         >
           {entries.length} archived
-        </span>
+        </Text>
         <ChevronDown
           size={14}
           color="#4E5C72"
@@ -113,180 +102,156 @@ export function ChronicleBrowser({ defaultCollapsed = true }: ChronicleBrowserPr
             transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
           }}
         />
-      </button>
+      </Flex>
 
       {/* Collapsible body */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateRows: collapsed ? '0fr' : '1fr',
-          transition: collapsed
-            ? 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
-            : 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)',
-        }}
+      <Box
+        display="grid"
+        gridTemplateRows={collapsed ? '0fr' : '1fr'}
+        transition={collapsed
+          ? 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
+          : 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)'}
       >
-        <div style={{ overflow: 'hidden' }}>
-          <div
-            style={{
-              borderTop: '1px solid #1E2A3B',
-              padding: '12px 16px',
-            }}
+        <Box overflow="hidden">
+          <Box
+            borderTop="1px solid"
+            borderColor="border.subtle"
+            p="3 4"
           >
             {/* Search */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '6px 12px',
-                backgroundColor: '#1A2236',
-                border: '1px solid #1E2A3B',
-                borderRadius: '8px',
-                marginBottom: '12px',
-              }}
+            <Flex
+              align="center"
+              gap="2"
+              px="3"
+              py="6px"
+              bg="bg.input"
+              border="1px solid"
+              borderColor="border.subtle"
+              borderRadius="md"
+              mb="3"
             >
               <Search size={14} color="#4E5C72" />
-              <input
+              <chakra.input
                 type="text"
                 placeholder="Search by name, ID, or concept..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: '#E8EDF4',
-                  fontSize: '0.75rem',
-                  outline: 'none',
-                  fontFamily: "'Inter', system-ui, sans-serif",
-                }}
+                flex={1}
+                border="none"
+                bg="transparent"
+                color="text.primary"
+                fontSize="sm"
+                outline="none"
+                fontFamily="body"
               />
-            </div>
+            </Flex>
 
             {loading && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '16px',
-                  color: '#4E5C72',
-                  fontSize: '0.75rem',
-                }}
+              <Text
+                textAlign="center"
+                p="4"
+                color="text.muted"
+                fontSize="sm"
               >
                 Loading...
-              </div>
+              </Text>
             )}
 
             {error && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  backgroundColor: '#2D0A0A',
-                  borderRadius: '8px',
-                  color: '#F87171',
-                  fontSize: '0.75rem',
-                }}
+              <Flex
+                align="center"
+                gap="2"
+                p="2 3"
+                bg="semantic.error.bg"
+                borderRadius="md"
+                color="semantic.error"
+                fontSize="sm"
               >
                 <AlertCircle size={16} color="#F87171" style={{ flexShrink: 0 }} />
                 {error}
-              </div>
+              </Flex>
             )}
 
             {!loading && !error && filtered.length === 0 && (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '16px',
-                  color: '#4E5C72',
-                  fontSize: '0.75rem',
-                }}
+              <Text
+                textAlign="center"
+                p="4"
+                color="text.muted"
+                fontSize="sm"
               >
                 {entries.length === 0
                   ? 'No archived deliverables yet'
                   : 'No matching entries'}
-              </div>
+              </Text>
             )}
 
             {!loading &&
               !error &&
               Object.entries(grouped).map(([concept, items]) => (
-                <div key={concept} style={{ marginBottom: '12px' }}>
+                <Box key={concept} mb="3">
                   {/* Concept group header */}
-                  <div
-                    style={{
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      color: '#4E5C72',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      marginBottom: '6px',
-                    }}
+                  <Text
+                    fontSize="xs"
+                    fontWeight={600}
+                    color="text.muted"
+                    textTransform="uppercase"
+                    letterSpacing="0.06em"
+                    mb="6px"
                   >
                     {concept}
-                  </div>
+                  </Text>
 
                   {/* Items */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <Flex direction="column" gap="1">
                     {items.map((entry) => (
-                      <div
+                      <Flex
                         key={entry.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '6px 10px',
-                          borderRadius: '6px',
-                          transition: 'background-color 100ms ease',
-                          cursor: 'default',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#232D3F';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
+                        align="center"
+                        gap="2"
+                        p="6px 10px"
+                        borderRadius="sm"
+                        transition="background-color 100ms ease"
+                        cursor="default"
+                        _hover={{ bg: 'bg.elevated' }}
                       >
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '1px 5px',
-                            backgroundColor: '#0D1117',
-                            border: '1px solid #1E2A3B',
-                            borderRadius: '4px',
-                            fontFamily: "'JetBrains Mono', monospace",
-                            fontSize: '0.6875rem',
-                            fontWeight: 600,
-                            color: '#22C55E',
-                            flexShrink: 0,
-                          }}
+                        <Text
+                          as="span"
+                          display="inline-flex"
+                          alignItems="center"
+                          p="1px 5px"
+                          bg="bg.canvas"
+                          border="1px solid"
+                          borderColor="border.subtle"
+                          borderRadius="sm"
+                          fontFamily="mono"
+                          fontSize="xs"
+                          fontWeight={600}
+                          color="semantic.success"
+                          flexShrink={0}
                         >
                           {entry.id.toUpperCase()}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '0.8125rem',
-                            fontWeight: 500,
-                            color: '#E8EDF4',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            flex: 1,
-                            minWidth: 0,
-                          }}
+                        </Text>
+                        <Text
+                          as="span"
+                          fontSize="0.8125rem"
+                          fontWeight={500}
+                          color="text.primary"
+                          whiteSpace="nowrap"
+                          overflow="hidden"
+                          textOverflow="ellipsis"
+                          flex={1}
+                          minW={0}
                         >
                           {entry.name}
-                        </span>
-                      </div>
+                        </Text>
+                      </Flex>
                     ))}
-                  </div>
-                </div>
+                  </Flex>
+                </Box>
               ))}
-          </div>
-        </div>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }

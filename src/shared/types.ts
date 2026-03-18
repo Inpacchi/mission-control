@@ -53,6 +53,11 @@ export interface Session {
 // WebSocket message types
 export type WsMessage =
   | { channel: `watcher:${string}`; type: 'update'; data: unknown }
+  | {
+      channel: 'watcher:sdlc';
+      type: 'stats';
+      data: { total: number; byStatus: Record<DeliverableStatus, number> };
+    }
   | { channel: `terminal:${string}`; type: 'data'; data: string }
   | { channel: `terminal:${string}`; type: 'input'; data: string }
   | {
@@ -74,11 +79,13 @@ export interface McConfig {
   actions: ActionMapping[];
   compact?: boolean;
   processes?: ProcessConfig[];
+  corsOrigins?: string[];
 }
 
 export interface ColumnConfig {
   id: string;
   label: string;
+  color: string;
   statuses: DeliverableStatus[];
 }
 
@@ -98,6 +105,7 @@ export interface ProcessConfig {
 export interface Project {
   path: string;
   name: string;
+  slug: string;
   lastOpened: string;
   hasClaudeMd: boolean;
   hasIndex: boolean;

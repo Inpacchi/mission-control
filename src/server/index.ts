@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { createServer } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'node:path';
@@ -7,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import * as projectRegistry from './services/projectRegistry.js';
 import { createFileWatcher, type FileWatcherHandle } from './services/fileWatcher.js';
 import { initSessionStore } from './services/sessionStore.js';
+import { loadConfig } from './services/configLoader.js';
 import * as terminalManager from './services/terminalManager.js';
 
 import { createSdlcRouter } from './routes/sdlc.js';
@@ -50,13 +52,38 @@ export async function startServer(options: ServerOptions): Promise<void> {
   projectRegistry.register(resolvedPath);
 
   // 2. Initialize session store (runs pruning)
-  initSessionStore(resolvedPath);
+  await initSessionStore(resolvedPath);
 
-  // 3. Cleanup callbacks for graceful shutdown
+  // 3. Load config for CORS origins
+  const config = await loadConfig(resolvedPath);
+
+  // 4. Cleanup callbacks for graceful shutdown
   const cleanupCallbacks: Array<() => void | Promise<void>> = [];
 
   // --- Express setup ---
   const app = express();
+
+  // CORS middleware — allow localhost/127.0.0.1 by default, plus corsOrigins from config
+  const defaultOrigins = [
+    `http://localhost:${port}`,
+    `http://127.0.0.1:${port}`,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+  ];
+  const allowedOrigins = [...defaultOrigins, ...(config.corsOrigins || [])];
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, server-to-server)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
+    credentials: true,
+  }));
+
   app.use(express.json());
 
   // Client state tracking (declared early — used by broadcast and routes)
@@ -81,7 +108,14 @@ export async function startServer(options: ServerOptions): Promise<void> {
         broadcast('watcher:sdlc', {
           channel: 'watcher:sdlc',
           type: 'update',
-          data: deliverables,
+          data: { deliverables },
+        });
+      },
+      onStats: (stats) => {
+        broadcast('watcher:sdlc', {
+          channel: 'watcher:sdlc',
+          type: 'stats',
+          data: stats,
         });
       },
     }),
@@ -99,7 +133,7 @@ export async function startServer(options: ServerOptions): Promise<void> {
     await ctx.fileWatcher.close();
 
     // Re-init session store for new project
-    initSessionStore(absPath);
+    await initSessionStore(absPath);
 
     // Create new file watcher
     ctx.fileWatcher = createFileWatcher({
@@ -108,7 +142,14 @@ export async function startServer(options: ServerOptions): Promise<void> {
         broadcast('watcher:sdlc', {
           channel: 'watcher:sdlc',
           type: 'update',
-          data: deliverables,
+          data: { deliverables },
+        });
+      },
+      onStats: (stats) => {
+        broadcast('watcher:sdlc', {
+          channel: 'watcher:sdlc',
+          type: 'stats',
+          data: stats,
         });
       },
     });

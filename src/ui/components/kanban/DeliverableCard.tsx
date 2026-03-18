@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Box, Flex, Text, chakra } from '@chakra-ui/react';
 import { ChevronDown } from 'lucide-react';
 import { SkillActions } from './SkillActions';
 import { TimelineView } from './TimelineView';
 import { useDashboardStore } from '../../stores/dashboardStore';
+import { formatDate } from '../../utils/formatters';
 import type { Deliverable, DeliverableStatus, WsMessage } from '@shared/types';
 
 interface DeliverableCardProps {
@@ -31,18 +33,6 @@ const statusLabels: Record<DeliverableStatus, string> = {
   blocked: 'BLOCKED',
 };
 
-function formatTimestamp(isoDate: string): string {
-  try {
-    const d = new Date(isoDate);
-    const month = d.toLocaleString('en-US', { month: 'short' });
-    const day = d.getDate().toString().padStart(2, ' ');
-    const hours = d.getHours().toString().padStart(2, '0');
-    const mins = d.getMinutes().toString().padStart(2, '0');
-    return `${month} ${day}  ${hours}:${mins}`;
-  } catch {
-    return '';
-  }
-}
 
 export function DeliverableCard({ deliverable, columnColor, wsSend }: DeliverableCardProps) {
   const [hovered, setHovered] = useState(false);
@@ -62,7 +52,7 @@ export function DeliverableCard({ deliverable, columnColor, wsSend }: Deliverabl
   };
 
   return (
-    <div
+    <Box
       role="button"
       tabIndex={0}
       aria-label={`View ${deliverable.name}`}
@@ -75,69 +65,63 @@ export function DeliverableCard({ deliverable, columnColor, wsSend }: Deliverabl
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        height: expanded ? 'auto' : '88px',
-        minHeight: '88px',
-        backgroundColor: hovered || isSelected ? '#2A3750' : '#232D3F',
-        border: `1px solid ${isSelected ? '#2F74D0' : '#1E2A3B'}`,
-        borderLeft: `3px solid ${columnColor}`,
-        borderRadius: '8px',
-        boxShadow: hovered || isSelected
-          ? '0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.5)'
-          : '0 2px 4px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.5)',
-        padding: '12px',
-        cursor: 'pointer',
-        transition: 'background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1), border-color 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-      }}
+      h={expanded ? 'auto' : '88px'}
+      minH="88px"
+      bg={hovered || isSelected ? 'bg.overlay' : 'bg.elevated'}
+      border="1px solid"
+      borderColor={isSelected ? 'border.accent' : 'border.subtle'}
+      borderLeft="3px solid"
+      borderLeftColor={columnColor}
+      borderRadius="md"
+      boxShadow={hovered || isSelected ? 'md' : 'sm'}
+      p="3"
+      cursor="pointer"
+      transition="background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1), border-color 200ms cubic-bezier(0.4, 0, 0.2, 1)"
+      overflow="hidden"
+      display="flex"
+      flexDirection="column"
+      position="relative"
     >
       {/* Row 1: ID + Name */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          height: '28px',
-          minHeight: '28px',
-        }}
+      <Flex
+        align="center"
+        gap="2"
+        h="28px"
+        minH="28px"
       >
         {/* ID Badge */}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '2px 6px',
-            backgroundColor: '#0D1117',
-            border: '1px solid #1E2A3B',
-            borderRadius: '4px',
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: '#7EB8F7',
-            flexShrink: 0,
-          }}
+        <Text
+          as="span"
+          display="inline-flex"
+          alignItems="center"
+          p="2px 6px"
+          bg="bg.canvas"
+          border="1px solid"
+          borderColor="border.subtle"
+          borderRadius="sm"
+          fontFamily="mono"
+          fontSize="sm"
+          fontWeight={600}
+          color="text.accent"
+          flexShrink={0}
         >
           {deliverable.id.toUpperCase()}
-        </span>
+        </Text>
 
         {/* Name */}
-        <span
-          style={{
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            color: '#E8EDF4',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            flex: 1,
-            minWidth: 0,
-          }}
+        <Text
+          as="span"
+          fontSize="base"
+          fontWeight={500}
+          color="text.primary"
+          whiteSpace="nowrap"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          flex={1}
+          minW={0}
         >
           {deliverable.name}
-        </span>
+        </Text>
 
         {/* Skill action (hover) */}
         <SkillActions
@@ -146,88 +130,76 @@ export function DeliverableCard({ deliverable, columnColor, wsSend }: Deliverabl
           visible={hovered}
           wsSend={wsSend}
         />
-      </div>
+      </Flex>
 
       {/* Row 2: Status badge + timestamp */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginTop: '8px',
-          height: '20px',
-          minHeight: '20px',
-        }}
+      <Flex
+        align="center"
+        gap="2"
+        mt="2"
+        h="20px"
+        minH="20px"
       >
         {/* Status badge */}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '2px 8px',
-            backgroundColor: badge.bg,
-            color: badge.text,
-            border: `1px solid ${badge.border}`,
-            borderRadius: '9999px',
-            fontSize: '0.6875rem',
-            fontWeight: 600,
-            letterSpacing: '0.03em',
-            textTransform: 'uppercase',
-            lineHeight: 1.4,
-          }}
+        <Text
+          as="span"
+          display="inline-flex"
+          alignItems="center"
+          p="2px 8px"
+          bg={badge.bg}
+          color={badge.text}
+          border={`1px solid ${badge.border}`}
+          borderRadius="full"
+          fontSize="xs"
+          fontWeight={600}
+          letterSpacing="0.03em"
+          textTransform="uppercase"
+          lineHeight={1.4}
         >
           {statusLabels[deliverable.status]}
-        </span>
+        </Text>
 
-        <div style={{ flex: 1 }} />
+        <Box flex={1} />
 
         {/* Timestamp */}
-        <span
-          style={{
-            fontSize: '0.6875rem',
-            fontWeight: 400,
-            lineHeight: 1.4,
-            letterSpacing: '0.02em',
-            color: '#4E5C72',
-            whiteSpace: 'nowrap',
-            fontFamily: "'JetBrains Mono', monospace",
-          }}
+        <Text
+          as="span"
+          fontSize="xs"
+          fontWeight={400}
+          lineHeight={1.4}
+          letterSpacing="0.02em"
+          color="text.muted"
+          whiteSpace="nowrap"
+          fontFamily="mono"
         >
-          {formatTimestamp(deliverable.lastModified)}
-        </span>
+          {formatDate(deliverable.lastModified)}
+        </Text>
 
         {/* Expand chevron */}
-        <button
+        <chakra.button
           onClick={handleExpandToggle}
           aria-label={expanded ? 'Hide timeline' : 'Show timeline'}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '20px',
-            height: '20px',
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: '#4E5C72',
-            cursor: 'pointer',
-            padding: 0,
-            transition: 'color 150ms ease, transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.color = '#8B99B3';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.color = '#4E5C72';
-          }}
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          w="20px"
+          h="20px"
+          border="none"
+          bg="transparent"
+          color="text.muted"
+          cursor="pointer"
+          p={0}
+          transition="color 150ms ease, transform 200ms cubic-bezier(0.4, 0, 0.2, 1)"
+          transform={expanded ? 'rotate(180deg)' : 'rotate(0deg)'}
+          flexShrink={0}
+          _hover={{ color: 'text.secondary' }}
         >
           <ChevronDown size={14} />
-        </button>
-      </div>
+        </chakra.button>
+      </Flex>
 
       {/* Expandable timeline */}
       <TimelineView deliverable={deliverable} expanded={expanded} />
-    </div>
+    </Box>
   );
 }

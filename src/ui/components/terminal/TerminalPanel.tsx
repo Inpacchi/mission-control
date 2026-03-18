@@ -1,4 +1,5 @@
 import { useCallback, useRef, useEffect } from 'react';
+import { Box, Flex, Text } from '@chakra-ui/react';
 import { Terminal as TerminalIcon, Plus } from 'lucide-react';
 import { useTerminalSession } from '../../hooks/useTerminalSession';
 import { useDashboardStore } from '../../stores/dashboardStore';
@@ -70,61 +71,50 @@ export function TerminalPanel({
   // No active session — show empty state
   if (!activeSessionId || sessions.length === 0) {
     return (
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '12px',
-          backgroundColor: '#0D1117',
-        }}
+      <Flex
+        flex={1}
+        direction="column"
+        align="center"
+        justify="center"
+        gap="3"
+        bg="bg.canvas"
       >
         <TerminalIcon size={32} color="#4E5C72" />
-        <span style={{ fontSize: '0.875rem', color: '#8B99B3' }}>
+        <Text fontSize="base" color="text.secondary">
           No active sessions
-        </span>
-        <button
+        </Text>
+        <Flex
+          as="button"
           onClick={handleNewSession}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 16px',
-            backgroundColor: '#2F74D0',
-            border: 'none',
-            borderRadius: '8px',
-            color: '#E8EDF4',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'background-color 150ms ease',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = '#4D8FE8';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = '#2F74D0';
-          }}
+          align="center"
+          gap="6px"
+          px="4"
+          py="2"
+          bg="accent.blue.500"
+          border="none"
+          borderRadius="md"
+          color="text.primary"
+          fontSize="base"
+          fontWeight={600}
+          cursor="pointer"
+          transition="background-color 150ms ease"
+          _hover={{ bg: 'accent.blue.400' }}
         >
           <Plus size={16} />
           New Session
-        </button>
-      </div>
+        </Flex>
+      </Flex>
     );
   }
 
   return (
-    <div
+    <Box
       ref={containerRef}
       role="tabpanel"
-      style={{
-        flex: 1,
-        width: '100%',
-        height: '100%',
-        overflow: 'hidden',
-      }}
+      flex={1}
+      w="100%"
+      h="100%"
+      overflow="hidden"
     />
   );
 }

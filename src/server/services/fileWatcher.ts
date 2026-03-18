@@ -2,10 +2,12 @@ import path from 'node:path';
 import fs from 'node:fs';
 import chokidar from 'chokidar';
 import { parseDeliverables } from './sdlcParser.js';
+import type { Deliverable, DeliverableStatus } from '../../shared/types.js';
 
 export interface FileWatcherOptions {
   projectPath: string;
-  onUpdate: (deliverables: ReturnType<typeof parseDeliverables>) => void;
+  onUpdate: (deliverables: Deliverable[]) => void;
+  onStats?: (stats: { total: number; byStatus: Record<DeliverableStatus, number> }) => void;
 }
 
 export interface FileWatcherHandle {
@@ -13,7 +15,7 @@ export interface FileWatcherHandle {
 }
 
 export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandle {
-  const { projectPath, onUpdate } = options;
+  const { projectPath, onUpdate, onStats } = options;
   const docsDir = path.join(projectPath, 'docs');
 
   // If docs/ doesn't exist, create a no-op watcher
@@ -28,10 +30,27 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandl
 
   const handleChange = () => {
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
+    debounceTimer = setTimeout(async () => {
       try {
-        const deliverables = parseDeliverables(projectPath);
+        const deliverables = await parseDeliverables(projectPath);
         onUpdate(deliverables);
+
+        // Compute and broadcast stats (excludes untracked — REST-only)
+        if (onStats) {
+          const byStatus: Record<DeliverableStatus, number> = {
+            idea: 0,
+            spec: 0,
+            plan: 0,
+            'in-progress': 0,
+            review: 0,
+            complete: 0,
+            blocked: 0,
+          };
+          for (const d of deliverables) {
+            byStatus[d.status]++;
+          }
+          onStats({ total: deliverables.length, byStatus });
+        }
       } catch (err) {
         console.error('[fileWatcher] Error parsing deliverables:', err);
       }

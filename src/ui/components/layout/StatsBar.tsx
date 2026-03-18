@@ -1,3 +1,4 @@
+import { Box, Flex, Text } from '@chakra-ui/react';
 import type { SdlcStats } from '@shared/types';
 
 interface StatsBarProps {
@@ -14,46 +15,40 @@ interface StatItemProps {
 
 function StatItem({ value, label, color, loading }: StatItemProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-      <span
-        style={{
-          fontSize: '1.25rem',
-          fontWeight: 700,
-          lineHeight: 1.3,
-          letterSpacing: '-0.02em',
-          color,
-          filter: loading ? 'blur(2px)' : 'none',
-          opacity: loading ? 0.5 : 1,
-          transition: 'filter 200ms ease, opacity 200ms ease',
-        }}
+    <Flex direction="column" align="center" gap="2px">
+      <Text
+        fontSize="xl"
+        fontWeight={700}
+        lineHeight={1.3}
+        letterSpacing="-0.02em"
+        color={color}
+        filter={loading ? 'blur(2px)' : 'none'}
+        opacity={loading ? 0.5 : 1}
+        transition="filter 200ms ease, opacity 200ms ease"
       >
         {value}
-      </span>
-      <span
-        style={{
-          fontSize: '0.6875rem',
-          fontWeight: 400,
-          lineHeight: 1.4,
-          letterSpacing: '0.06em',
-          color: '#4E5C72',
-          textTransform: 'uppercase',
-        }}
+      </Text>
+      <Text
+        fontSize="xs"
+        fontWeight={400}
+        lineHeight={1.4}
+        letterSpacing="0.06em"
+        color="text.muted"
+        textTransform="uppercase"
       >
         {label}
-      </span>
-    </div>
+      </Text>
+    </Flex>
   );
 }
 
 function Divider() {
   return (
-    <div
-      style={{
-        width: '1px',
-        height: '28px',
-        backgroundColor: '#1E2A3B',
-        alignSelf: 'center',
-      }}
+    <Box
+      w="1px"
+      h="28px"
+      bg="border.subtle"
+      alignSelf="center"
     />
   );
 }
@@ -66,24 +61,21 @@ export function StatsBar({ stats, loading }: StatsBarProps) {
   const untracked = stats?.untracked ?? 0;
 
   return (
-    <div
+    <Flex
       aria-live="polite"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '24px',
-        height: '100%',
-      }}
+      align="center"
+      gap="6"
+      h="100%"
     >
-      <StatItem value={total} label="Total" color="#E8EDF4" loading={loading} />
+      <StatItem value={total} label="Total" color="text.primary" loading={loading} />
       <Divider />
-      <StatItem value={inProgress} label="In Progress" color="#F59E0B" loading={loading} />
+      <StatItem value={inProgress} label="In Progress" color="semantic.warning" loading={loading} />
       <Divider />
-      <StatItem value={blocked} label="Blocked" color="#F87171" loading={loading} />
+      <StatItem value={blocked} label="Blocked" color="semantic.error" loading={loading} />
       <Divider />
-      <StatItem value={complete} label="Complete" color="#22C55E" loading={loading} />
+      <StatItem value={complete} label="Complete" color="semantic.success" loading={loading} />
       <Divider />
-      <StatItem value={untracked} label="Untracked" color="#A78BFA" loading={loading} />
-    </div>
+      <StatItem value={untracked} label="Untracked" color="accent.violet.300" loading={loading} />
+    </Flex>
   );
 }

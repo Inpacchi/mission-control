@@ -31,7 +31,7 @@ export async function createSession(
 ): Promise<Session> {
   const pty = await loadPty();
 
-  const logEntry = sessionStore.createSession(projectPath, command);
+  const logEntry = await sessionStore.createSession(projectPath, command);
 
   const args = command ? [command] : [];
   let ptyProcess: import('node-pty').IPty;
@@ -77,8 +77,8 @@ export async function createSession(
 
   // Bridge PTY output to WebSocket subscribers and log
   ptyProcess.onData((data: string) => {
-    // Stream to log file (no memory buffering)
-    sessionStore.appendLog(session.id, projectPath, data);
+    // Stream to log file (no memory buffering, fire-and-forget)
+    sessionStore.appendLog(session.id, projectPath, data).catch(() => {});
 
     // Send to all subscribed WebSocket clients
     const message = JSON.stringify({
@@ -101,7 +101,7 @@ export async function createSession(
     session.exitCode = exitCode;
     session.endedAt = new Date().toISOString();
 
-    sessionStore.finalizeSession(session.id, projectPath);
+    sessionStore.finalizeSession(session.id, projectPath).catch(() => {});
 
     // Notify subscribers
     const message = JSON.stringify({

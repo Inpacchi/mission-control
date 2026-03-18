@@ -41,8 +41,9 @@ If these files exist and contain relevant context, let them constrain your appro
 
 ## Communication Protocol
 
+Follow the canonical agent communication protocol defined in `ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml`. Emit structured JSON progress updates during longer tasks and complete every task with a structured handoff.
+
 When your work produces or modifies an API surface consumed by the frontend:
-- Check `ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml` for the agreed message/event format
 - Document any new WebSocket message types or REST response shapes you introduce
 - If the protocol file does not yet define the interface you need, define it explicitly in your result and flag it for frontend-developer
 
@@ -109,12 +110,19 @@ Before marking work complete, confirm:
 
 ## Persistent Agent Memory
 
-Store and read task-specific learnings at `.claude/agent-memory/backend-developer/`.
+You have a persistent memory directory at `{project_root}/.claude/agent-memory/backend-developer/`. Its contents persist across conversations.
 
-Use this directory to record:
-- Non-obvious behaviors in node-pty or ws that bit you during implementation
-- Patterns that diverge from standard Express conventions for project-specific reasons
-- Constraints discovered in services that aren't obvious from the type signatures
-- Decisions deferred to CD that should not be re-litigated next session
+Guidelines:
+- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
+- Create separate topic files for detailed notes and link to them from MEMORY.md
+- Update or remove memories that turn out to be wrong or outdated
+- Organize memory semantically by topic, not chronologically
 
-Check this directory at the start of any session involving a service or subsystem you have worked in before. Update it when you discover something worth remembering.
+What to save: non-obvious behaviors in node-pty or ws, patterns that diverge from standard Express conventions, constraints discovered in services that aren't obvious from type signatures, decisions deferred to CD that should not be re-litigated next session.
+What NOT to save: session-specific context, incomplete info, CLAUDE.md duplicates.
+
+**Update your agent memory** as you discover server-side patterns, service constraints, and API conventions in this codebase.
+
+## MEMORY.md
+
+Your MEMORY.md contents are loaded into your system prompt automatically. Update it when you notice patterns worth preserving across sessions.

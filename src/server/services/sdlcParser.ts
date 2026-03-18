@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Deliverable, DeliverableStatus, DeliverablePhase, CatalogEntry } from '../../shared/types.js';
 import { parse as parseCatalog } from './catalogParser.js';
@@ -13,15 +13,20 @@ interface FileInfo {
   mtime: Date;
 }
 
-function scanDirectory(dirPath: string): FileInfo[] {
+async function scanDirectory(dirPath: string): Promise<FileInfo[]> {
   const results: FileInfo[] = [];
-  if (!fs.existsSync(dirPath)) return results;
 
-  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  try {
+    await fs.access(dirPath);
+  } catch {
+    return results;
+  }
+
+  const entries = await fs.readdir(dirPath, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.isDirectory()) {
       // Recurse into subdirectories
-      const subResults = scanDirectory(path.join(dirPath, entry.name));
+      const subResults = await scanDirectory(path.join(dirPath, entry.name));
       results.push(...subResults);
       continue;
     }
@@ -44,7 +49,7 @@ function scanDirectory(dirPath: string): FileInfo[] {
     }
 
     const filePath = path.join(dirPath, entry.name);
-    const stat = fs.statSync(filePath);
+    const stat = await fs.stat(filePath);
     results.push({ id, name, type, filePath, mtime: stat.mtime });
   }
 
@@ -87,17 +92,19 @@ function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?:
   };
 }
 
-export function parseDeliverables(projectPath: string): Deliverable[] {
+export async function parseDeliverables(projectPath: string): Promise<Deliverable[]> {
   const currentWorkDir = path.join(projectPath, 'docs', 'current_work');
   const chronicleDir = path.join(projectPath, 'docs', 'chronicle');
 
   // Scan both directories
-  const currentFiles = scanDirectory(currentWorkDir);
-  const chronicleFiles = scanDirectory(chronicleDir);
+  const [currentFiles, chronicleFiles] = await Promise.all([
+    scanDirectory(currentWorkDir),
+    scanDirectory(chronicleDir),
+  ]);
   const allFiles = [...currentFiles, ...chronicleFiles];
 
   // Parse catalog
-  const catalogEntries = parseCatalog(projectPath);
+  const catalogEntries = await parseCatalog(projectPath);
   const catalogById = new Map(catalogEntries.map((e) => [e.id.toUpperCase(), e]));
 
   // Group files by deliverable ID
@@ -141,11 +148,11 @@ export function parseDeliverables(projectPath: string): Deliverable[] {
   });
 }
 
-export function parseChronicle(projectPath: string): Deliverable[] {
+export async function parseChronicle(projectPath: string): Promise<Deliverable[]> {
   const chronicleDir = path.join(projectPath, 'docs', 'chronicle');
-  const files = scanDirectory(chronicleDir);
+  const files = await scanDirectory(chronicleDir);
 
-  const catalogEntries = parseCatalog(projectPath);
+  const catalogEntries = await parseCatalog(projectPath);
   const catalogById = new Map(catalogEntries.map((e) => [e.id.toUpperCase(), e]));
 
   const filesByDeliverable = new Map<string, FileInfo[]>();
@@ -171,7 +178,7 @@ export function parseChronicle(projectPath: string): Deliverable[] {
   });
 }
 
-export function getDeliverable(projectPath: string, deliverableId: string): Deliverable | undefined {
-  const all = parseDeliverables(projectPath);
+export async function getDeliverable(projectPath: string, deliverableId: string): Promise<Deliverable | undefined> {
+  const all = await parseDeliverables(projectPath);
   return all.find((d) => d.id.toUpperCase() === deliverableId.toUpperCase());
 }

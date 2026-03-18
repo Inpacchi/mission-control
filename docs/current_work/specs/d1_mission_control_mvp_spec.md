@@ -167,18 +167,14 @@ Key architectural principles:
 
 | Type File | Purpose |
 |-----------|---------|
-| `src/ui/types/deliverable.ts` | Deliverable, DeliverableState, CatalogEntry, Timeline types |
-| `src/ui/types/session.ts` | TerminalSession, SessionHistory, SessionLog types |
-| `src/ui/types/config.ts` | McConfig, ColumnDefinition, ActionMapping types |
-| `src/ui/types/project.ts` | Project, ProjectRegistry types |
-| `src/shared/types.ts` | Types shared between server and UI (WebSocket message shapes, API response shapes) |
+| `src/shared/types.ts` | All shared types: Deliverable, DeliverableStatus, DeliverablePhase, CatalogEntry, SdlcStats, Session, Project, McConfig, ColumnConfig, ActionMapping, ProcessConfig, WsMessage, ChronicleEntry, UntrackedCommit |
 
 ### Data Model
 
 ```typescript
 // ── Deliverable State ──────────────────────────────────────
 
-type DeliverableState =
+type DeliverableStatus =
   | 'idea'
   | 'spec'
   | 'plan'
@@ -187,67 +183,53 @@ type DeliverableState =
   | 'complete'
   | 'blocked';
 
+type DeliverablePhase =
+  | 'idea'
+  | 'specifying'
+  | 'planning'
+  | 'executing'
+  | 'reviewing'
+  | 'done'
+  | 'blocked';
+
 interface Deliverable {
   id: string;              // "D1", "D2a", etc.
   name: string;            // human-readable title
-  state: DeliverableState;
-  hasSpec: boolean;
-  hasPlan: boolean;
-  hasResult: boolean;
-  isComplete: boolean;
-  isBlocked: boolean;
+  status: DeliverableStatus;
+  phase: DeliverablePhase;
   specPath?: string;       // relative path to spec file
   planPath?: string;       // relative path to plan file
   resultPath?: string;     // relative path to result file
   lastModified: string;    // ISO 8601 timestamp
-  timeline: TimelineEntry[];
-}
-
-interface TimelineEntry {
-  event: string;           // "Spec created", "Plan created", etc.
-  timestamp: string;       // ISO 8601
-  filePath: string;        // which file triggered this event
+  catalog?: CatalogEntry;  // parsed catalog entry if found in _index.md
 }
 
 interface CatalogEntry {
   id: string;
   name: string;
-  description?: string;
-  rawLine: string;         // original line from _index.md
+  status: string;
+  specLink?: string;
+  planLink?: string;
+  resultLink?: string;
 }
 
-interface CatalogStats {
+interface SdlcStats {
   total: number;
-  idea: number;
-  spec: number;
-  plan: number;
-  inProgress: number;
-  review: number;
-  complete: number;
-  blocked: number;
-  untrackedAdHoc: number;
+  byStatus: Record<DeliverableStatus, number>;
+  untracked: number;
 }
 
 // ── Terminal Sessions ──────────────────────────────────────
 
-interface TerminalSession {
+interface Session {
   id: string;              // UUID
   projectPath: string;     // absolute path to project
-  command: string;         // the command that was dispatched
-  startedAt: string;       // ISO 8601
+  command?: string;        // the command that was dispatched
   status: 'running' | 'exited';
   exitCode?: number;
-}
-
-interface SessionLogEntry {
-  id: string;              // UUID
-  projectSlug: string;
-  command: string;
-  startedAt: string;
-  endedAt: string;
-  exitCode: number;
-  logFile: string;         // path to .log file
-  sizeBytes: number;
+  startedAt: string;       // ISO 8601
+  endedAt?: string;        // ISO 8601
+  logPath?: string;        // path to session log file
 }
 
 // ── Project ────────────────────────────────────────────────
@@ -257,50 +239,77 @@ interface Project {
   name: string;            // directory name or from package.json
   slug: string;            // URL-safe identifier
   lastOpened: string;      // ISO 8601
-  hasSdlc: boolean;        // has docs/_index.md
-  hasClaude: boolean;      // has CLAUDE.md or .claude/
-}
-
-interface ProjectRegistry {
-  projects: Project[];
-  lastUsed?: string;       // slug of last used project
+  hasClaudeMd: boolean;    // has CLAUDE.md
+  hasIndex: boolean;       // has docs/_index.md
+  hasClaude: boolean;      // has .claude/
+  hasMcConfig: boolean;    // has .mc.json
 }
 
 // ── Configuration ──────────────────────────────────────────
 
 interface McConfig {
-  columns?: ColumnDefinition[];
-  actions?: Record<string, ActionMapping[]>;
-  port?: number;
-  bind?: string;
+  port: number;
+  bind: string;
+  columns: ColumnConfig[];
+  actions: ActionMapping[];
+  compact?: boolean;
+  corsOrigins?: string[];
+  processes?: ProcessConfig[];
 }
 
-interface ColumnDefinition {
+interface ColumnConfig {
   id: string;
   label: string;
-  match: {
-    hasSpec?: boolean;
-    hasPlan?: boolean;
-    hasResult?: boolean;
-    isComplete?: boolean;
-    isBlocked?: boolean;
-  };
+  color: string;
+  statuses: DeliverableStatus[];
 }
 
 interface ActionMapping {
+  status: DeliverableStatus;
   label: string;
   command: string;         // claude command to dispatch
-  icon?: string;           // Lucide icon name
+}
+
+interface ProcessConfig {
+  name: string;
+  command: string;
+  cwd?: string;
 }
 
 // ── WebSocket Messages ─────────────────────────────────────
 
 type WsMessage =
+  | { channel: `watcher:${string}`; type: 'update'; data: unknown }
+  | {
+      channel: 'watcher:sdlc';
+      type: 'stats';
+      data: { total: number; byStatus: Record<string, number> };
+    }
   | { channel: `terminal:${string}`; type: 'data'; data: string }
+  | { channel: `terminal:${string}`; type: 'input'; data: string }
   | { channel: `terminal:${string}`; type: 'resize'; cols: number; rows: number }
   | { channel: `terminal:${string}`; type: 'exit'; code: number }
-  | { channel: 'watcher:sdlc'; type: 'update'; deliverables: Deliverable[] }
-  | { channel: 'watcher:sdlc'; type: 'stats'; stats: CatalogStats };
+  | { channel: 'system'; type: 'subscribe'; channels: string[] }
+  | { channel: 'system'; type: 'ping' }
+  | { channel: 'system'; type: 'pong' };
+
+// ── Chronicle ──────────────────────────────────────────────
+
+interface ChronicleEntry {
+  id: string;
+  name: string;
+  concept: string;
+  completePath: string;
+}
+
+// ── Git ────────────────────────────────────────────────────
+
+interface UntrackedCommit {
+  hash: string;
+  message: string;
+  author: string;
+  date: string;
+}
 ```
 
 ### API Endpoints

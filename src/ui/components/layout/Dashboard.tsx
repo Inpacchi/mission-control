@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
+import { Box, Flex, Text } from '@chakra-ui/react';
 import { Rocket } from 'lucide-react';
 import { StatsBar } from './StatsBar';
 import { ProjectSwitcher } from './ProjectSwitcher';
@@ -91,30 +92,26 @@ export function Dashboard({
   const panelHeight = terminalCollapsed ? 48 : terminalHeight;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        width: '100vw',
-        backgroundColor: '#0D1117',
-        overflow: 'hidden',
-      }}
+    <Flex
+      direction="column"
+      h="100vh"
+      w="100vw"
+      bg="bg.canvas"
+      overflow="hidden"
     >
       {/* Reconnection banner */}
       {wsReconnecting && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '6px 20px',
-            backgroundColor: '#1C2333',
-            borderBottom: '1px solid #1E2A3B',
-            color: '#8B99B3',
-            fontSize: '0.75rem',
-          }}
+        <Flex
+          align="center"
+          justify="center"
+          gap="2"
+          px="5"
+          py="6px"
+          bg="bg.surface"
+          borderBottom="1px solid"
+          borderColor="border.subtle"
+          color="text.secondary"
+          fontSize="sm"
         >
           <svg
             width="14"
@@ -131,115 +128,104 @@ export function Dashboard({
             <path d="M16 16h5v5" />
           </svg>
           Reconnecting...
-        </div>
+        </Flex>
       )}
 
-      {/* Header — 48px */}
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          height: '48px',
-          minHeight: '48px',
-          padding: '0 20px',
-          backgroundColor: '#13181F',
-          borderBottom: '1px solid #1E2A3B',
-        }}
+      {/* Header -- 48px */}
+      <Flex
+        as="header"
+        align="center"
+        h="48px"
+        minH="48px"
+        px="5"
+        bg="bg.base"
+        borderBottom="1px solid"
+        borderColor="border.subtle"
       >
         {/* Left: Logo + Project switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '200px' }}>
+        <Flex align="center" gap="10px" minW="200px">
           <Rocket size={20} color="#8B5CF6" />
           {onSwitchProject ? (
             <ProjectSwitcher projects={projects} onSwitch={onSwitchProject} />
           ) : (
-            <span
-              style={{
-                fontSize: '1.5rem',
-                fontWeight: 700,
-                lineHeight: 1.2,
-                letterSpacing: '-0.03em',
-                color: '#E8EDF4',
-                fontFamily: "'Inter', system-ui, sans-serif",
-              }}
+            <Text
+              fontSize="2xl"
+              fontWeight={700}
+              lineHeight={1.2}
+              letterSpacing="-0.03em"
+              color="text.primary"
+              fontFamily="heading"
             >
               {activeProject?.name ?? 'Mission Control'}
-            </span>
+            </Text>
           )}
-        </div>
+        </Flex>
 
         {/* Center: Stats */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+        <Flex flex={1} justify="center">
           <StatsBar stats={stats} loading={loading} />
-        </div>
+        </Flex>
 
         {/* Right: Connection indicator */}
-        <div style={{ minWidth: '200px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '9999px',
-              backgroundColor: wsConnected ? '#22C55E' : '#F87171',
-              transition: 'background-color 200ms ease',
-            }}
+        <Flex minW="200px" justify="flex-end" align="center" gap="2">
+          <Box
+            w="8px"
+            h="8px"
+            borderRadius="full"
+            bg={wsConnected ? 'semantic.success' : 'semantic.error'}
+            transition="background-color 200ms ease"
           />
-          <span style={{ fontSize: '0.6875rem', color: '#4E5C72' }}>
+          <Text fontSize="xs" color="text.muted">
             {wsConnected ? 'Connected' : 'Disconnected'}
-          </span>
-        </div>
-      </header>
+          </Text>
+        </Flex>
+      </Flex>
 
       {/* Main area: Kanban + Preview (flex: 1) */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          overflow: 'hidden',
-          backgroundColor: '#13181F',
-        }}
+      <Flex
+        flex={1}
+        overflow="hidden"
+        bg="bg.base"
       >
         {/* Kanban + supplementary sections */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            transition: previewOpen
+        <Flex
+          flex={1}
+          direction="column"
+          overflow="hidden"
+          transition={
+            previewOpen
               ? 'flex 250ms cubic-bezier(0, 0, 0.2, 1)'
-              : 'flex 200ms cubic-bezier(0.4, 0, 1, 1)',
-          }}
+              : 'flex 200ms cubic-bezier(0.4, 0, 1, 1)'
+          }
         >
           {/* Kanban board */}
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+          <Flex flex={1} overflow="hidden">
             <KanbanBoard
               deliverables={deliverables}
               loading={loading}
               wsSend={wsSend}
             />
-          </div>
+          </Flex>
 
-          {/* Supplementary sections — Chronicle, Ad Hoc, Session History */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '12px',
-              padding: '0 20px 12px 20px',
-              overflowX: 'auto',
-              flexShrink: 0,
-            }}
+          {/* Supplementary sections -- Chronicle, Ad Hoc, Session History */}
+          <Flex
+            gap="3"
+            px="5"
+            pb="3"
+            overflowX="auto"
+            flexShrink={0}
           >
-            <div style={{ flex: 1, minWidth: '260px' }}>
+            <Box flex={1} minW="260px">
               <ChronicleBrowser />
-            </div>
-            <div style={{ flex: 1, minWidth: '260px' }}>
-              <AdHocTracker wsSend={wsSend} />
-            </div>
-            <div style={{ flex: 1, minWidth: '260px' }}>
+            </Box>
+            <Box flex={1} minW="260px">
+              <AdHocTracker />
+            </Box>
+            <Box flex={1} minW="260px">
               <SessionHistory />
-            </div>
-          </div>
-        </div>
+            </Box>
+          </Flex>
+        </Flex>
 
         {/* Side preview panel */}
         <FileViewer
@@ -247,90 +233,74 @@ export function Dashboard({
           open={previewOpen}
           onClose={() => setSelectedCard(null)}
         />
-      </div>
+      </Flex>
 
       {/* Terminal panel */}
-      <div
+      <Flex
         className="terminal-context"
         role="region"
         aria-label="Terminal sessions"
-        style={{
-          height: `${panelHeight}px`,
-          transition: 'height 250ms cubic-bezier(0.4, 0, 0.2, 1)',
-          backgroundColor: '#1C2333',
-          borderTop: '1px solid #2A3750',
-          boxShadow: '0 -4px 16px rgba(0,0,0,0.4)',
-          borderRadius: '12px 12px 0 0',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'relative',
-        }}
+        h={`${panelHeight}px`}
+        transition="height 250ms cubic-bezier(0.4, 0, 0.2, 1)"
+        bg="bg.surface"
+        borderTop="1px solid"
+        borderColor="border.default"
+        boxShadow="0 -4px 16px rgba(0,0,0,0.4)"
+        borderRadius="lg lg 0 0"
+        direction="column"
+        position="relative"
       >
         {/* Resize handle */}
         {!terminalCollapsed && (
-          <div
+          <Flex
             onMouseDown={onResizeStart}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '6px',
-              cursor: 'ns-resize',
-              zIndex: 10,
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+            position="absolute"
+            top={0}
+            left={0}
+            right={0}
+            h="6px"
+            cursor="ns-resize"
+            zIndex={10}
+            justify="center"
+            align="center"
           >
-            <div
-              style={{
-                width: '40px',
-                height: '2px',
-                backgroundColor: '#2A3750',
-                borderRadius: '1px',
-                transition: 'background-color 150ms ease',
-              }}
-              onMouseEnter={(e) => {
-                (e.target as HTMLElement).style.backgroundColor = '#2F74D0';
-              }}
-              onMouseLeave={(e) => {
-                (e.target as HTMLElement).style.backgroundColor = '#2A3750';
-              }}
+            <Box
+              w="40px"
+              h="2px"
+              bg="border.default"
+              borderRadius="1px"
+              transition="background-color 150ms ease"
+              _hover={{ bg: 'border.accent' }}
             />
-          </div>
+          </Flex>
         )}
 
         {/* Tab bar + controls */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            height: '38px',
-            minHeight: '38px',
-            backgroundColor: '#1C2333',
-            borderBottom: terminalCollapsed ? 'none' : '1px solid #1E2A3B',
-            paddingRight: '8px',
-          }}
+        <Flex
+          align="center"
+          h="38px"
+          minH="38px"
+          bg="bg.surface"
+          borderBottom={terminalCollapsed ? 'none' : '1px solid'}
+          borderColor="border.subtle"
+          pr="2"
         >
           <TerminalTabs />
-          <div style={{ flex: 1 }} />
+          <Box flex={1} />
           <SessionControls
             wsSend={wsSend}
             collapsed={terminalCollapsed}
             onToggleCollapse={() => toggleTerminal()}
           />
-        </div>
+        </Flex>
 
         {/* Terminal content */}
-        <div
-          style={{
-            flex: 1,
-            display: terminalCollapsed ? 'none' : 'flex',
-            backgroundColor: '#0D1117',
-            padding: '8px 8px 0 8px',
-            overflow: 'hidden',
-          }}
+        <Flex
+          flex={1}
+          display={terminalCollapsed ? 'none' : 'flex'}
+          bg="bg.canvas"
+          p="2 2 0 2"
+          overflow="hidden"
         >
           <TerminalPanel
             wsSend={wsSend}
@@ -340,8 +310,8 @@ export function Dashboard({
             activeSessionId={activeSessionId}
             sessions={sessions}
           />
-        </div>
-      </div>
+        </Flex>
+      </Flex>
 
       {/* Global styles */}
       <style>{`
@@ -354,6 +324,6 @@ export function Dashboard({
           width: 100% !important;
         }
       `}</style>
-    </div>
+    </Flex>
   );
 }
