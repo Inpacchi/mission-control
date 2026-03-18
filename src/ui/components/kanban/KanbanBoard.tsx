@@ -61,7 +61,8 @@ function SkeletonColumn({ color, extraCards }: { color: string; extraCards?: boo
         h="52px"
         bg={`${color}14`}
         borderTop={`2px solid ${color}99`}
-        borderRadius="md md 0 0"
+        borderTopLeftRadius="md"
+        borderTopRightRadius="md"
       />
       <Skeleton h="88px" borderRadius="md" />
       <Skeleton h="88px" borderRadius="md" />

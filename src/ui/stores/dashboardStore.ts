@@ -11,6 +11,8 @@ export interface ActiveProject {
   hasMcConfig: boolean;
 }
 
+export type SupplementaryPanel = 'chronicle' | 'adhoc' | 'sessions' | null;
+
 interface DashboardState {
   activeSessionId: string | null;
   sessions: Session[];
@@ -18,6 +20,9 @@ interface DashboardState {
   previewOpen: boolean;
   terminalCollapsed: boolean;
   terminalHeight: number;
+
+  // Supplementary panel accordion — only one can be open at a time
+  openSupplementaryPanel: SupplementaryPanel;
 
   // Project state
   activeProject: ActiveProject | null;
@@ -34,6 +39,10 @@ interface DashboardState {
   toggleTerminal: (collapsed?: boolean) => void;
   setTerminalHeight: (height: number) => void;
 
+  // Supplementary panel actions
+  setOpenSupplementaryPanel: (panel: SupplementaryPanel) => void;
+  toggleSupplementaryPanel: (panel: Exclude<SupplementaryPanel, null>) => void;
+
   // Project actions
   setActiveProject: (project: ActiveProject | null) => void;
   setProjectLoading: (loading: boolean) => void;
@@ -46,6 +55,9 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   previewOpen: false,
   terminalCollapsed: false,
   terminalHeight: 280,
+
+  // Supplementary panel accordion
+  openSupplementaryPanel: null,
 
   // Project state
   activeProject: null,
@@ -95,6 +107,14 @@ export const useDashboardStore = create<DashboardState>((set) => ({
 
   setTerminalHeight: (height) =>
     set({ terminalHeight: Math.max(150, Math.min(height, window.innerHeight * 0.6)) }),
+
+  // Supplementary panel actions
+  setOpenSupplementaryPanel: (panel) => set({ openSupplementaryPanel: panel }),
+
+  toggleSupplementaryPanel: (panel) =>
+    set((state) => ({
+      openSupplementaryPanel: state.openSupplementaryPanel === panel ? null : panel,
+    })),
 
   // Project actions
   setActiveProject: (project) => set({ activeProject: project }),

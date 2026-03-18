@@ -1,4 +1,5 @@
-import { Flex, Text } from '@chakra-ui/react';
+import { useState } from 'react';
+import { Flex, Text, chakra } from '@chakra-ui/react';
 import {
   Lightbulb,
   FileText,
@@ -9,6 +10,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { DeliverableCard } from './DeliverableCard';
+import { useDashboardStore } from '../../stores/dashboardStore';
 import type { Deliverable, DeliverableStatus, WsMessage } from '@shared/types';
 
 interface KanbanColumnProps {
@@ -29,14 +31,21 @@ const emptyStateIcons: Record<string, React.ReactNode> = {
   Blocked: <AlertTriangle size={24} color="#4E5C72" />,
 };
 
-const emptyStateMessages: Record<string, string> = {
-  Idea: 'No ideas yet',
-  Spec: 'No specs',
-  Plan: 'No plans',
-  'In Progress': 'Nothing in progress',
-  Review: 'Nothing to review',
-  Complete: 'Nothing completed yet',
-  Blocked: 'Nothing blocked',
+const emptyCTALabels: Record<string, string> = {
+  Idea: '+ New Idea',
+  Spec: '+ Write Spec',
+  Plan: '+ Create Plan',
+  'In Progress': '+ Start Work',
+  Review: '+ Submit for Review',
+};
+
+/** Maps column label to the SDLC skill command to pre-fill in the terminal */
+const columnSkillCommands: Record<string, string> = {
+  Idea: '/sdlc-planning',
+  Spec: '/sdlc-planning',
+  Plan: '/sdlc-planning',
+  'In Progress': '/sdlc-execution',
+  Review: '/commit-review',
 };
 
 const columnHeaderBgMap: Record<string, string> = {
@@ -49,8 +58,36 @@ const columnHeaderBgMap: Record<string, string> = {
   Blocked: '#2D0A0A',
 };
 
-export function KanbanColumn({ label, deliverables, color, wsSend }: KanbanColumnProps) {
+export function KanbanColumn({ label, deliverables, color, wsSend: _wsSend }: KanbanColumnProps) {
   const count = deliverables.length;
+  const [ctaHovered, setCtaHovered] = useState(false);
+  const { addSession, toggleTerminal } = useDashboardStore();
+
+  const ctaLabel = emptyCTALabels[label];
+  const skillCommand = columnSkillCommands[label];
+  const [dispatching, setDispatching] = useState(false);
+
+  const handleCTAClick = async () => {
+    if (!skillCommand || dispatching) return;
+    setDispatching(true);
+    try {
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: skillCommand }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.session) {
+        addSession(data.session);
+        toggleTerminal(false); // expand terminal
+      }
+    } catch (err) {
+      console.error('Failed to open terminal session:', err);
+    } finally {
+      setDispatching(false);
+    }
+  };
 
   return (
     <Flex
@@ -70,7 +107,8 @@ export function KanbanColumn({ label, deliverables, color, wsSend }: KanbanColum
         borderTop={`2px solid ${color}99`}
         borderBottom="1px solid"
         borderBottomColor="border.subtle"
-        borderRadius="md md 0 0"
+        borderTopLeftRadius="md"
+        borderTopRightRadius="md"
       >
         <Text
           fontSize="lg"
@@ -82,22 +120,33 @@ export function KanbanColumn({ label, deliverables, color, wsSend }: KanbanColum
           {label}
         </Text>
 
-        {/* Count badge */}
-        <Flex
-          as="span"
-          align="center"
-          justify="center"
-          minW="22px"
-          h="22px"
-          px="6px"
-          borderRadius="full"
-          bg={`${color}26`}
-          color={color}
-          fontSize="sm"
-          fontWeight={700}
-        >
-          {count}
-        </Flex>
+        {/* Count badge — pill when count > 0, plain muted text when zero */}
+        {count > 0 ? (
+          <Flex
+            as="span"
+            align="center"
+            justify="center"
+            minW="22px"
+            h="22px"
+            px="6px"
+            borderRadius="full"
+            bg={`${color}26`}
+            color={color}
+            fontSize="sm"
+            fontWeight={700}
+          >
+            {count}
+          </Flex>
+        ) : (
+          <Text
+            as="span"
+            fontSize="sm"
+            fontWeight={700}
+            color="text.muted"
+          >
+            {count}
+          </Text>
+        )}
       </Flex>
 
       {/* Card list */}
@@ -110,6 +159,7 @@ export function KanbanColumn({ label, deliverables, color, wsSend }: KanbanColum
         p="2"
         direction="column"
         gap="2"
+        bg="bg.surface"
       >
         {deliverables.length === 0 ? (
           <Flex
@@ -120,12 +170,37 @@ export function KanbanColumn({ label, deliverables, color, wsSend }: KanbanColum
             gap="2"
           >
             {emptyStateIcons[label] || <Lightbulb size={24} color="#4E5C72" />}
-            <Text
-              fontSize="sm"
-              color="text.muted"
-            >
-              {emptyStateMessages[label] || 'Empty'}
-            </Text>
+            {ctaLabel ? (
+              <chakra.button
+                onClick={handleCTAClick}
+                onMouseEnter={() => setCtaHovered(true)}
+                onMouseLeave={() => setCtaHovered(false)}
+                display="inline-flex"
+                alignItems="center"
+                justifyContent="center"
+                px="3"
+                py="6px"
+                bg={ctaHovered ? `${color}0D` : 'transparent'}
+                border="1px dashed"
+                borderColor={ctaHovered ? `${color}66` : 'border.subtle'}
+                borderRadius="md"
+                color={ctaHovered ? color : 'text.muted'}
+                fontSize="xs"
+                fontWeight={500}
+                fontFamily="body"
+                cursor="pointer"
+                transition="background-color 150ms ease, border-color 150ms ease, color 150ms ease"
+              >
+                {ctaLabel}
+              </chakra.button>
+            ) : (
+              <Text
+                fontSize="sm"
+                color="text.muted"
+              >
+                {label === 'Complete' ? 'Nothing completed yet' : label === 'Blocked' ? 'Nothing blocked' : 'Empty'}
+              </Text>
+            )}
           </Flex>
         ) : (
           deliverables.map((d) => (
@@ -133,7 +208,7 @@ export function KanbanColumn({ label, deliverables, color, wsSend }: KanbanColum
               key={d.id}
               deliverable={d}
               columnColor={color}
-              wsSend={wsSend}
+              wsSend={_wsSend}
             />
           ))
         )}

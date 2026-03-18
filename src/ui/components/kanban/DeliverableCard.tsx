@@ -33,6 +33,12 @@ const statusLabels: Record<DeliverableStatus, string> = {
   blocked: 'BLOCKED',
 };
 
+/** Doc-type accent colors for artifact pills */
+const artifactColors = {
+  spec: '#60A5FA',
+  plan: '#34D399',
+  result: '#22C55E',
+} as const;
 
 export function DeliverableCard({ deliverable, columnColor, wsSend }: DeliverableCardProps) {
   const [hovered, setHovered] = useState(false);
@@ -41,6 +47,13 @@ export function DeliverableCard({ deliverable, columnColor, wsSend }: Deliverabl
 
   const isSelected = selectedCardId === deliverable.id;
   const badge = statusBadgeColors[deliverable.status];
+
+  const hasArtifacts =
+    Boolean(deliverable.specPath) ||
+    Boolean(deliverable.planPath) ||
+    Boolean(deliverable.resultPath);
+
+  const collapsedHeight = hasArtifacts ? '108px' : '88px';
 
   const handleCardClick = () => {
     setSelectedCard(isSelected ? null : deliverable.id);
@@ -65,15 +78,15 @@ export function DeliverableCard({ deliverable, columnColor, wsSend }: Deliverabl
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      h={expanded ? 'auto' : '88px'}
-      minH="88px"
+      h={expanded ? 'auto' : collapsedHeight}
+      minH={collapsedHeight}
       bg={hovered || isSelected ? 'bg.overlay' : 'bg.elevated'}
       border="1px solid"
       borderColor={isSelected ? 'border.accent' : 'border.subtle'}
       borderLeft="3px solid"
       borderLeftColor={columnColor}
       borderRadius="md"
-      boxShadow={hovered || isSelected ? 'md' : 'sm'}
+      boxShadow={isSelected ? 'selected' : hovered ? 'md' : 'sm'}
       p="3"
       cursor="pointer"
       transition="background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1), border-color 200ms cubic-bezier(0.4, 0, 0.2, 1)"
@@ -84,9 +97,8 @@ export function DeliverableCard({ deliverable, columnColor, wsSend }: Deliverabl
     >
       {/* Row 1: ID + Name */}
       <Flex
-        align="center"
+        align="flex-start"
         gap="2"
-        h="28px"
         minH="28px"
       >
         {/* ID Badge */}
@@ -104,32 +116,34 @@ export function DeliverableCard({ deliverable, columnColor, wsSend }: Deliverabl
           fontWeight={600}
           color="text.accent"
           flexShrink={0}
+          mt="2px"
         >
           {deliverable.id.toUpperCase()}
         </Text>
 
-        {/* Name */}
+        {/* Name — wraps to max 2 lines */}
         <Text
           as="span"
           fontSize="base"
           fontWeight={500}
           color="text.primary"
-          whiteSpace="nowrap"
-          overflow="hidden"
-          textOverflow="ellipsis"
           flex={1}
           minW={0}
+          lineClamp={2}
+          lineHeight={1.4}
         >
           {deliverable.name}
         </Text>
 
-        {/* Skill action (hover) */}
-        <SkillActions
-          status={deliverable.status}
-          deliverableId={deliverable.id}
-          visible={hovered}
-          wsSend={wsSend}
-        />
+        {/* Skill action icon (hover) */}
+        <Box flexShrink={0} mt="2px">
+          <SkillActions
+            status={deliverable.status}
+            deliverableId={deliverable.id}
+            visible={hovered}
+            wsSend={wsSend}
+          />
+        </Box>
       </Flex>
 
       {/* Row 2: Status badge + timestamp */}
@@ -197,6 +211,77 @@ export function DeliverableCard({ deliverable, columnColor, wsSend }: Deliverabl
           <ChevronDown size={14} />
         </chakra.button>
       </Flex>
+
+      {/* Row 3: Artifact pills (only when artifacts exist) */}
+      {hasArtifacts && (
+        <Flex
+          align="center"
+          gap="1"
+          mt="2"
+          flexWrap="wrap"
+        >
+          {deliverable.specPath && (
+            <Text
+              as="span"
+              display="inline-flex"
+              alignItems="center"
+              px="6px"
+              py="1px"
+              bg={`${artifactColors.spec}1A`}
+              color={artifactColors.spec}
+              border={`1px solid ${artifactColors.spec}33`}
+              borderRadius="full"
+              fontSize="10px"
+              fontWeight={600}
+              letterSpacing="0.04em"
+              textTransform="uppercase"
+              lineHeight={1.4}
+            >
+              SPEC
+            </Text>
+          )}
+          {deliverable.planPath && (
+            <Text
+              as="span"
+              display="inline-flex"
+              alignItems="center"
+              px="6px"
+              py="1px"
+              bg={`${artifactColors.plan}1A`}
+              color={artifactColors.plan}
+              border={`1px solid ${artifactColors.plan}33`}
+              borderRadius="full"
+              fontSize="10px"
+              fontWeight={600}
+              letterSpacing="0.04em"
+              textTransform="uppercase"
+              lineHeight={1.4}
+            >
+              PLAN
+            </Text>
+          )}
+          {deliverable.resultPath && (
+            <Text
+              as="span"
+              display="inline-flex"
+              alignItems="center"
+              px="6px"
+              py="1px"
+              bg={`${artifactColors.result}1A`}
+              color={artifactColors.result}
+              border={`1px solid ${artifactColors.result}33`}
+              borderRadius="full"
+              fontSize="10px"
+              fontWeight={600}
+              letterSpacing="0.04em"
+              textTransform="uppercase"
+              lineHeight={1.4}
+            >
+              RESULT
+            </Text>
+          )}
+        </Flex>
+      )}
 
       {/* Expandable timeline */}
       <TimelineView deliverable={deliverable} expanded={expanded} />

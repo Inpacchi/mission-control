@@ -123,8 +123,8 @@ export function FileViewer({ deliverable, open, onClose }: FileViewerProps) {
       ref={panelRef}
       role="complementary"
       aria-label={deliverable ? `${deliverable.name} preview` : 'Preview panel'}
-      w={open ? '380px' : '0px'}
-      minW={open ? '380px' : '0px'}
+      w={open ? 'clamp(480px, 60%, 720px)' : '0px'}
+      minW={open ? 'clamp(480px, 60%, 720px)' : '0px'}
       h="100%"
       overflow="hidden"
       transition={open
@@ -133,24 +133,24 @@ export function FileViewer({ deliverable, open, onClose }: FileViewerProps) {
       position="relative"
     >
       <Flex
-        w="380px"
+        w="clamp(480px, 60%, 720px)"
         h="100%"
         direction="column"
         bg="bg.surface"
         borderLeft="1px solid"
         borderColor="border.default"
-        boxShadow={open ? '-4px 0 24px rgba(0,0,0,0.5)' : 'none'}
+        boxShadow={open ? 'panel' : 'none'}
         transform={open ? 'translateX(0)' : 'translateX(100%)'}
         opacity={open ? 1 : 0.6}
         transition={open
           ? 'transform 250ms cubic-bezier(0, 0, 0.2, 1), opacity 250ms cubic-bezier(0, 0, 0.2, 1)'
           : 'transform 200ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms cubic-bezier(0.4, 0, 1, 1)'}
       >
-        {/* Header -- 48px */}
+        {/* Header -- 56px (hero treatment, intentionally taller than dashboard header) */}
         <Flex
           align="center"
-          h="48px"
-          minH="48px"
+          h="56px"
+          minH="56px"
           px="4"
           borderBottom="1px solid"
           borderColor="border.subtle"
@@ -325,7 +325,11 @@ export function FileViewer({ deliverable, open, onClose }: FileViewerProps) {
             </Flex>
           )}
 
-          {!loading && !error && content && <MarkdownPreview content={content} />}
+          {!loading && !error && content && (
+            <Box maxW="600px">
+              <MarkdownPreview content={content} />
+            </Box>
+          )}
 
           {!loading && !error && !content && deliverable && tabs.length === 0 && (
             <Flex

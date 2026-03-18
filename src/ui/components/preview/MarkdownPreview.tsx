@@ -210,6 +210,56 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
         );
       },
 
+      h4({ children }) {
+        return (
+          <Heading
+            as="h4"
+            fontSize="md"
+            fontWeight={600}
+            color="text.primary"
+            lineHeight={1.4}
+            mt="3"
+            mb="1"
+          >
+            {children}
+          </Heading>
+        );
+      },
+
+      h5({ children }) {
+        return (
+          <Heading
+            as="h5"
+            fontSize="base"
+            fontWeight={600}
+            color="text.secondary"
+            lineHeight={1.4}
+            mt="3"
+            mb="1"
+          >
+            {children}
+          </Heading>
+        );
+      },
+
+      h6({ children }) {
+        return (
+          <Heading
+            as="h6"
+            fontSize="sm"
+            fontWeight={600}
+            color="text.muted"
+            lineHeight={1.4}
+            textTransform="uppercase"
+            letterSpacing="0.04em"
+            mt="3"
+            mb="1"
+          >
+            {children}
+          </Heading>
+        );
+      },
+
       p({ children }) {
         return (
           <Text
@@ -285,6 +335,7 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
           <chakra.blockquote
             borderLeft="3px solid"
             borderColor="accent.blue.500"
+            bg="accent.blue.900"
             pl="4"
             my="3"
             color="text.secondary"
@@ -313,7 +364,7 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
         return (
           <chakra.th
             textAlign="left"
-            p="2 3"
+            p="8px 14px"
             borderBottom="2px solid"
             borderColor="border.default"
             color="text.primary"
@@ -330,7 +381,7 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
       td({ children }) {
         return (
           <chakra.td
-            p="6px 12px"
+            p="8px 14px"
             borderBottom="1px solid"
             borderColor="border.subtle"
             color="text.primary"

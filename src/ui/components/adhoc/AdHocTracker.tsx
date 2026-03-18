@@ -7,11 +7,11 @@ import type { UntrackedCommit } from '@shared/types';
 import { useDashboardStore } from '../../stores/dashboardStore';
 
 interface AdHocTrackerProps {
-  defaultCollapsed?: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
-export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+export function AdHocTracker({ isOpen, onToggle }: AdHocTrackerProps) {
   const [commits, setCommits] = useState<UntrackedCommit[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,10 +35,10 @@ export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
   }, []);
 
   useEffect(() => {
-    if (!collapsed && commits.length === 0) {
+    if (isOpen && commits.length === 0) {
       fetchUntracked();
     }
-  }, [collapsed, commits.length, fetchUntracked]);
+  }, [isOpen, commits.length, fetchUntracked]);
 
   const handleReconcile = useCallback(async () => {
     setReconciling(true);
@@ -62,7 +62,7 @@ export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
     } finally {
       setReconciling(false);
     }
-  }, []);
+  }, [addSession, toggleTerminal]);
 
   return (
     <Box
@@ -75,7 +75,7 @@ export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
       {/* Header */}
       <Flex
         as="button"
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={onToggle}
         align="center"
         gap="2"
         w="100%"
@@ -87,7 +87,7 @@ export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
         transition="background-color 100ms ease"
         _hover={{ bg: 'bg.elevated' }}
       >
-        <GitBranch size={16} color="#A78BFA" />
+        <GitBranch size={16} color="#F59E0B" />
         <Text
           fontSize="md"
           fontWeight={600}
@@ -105,8 +105,8 @@ export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
             minW="20px"
             h="20px"
             px="6px"
-            bg="#A78BFA26"
-            color="column.idea"
+            bg="#F59E0B26"
+            color="accent.amber.400"
             borderRadius="full"
             fontSize="xs"
             fontWeight={700}
@@ -119,7 +119,7 @@ export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
           color="#4E5C72"
           style={{
             transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
         />
       </Flex>
@@ -127,16 +127,18 @@ export function AdHocTracker({ defaultCollapsed = true }: AdHocTrackerProps) {
       {/* Collapsible body */}
       <Box
         display="grid"
-        gridTemplateRows={collapsed ? '0fr' : '1fr'}
-        transition={collapsed
-          ? 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
-          : 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)'}
+        gridTemplateRows={isOpen ? '1fr' : '0fr'}
+        transition={isOpen
+          ? 'grid-template-rows 280ms cubic-bezier(0, 0, 0.2, 1)'
+          : 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'}
       >
         <Box overflow="hidden">
           <Box
             borderTop="1px solid"
             borderColor="border.subtle"
             p="3 4"
+            maxH="280px"
+            overflowY="auto"
           >
             {loading && (
               <Text

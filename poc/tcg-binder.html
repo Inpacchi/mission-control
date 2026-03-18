@@ -1,0 +1,2256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control — TCG Binder</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  /* ========================================
+     DESIGN TOKENS
+     ======================================== */
+  :root {
+    --bg-canvas: #0D1117;
+    --bg-surface: #151B25;
+    --bg-elevated: #1C2333;
+    --bg-hover: #242D3D;
+
+    --text-primary: #E8EDF4;
+    --text-secondary: #8B99B3;
+    --text-muted: #5A6578;
+
+    --border-default: #2A3444;
+    --border-subtle: #1E2736;
+
+    --col-complete: #22C55E;
+    --col-blocked: #EF4444;
+    --col-review: #FB923C;
+
+    --type-feature: #F59E0B;
+    --type-bugfix: #A78BFA;
+    --type-architecture: #60A5FA;
+
+    /* Rarity colors */
+    --rarity-common: #8B99B3;
+    --rarity-uncommon: #34D399;
+    --rarity-rare: #60A5FA;
+    --rarity-epic: #A78BFA;
+    --rarity-mythic: #F59E0B;
+
+    --shadow-lg: 0 8px 24px rgba(6,15,28,0.7), 0 4px 8px rgba(6,15,28,0.5);
+    --shadow-xl: 0 16px 48px rgba(6,15,28,0.85), 0 8px 16px rgba(6,15,28,0.6);
+
+    --card-w: 200px;
+    --card-h: 280px;
+    --card-radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ========================================
+     SCENE CONTAINER
+     ======================================== */
+  #scene {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Subtle vignette */
+    background:
+      radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.55) 100%),
+      var(--bg-canvas);
+  }
+
+  /* ========================================
+     BINDER COVER
+     ======================================== */
+  #binder-cover {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    transition: opacity 600ms cubic-bezier(0.4, 0, 0.2, 1), transform 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  #binder-cover.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.97);
+  }
+
+  .cover-book {
+    width: 520px;
+    height: 680px;
+    position: relative;
+    border-radius: 4px 16px 16px 4px;
+    box-shadow:
+      -6px 0 0 #0a0806,
+      -10px 4px 20px rgba(0,0,0,0.8),
+      0 20px 60px rgba(0,0,0,0.7),
+      inset 4px 0 8px rgba(0,0,0,0.4);
+
+    /* Leather texture */
+    background:
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 1px,
+        rgba(255,255,255,0.006) 1px,
+        rgba(255,255,255,0.006) 2px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.04) 3px,
+        rgba(0,0,0,0.04) 4px
+      ),
+      linear-gradient(160deg, #2a2018 0%, #1a1410 30%, #120f0b 60%, #1e1a14 100%);
+
+    cursor: pointer;
+    user-select: none;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+
+  .cover-book:hover {
+    transform: translateY(-4px) rotate(-0.5deg);
+    box-shadow:
+      -6px 0 0 #0a0806,
+      -12px 6px 28px rgba(0,0,0,0.9),
+      0 28px 70px rgba(0,0,0,0.8),
+      inset 4px 0 8px rgba(0,0,0,0.4);
+  }
+
+  /* Spine */
+  .cover-book::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 36px;
+    border-radius: 4px 0 0 4px;
+    background: linear-gradient(180deg, #1a1410 0%, #0e0b08 50%, #1a1410 100%);
+    border-right: 1px solid rgba(255,255,255,0.06);
+    box-shadow: inset -3px 0 6px rgba(0,0,0,0.5);
+  }
+
+  /* Ring holes on spine */
+  .cover-book::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 280px;
+    background:
+      radial-gradient(circle at center, #080604 40%, transparent 41%) 0 0 / 14px 40px repeat-y,
+      transparent;
+    opacity: 0.8;
+  }
+
+  .cover-inner {
+    position: absolute;
+    left: 36px;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 0 16px 16px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 48px 40px;
+    overflow: hidden;
+  }
+
+  /* Embossed border on cover */
+  .cover-inner::before {
+    content: '';
+    position: absolute;
+    inset: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.4),
+      inset 0 0 0 1px rgba(0,0,0,0.3);
+    pointer-events: none;
+  }
+
+  .cover-set-symbol {
+    width: 80px;
+    height: 80px;
+    position: relative;
+  }
+
+  .cover-set-symbol svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 2px 8px rgba(245,158,11,0.4));
+  }
+
+  .cover-title {
+    text-align: center;
+  }
+
+  .cover-title h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.08);
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.12),
+      0 -1px 0 rgba(0,0,0,0.5);
+
+    /* Embossed gold foil effect */
+    background: linear-gradient(180deg, #c9a84c 0%, #f5d980 40%, #c9a84c 60%, #8b6914 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+  }
+
+  .cover-title p {
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.25);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .cover-divider {
+    width: 120px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,158,11,0.4), transparent);
+  }
+
+  .cover-stats {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .cover-stat {
+    text-align: center;
+  }
+
+  .cover-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    background: linear-gradient(180deg, #c9a84c 0%, #f5d980 50%, #c9a84c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .cover-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.2);
+    margin-top: 2px;
+  }
+
+  .cover-stat-sep {
+    width: 1px;
+    height: 28px;
+    background: rgba(255,255,255,0.08);
+  }
+
+  .open-btn {
+    margin-top: 8px;
+    padding: 12px 32px;
+    border-radius: 6px;
+    border: 1px solid rgba(245,158,11,0.35);
+    background: linear-gradient(180deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.06) 100%);
+    color: #f5d980;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 180ms ease;
+    box-shadow: 0 0 0 0 rgba(245,158,11,0);
+  }
+
+  .open-btn:hover {
+    background: linear-gradient(180deg, rgba(245,158,11,0.2) 0%, rgba(245,158,11,0.1) 100%);
+    border-color: rgba(245,158,11,0.6);
+    box-shadow: 0 0 16px rgba(245,158,11,0.15);
+    transform: translateY(-1px);
+  }
+
+  .open-btn:active {
+    transform: translateY(0);
+  }
+
+  /* ========================================
+     BINDER OPEN VIEW
+     ======================================== */
+  #binder-open {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 500ms ease 300ms;
+  }
+
+  #binder-open.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ========================================
+     BINDER HEADER
+     ======================================== */
+  .binder-header {
+    width: 100%;
+    max-width: 1200px;
+    padding: 20px 40px 16px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .header-collection-name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  .header-collection-name span {
+    color: #f5d980;
+  }
+
+  .header-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border-default);
+    flex-shrink: 0;
+  }
+
+  .header-page-indicator {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .header-completion {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .completion-ring-wrap {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+
+  .completion-ring-wrap svg {
+    transform: rotate(-90deg);
+    overflow: visible;
+  }
+
+  .completion-ring-bg {
+    fill: none;
+    stroke: var(--border-default);
+    stroke-width: 3;
+  }
+
+  .completion-ring-fill {
+    fill: none;
+    stroke: #22C55E;
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .completion-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .completion-text strong {
+    color: #22C55E;
+    font-size: 13px;
+  }
+
+  .header-filters {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+  }
+
+  .filter-btn {
+    padding: 5px 12px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 150ms ease;
+  }
+
+  .filter-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    border-color: var(--border-default);
+  }
+
+  .filter-btn.active {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    border-color: var(--border-default);
+  }
+
+  /* ========================================
+     BINDER BODY (page area)
+     ======================================== */
+  .binder-body {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: 20px 0;
+  }
+
+  /* ========================================
+     PAGE CONTAINER
+     ======================================== */
+  .page-container {
+    width: 900px;
+    height: 100%;
+    max-height: 660px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ========================================
+     NAV ARROWS
+     ======================================== */
+  .page-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border-default);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 180ms ease;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .page-nav:hover {
+    border-color: rgba(245,158,11,0.4);
+    color: #f5d980;
+    background: var(--bg-hover);
+    box-shadow: 0 0 16px rgba(245,158,11,0.1), var(--shadow-lg);
+  }
+
+  .page-nav:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .page-nav.prev { left: -60px; }
+  .page-nav.next { right: -60px; }
+
+  .page-nav svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
+  }
+
+  /* ========================================
+     BINDER PAGE
+     ======================================== */
+  .binder-page {
+    width: 900px;
+    height: 640px;
+    border-radius: 4px 12px 12px 4px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+
+    /* Page surface: slightly lighter than binder background */
+    background:
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 1px,
+        rgba(255,255,255,0.003) 1px,
+        rgba(255,255,255,0.003) 2px
+      ),
+      linear-gradient(180deg, #161c28 0%, #131820 50%, #161c28 100%);
+
+    box-shadow:
+      var(--shadow-xl),
+      inset 4px 0 16px rgba(0,0,0,0.35),
+      inset 0 0 40px rgba(0,0,0,0.1);
+
+    transition:
+      transform 550ms cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 550ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .binder-page.slide-out-left {
+    transform: translate(-150%, -50%);
+    opacity: 0;
+  }
+
+  .binder-page.slide-out-right {
+    transform: translate(50%, -50%);
+    opacity: 0;
+  }
+
+  .binder-page.slide-in-right {
+    transform: translate(50%, -50%);
+    opacity: 0;
+  }
+
+  .binder-page.slide-in-left {
+    transform: translate(-150%, -50%);
+    opacity: 0;
+  }
+
+  /* Binder rings / left edge shadow */
+  .binder-page::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 32px;
+    background: linear-gradient(90deg, rgba(0,0,0,0.35) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* Page label */
+  .page-label {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    z-index: 5;
+    white-space: nowrap;
+  }
+
+  /* Ring holes on left edge */
+  .ring-holes {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 60px;
+    z-index: 6;
+  }
+
+  .ring-hole {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #1a1e2a, #080a10);
+    border: 1px solid rgba(0,0,0,0.6);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  /* ========================================
+     CARD GRID (3x3)
+     ======================================== */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, var(--card-w));
+    grid-template-rows: repeat(3, var(--card-h));
+    gap: 20px;
+    padding: 44px 40px 24px 56px;
+    height: 100%;
+    align-content: center;
+    justify-content: center;
+  }
+
+  /* ========================================
+     CARD SLOT (sleeve wrapper)
+     ======================================== */
+  .card-slot {
+    width: var(--card-w);
+    height: var(--card-h);
+    border-radius: calc(var(--card-radius) + 2px);
+    position: relative;
+
+    /* Sleeve border */
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 2px 8px rgba(0,0,0,0.4);
+  }
+
+  /* Glossy reflection on sleeve */
+  .card-slot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: calc(var(--card-radius) + 2px);
+    background: linear-gradient(
+      160deg,
+      rgba(255,255,255,0.025) 0%,
+      rgba(255,255,255,0.01) 30%,
+      transparent 60%
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ----------------------------------------
+     EMPTY SLOT
+     ---------------------------------------- */
+  .card-slot.empty {
+    cursor: default;
+  }
+
+  .empty-pattern {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--card-radius);
+    position: relative;
+    overflow: hidden;
+    opacity: 0.35;
+
+    background:
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 8px,
+        rgba(255,255,255,0.025) 8px,
+        rgba(255,255,255,0.025) 9px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 8px,
+        rgba(255,255,255,0.025) 8px,
+        rgba(255,255,255,0.025) 9px
+      ),
+      linear-gradient(180deg, #10151f 0%, #0d1118 100%);
+  }
+
+  /* MC watermark in empty slot */
+  .empty-pattern::after {
+    content: 'MC';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.04);
+  }
+
+  /* ----------------------------------------
+     CARD IN SLEEVE
+     ---------------------------------------- */
+  .card {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--card-radius);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 250ms ease;
+    transform-origin: center bottom;
+  }
+
+  .card-slot:hover .card {
+    transform: translateY(-6px) scale(1.02);
+  }
+
+  /* ----------------------------------------
+     RARITY BORDER FRAMES
+     ---------------------------------------- */
+  .card[data-rarity="common"] {
+    border: 2px solid rgba(139,153,179,0.6);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+
+  .card[data-rarity="uncommon"] {
+    border: 2px solid rgba(52,211,153,0.7);
+    box-shadow: 0 4px 16px rgba(52,211,153,0.15), 0 4px 12px rgba(0,0,0,0.6);
+  }
+
+  .card[data-rarity="rare"] {
+    border: 2px solid rgba(96,165,250,0.8);
+    box-shadow: 0 4px 20px rgba(96,165,250,0.2), 0 4px 12px rgba(0,0,0,0.6);
+  }
+
+  .card[data-rarity="epic"] {
+    border: 2px solid rgba(167,139,250,0.9);
+    box-shadow:
+      0 4px 24px rgba(167,139,250,0.25),
+      0 0 0 1px rgba(167,139,250,0.15),
+      0 4px 12px rgba(0,0,0,0.6);
+  }
+
+  .card[data-rarity="mythic"] {
+    border: 2px solid rgba(245,158,11,0.9);
+    box-shadow:
+      0 4px 28px rgba(245,158,11,0.3),
+      0 0 0 1px rgba(245,158,11,0.2),
+      0 4px 12px rgba(0,0,0,0.6);
+  }
+
+  .card-slot:hover .card[data-rarity="mythic"] {
+    box-shadow:
+      0 8px 36px rgba(245,158,11,0.4),
+      0 0 0 1px rgba(245,158,11,0.3),
+      0 8px 20px rgba(0,0,0,0.7);
+  }
+
+  .card-slot:hover .card[data-rarity="epic"] {
+    box-shadow:
+      0 8px 32px rgba(167,139,250,0.35),
+      0 0 0 1px rgba(167,139,250,0.25),
+      0 8px 20px rgba(0,0,0,0.7);
+  }
+
+  /* ----------------------------------------
+     CARD BODY LAYOUT
+     ---------------------------------------- */
+  .card-body {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Card background */
+  .card-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .card[data-rarity="common"] .card-bg {
+    background: linear-gradient(180deg, #1a2030 0%, #111520 100%);
+  }
+  .card[data-rarity="uncommon"] .card-bg {
+    background: linear-gradient(180deg, #111f1a 0%, #0d1813 100%);
+  }
+  .card[data-rarity="rare"] .card-bg {
+    background: linear-gradient(180deg, #111a2a 0%, #0d1420 100%);
+  }
+  .card[data-rarity="epic"] .card-bg {
+    background: linear-gradient(180deg, #1a1428 0%, #120e1e 100%);
+  }
+  .card[data-rarity="mythic"] .card-bg {
+    background: linear-gradient(180deg, #1e1808 0%, #150f04 100%);
+  }
+
+  /* SHIMMER for rare+ */
+  .card-shimmer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 300ms ease;
+  }
+
+  .card[data-rarity="rare"] .card-shimmer,
+  .card[data-rarity="epic"] .card-shimmer,
+  .card[data-rarity="mythic"] .card-shimmer {
+    background: linear-gradient(
+      115deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(255,255,255,0.04) 50%,
+      transparent 60%,
+      transparent 100%
+    );
+  }
+
+  .card-slot:hover .card[data-rarity="rare"] .card-shimmer,
+  .card-slot:hover .card[data-rarity="epic"] .card-shimmer,
+  .card-slot:hover .card[data-rarity="mythic"] .card-shimmer {
+    opacity: 1;
+    animation: shimmer-pan 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer-pan {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* Mythic animated sparkle border */
+  @keyframes mythic-pulse {
+    0%, 100% { box-shadow: 0 4px 28px rgba(245,158,11,0.3), 0 0 0 1px rgba(245,158,11,0.2), 0 4px 12px rgba(0,0,0,0.6); }
+    50% { box-shadow: 0 4px 36px rgba(245,158,11,0.5), 0 0 0 1px rgba(245,158,11,0.35), 0 4px 12px rgba(0,0,0,0.6); }
+  }
+
+  .card[data-rarity="mythic"] {
+    animation: mythic-pulse 3s ease-in-out infinite;
+  }
+
+  /* Complete glow */
+  .card[data-status="complete"][data-rarity="common"] {
+    box-shadow: 0 4px 16px rgba(34,197,94,0.2), 0 4px 12px rgba(0,0,0,0.6);
+    border-color: rgba(34,197,94,0.7);
+  }
+
+  /* ----------------------------------------
+     CARD SECTIONS
+     ---------------------------------------- */
+  .card-header-zone {
+    position: relative;
+    z-index: 2;
+    padding: 8px 10px 6px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .card-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+    padding: 2px 5px;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.3);
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .card-rarity-pip {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+
+  .card[data-rarity="common"] .card-rarity-pip    { background: var(--rarity-common); }
+  .card[data-rarity="uncommon"] .card-rarity-pip  { background: var(--rarity-uncommon); box-shadow: 0 0 4px rgba(52,211,153,0.6); }
+  .card[data-rarity="rare"] .card-rarity-pip      { background: var(--rarity-rare); box-shadow: 0 0 4px rgba(96,165,250,0.6); }
+  .card[data-rarity="epic"] .card-rarity-pip      { background: var(--rarity-epic); box-shadow: 0 0 6px rgba(167,139,250,0.7); }
+  .card[data-rarity="mythic"] .card-rarity-pip    { background: var(--rarity-mythic); box-shadow: 0 0 8px rgba(245,158,11,0.8); width: 10px; height: 10px; margin-top: 2px; }
+
+  .card-art-zone {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    margin: 0 8px;
+    border-radius: 6px;
+    overflow: hidden;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.15) 100%);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .card-art-glyph {
+    font-size: 36px;
+    opacity: 0.7;
+    filter: saturate(0.7);
+  }
+
+  /* Art zone gradient tint per rarity */
+  .card[data-rarity="rare"] .card-art-zone {
+    background: linear-gradient(180deg, rgba(96,165,250,0.08) 0%, rgba(0,0,0,0.2) 100%);
+  }
+  .card[data-rarity="epic"] .card-art-zone {
+    background: linear-gradient(180deg, rgba(167,139,250,0.1) 0%, rgba(0,0,0,0.2) 100%);
+  }
+  .card[data-rarity="mythic"] .card-art-zone {
+    background: linear-gradient(180deg, rgba(245,158,11,0.1) 0%, rgba(0,0,0,0.2) 100%);
+  }
+
+  .card-name-zone {
+    position: relative;
+    z-index: 2;
+    padding: 7px 10px 5px;
+    flex-shrink: 0;
+  }
+
+  .card-name {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-type-line {
+    font-size: 8.5px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .card-text-zone {
+    position: relative;
+    z-index: 2;
+    margin: 0 8px;
+    padding: 6px 8px;
+    border-radius: 5px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.05);
+    flex-shrink: 0;
+    min-height: 42px;
+  }
+
+  .card-description {
+    font-size: 8px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-footer-zone {
+    position: relative;
+    z-index: 2;
+    padding: 5px 10px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .card-status-badge {
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .card-status-badge.complete {
+    background: rgba(34,197,94,0.15);
+    color: #22C55E;
+    border: 1px solid rgba(34,197,94,0.3);
+  }
+
+  .card-status-badge.blocked {
+    background: rgba(239,68,68,0.15);
+    color: #EF4444;
+    border: 1px solid rgba(239,68,68,0.3);
+  }
+
+  .card-sprint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5px;
+    color: var(--text-muted);
+    opacity: 0.6;
+  }
+
+  /* ----------------------------------------
+     BLOCKED OVERLAY (banned card)
+     ---------------------------------------- */
+  .blocked-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    border-radius: var(--card-radius);
+  }
+
+  .blocked-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(239,68,68,0.08);
+    border-radius: var(--card-radius);
+  }
+
+  /* Two diagonal "ban" lines */
+  .blocked-overlay::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: var(--card-radius);
+    background:
+      linear-gradient(
+        to bottom right,
+        transparent calc(50% - 1px),
+        rgba(239,68,68,0.6) calc(50% - 1px),
+        rgba(239,68,68,0.6) calc(50% + 1px),
+        transparent calc(50% + 1px)
+      );
+  }
+
+  .blocked-stamp {
+    position: relative;
+    z-index: 1;
+    padding: 4px 10px;
+    border: 2px solid rgba(239,68,68,0.7);
+    border-radius: 4px;
+    transform: rotate(-15deg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: rgba(239,68,68,0.85);
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.5);
+    box-shadow: 0 0 12px rgba(239,68,68,0.2);
+  }
+
+  /* ----------------------------------------
+     SLEEVE GLOSS (top reflection)
+     ---------------------------------------- */
+  .sleeve-gloss {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    border-radius: calc(var(--card-radius) + 2px);
+    background: linear-gradient(
+      175deg,
+      rgba(255,255,255,0.025) 0%,
+      rgba(255,255,255,0.01) 25%,
+      transparent 50%
+    );
+    pointer-events: none;
+  }
+
+  /* ========================================
+     MODAL
+     ======================================== */
+  #modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 250ms ease;
+    backdrop-filter: blur(0px);
+  }
+
+  #modal-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+    backdrop-filter: blur(6px);
+    background: rgba(0,0,0,0.65);
+    transition: opacity 250ms ease, backdrop-filter 250ms ease;
+  }
+
+  .modal-inner {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    transform: scale(0.94) translateY(10px);
+    transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  #modal-backdrop.open .modal-inner {
+    transform: scale(1) translateY(0);
+  }
+
+  /* Large card in modal */
+  .modal-card-wrap {
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .modal-card {
+    width: 320px;
+    height: 448px;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    cursor: default;
+  }
+
+  /* Modal card borders match rarity */
+  .modal-card[data-rarity="common"]   { border: 3px solid rgba(139,153,179,0.7); box-shadow: 0 8px 40px rgba(0,0,0,0.8); }
+  .modal-card[data-rarity="uncommon"] { border: 3px solid rgba(52,211,153,0.8);  box-shadow: 0 8px 40px rgba(52,211,153,0.2), 0 8px 40px rgba(0,0,0,0.8); }
+  .modal-card[data-rarity="rare"]     { border: 3px solid rgba(96,165,250,0.9);  box-shadow: 0 8px 48px rgba(96,165,250,0.25), 0 8px 40px rgba(0,0,0,0.8); }
+  .modal-card[data-rarity="epic"]     { border: 3px solid rgba(167,139,250,1);   box-shadow: 0 8px 52px rgba(167,139,250,0.3), 0 8px 40px rgba(0,0,0,0.8); }
+  .modal-card[data-rarity="mythic"]   { border: 3px solid rgba(245,158,11,1);    box-shadow: 0 8px 60px rgba(245,158,11,0.4), 0 0 0 1px rgba(245,158,11,0.2), 0 8px 40px rgba(0,0,0,0.8); }
+
+  .modal-card .card-body {
+    height: 100%;
+  }
+
+  .modal-card .card-bg { position: absolute; inset: 0; }
+  .modal-card[data-rarity="common"]   .card-bg { background: linear-gradient(180deg, #1a2030 0%, #111520 100%); }
+  .modal-card[data-rarity="uncommon"] .card-bg { background: linear-gradient(180deg, #111f1a 0%, #0d1813 100%); }
+  .modal-card[data-rarity="rare"]     .card-bg { background: linear-gradient(180deg, #111a2a 0%, #0d1420 100%); }
+  .modal-card[data-rarity="epic"]     .card-bg { background: linear-gradient(180deg, #1a1428 0%, #120e1e 100%); }
+  .modal-card[data-rarity="mythic"]   .card-bg { background: linear-gradient(180deg, #1e1808 0%, #150f04 100%); }
+
+  .modal-card .card-header-zone { padding: 12px 14px 8px; }
+  .modal-card .card-id { font-size: 11px; }
+  .modal-card .card-rarity-pip { width: 11px; height: 11px; margin-top: 2px; }
+  .modal-card .card-art-zone { margin: 0 12px; min-height: 130px; }
+  .modal-card .card-art-glyph { font-size: 56px; }
+  .modal-card .card-name-zone { padding: 10px 14px 6px; }
+  .modal-card .card-name { font-size: 15px; }
+  .modal-card .card-type-line { font-size: 10.5px; margin-top: 3px; }
+  .modal-card .card-text-zone { margin: 0 12px; padding: 8px 10px; min-height: 60px; }
+  .modal-card .card-description { font-size: 10px; -webkit-line-clamp: 4; }
+  .modal-card .card-footer-zone { padding: 8px 14px 12px; }
+  .modal-card .card-status-badge { font-size: 9px; padding: 3px 8px; }
+  .modal-card .card-sprint { font-size: 9px; }
+
+  .modal-card .blocked-stamp { font-size: 18px; }
+
+  /* Detail panel */
+  .modal-detail {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .modal-close {
+    align-self: flex-end;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border-default);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 150ms ease;
+    margin-bottom: -4px;
+    flex-shrink: 0;
+  }
+
+  .modal-close:hover {
+    color: var(--text-primary);
+    border-color: rgba(239,68,68,0.4);
+    background: rgba(239,68,68,0.1);
+  }
+
+  .modal-close svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+  }
+
+  .modal-title-block {
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 14px;
+  }
+
+  .modal-title-block h2 {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--text-primary);
+  }
+
+  .modal-title-block .meta {
+    margin-top: 6px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .meta-tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .meta-tag.rarity-common    { background: rgba(139,153,179,0.15); color: var(--rarity-common); border: 1px solid rgba(139,153,179,0.25); }
+  .meta-tag.rarity-uncommon  { background: rgba(52,211,153,0.12); color: var(--rarity-uncommon); border: 1px solid rgba(52,211,153,0.25); }
+  .meta-tag.rarity-rare      { background: rgba(96,165,250,0.12); color: var(--rarity-rare); border: 1px solid rgba(96,165,250,0.25); }
+  .meta-tag.rarity-epic      { background: rgba(167,139,250,0.12); color: var(--rarity-epic); border: 1px solid rgba(167,139,250,0.25); }
+  .meta-tag.rarity-mythic    { background: rgba(245,158,11,0.12); color: var(--rarity-mythic); border: 1px solid rgba(245,158,11,0.25); }
+
+  .meta-tag.type-feature      { background: rgba(245,158,11,0.1); color: var(--type-feature); border: 1px solid rgba(245,158,11,0.2); }
+  .meta-tag.type-architecture { background: rgba(96,165,250,0.1); color: var(--type-architecture); border: 1px solid rgba(96,165,250,0.2); }
+  .meta-tag.type-bugfix       { background: rgba(167,139,250,0.1); color: var(--type-bugfix); border: 1px solid rgba(167,139,250,0.2); }
+  .meta-tag.type-infrastructure { background: rgba(52,211,153,0.1); color: var(--rarity-uncommon); border: 1px solid rgba(52,211,153,0.2); }
+
+  /* Timeline */
+  .timeline-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 12px;
+    bottom: 12px;
+    width: 1px;
+    background: var(--border-subtle);
+  }
+
+  .timeline-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 6px 0;
+    position: relative;
+  }
+
+  .timeline-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 10px;
+    border: 2px solid;
+    position: relative;
+    z-index: 1;
+  }
+
+  .timeline-dot.done {
+    background: rgba(34,197,94,0.15);
+    border-color: rgba(34,197,94,0.5);
+    color: #22C55E;
+  }
+
+  .timeline-dot.pending {
+    background: var(--bg-elevated);
+    border-color: var(--border-default);
+    color: var(--text-muted);
+  }
+
+  .timeline-dot.blocked {
+    background: rgba(239,68,68,0.1);
+    border-color: rgba(239,68,68,0.4);
+    color: #EF4444;
+  }
+
+  .timeline-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .timeline-content strong {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: block;
+  }
+
+  .timeline-content span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 1px;
+  }
+
+  /* ========================================
+     COMPLETION RING ANIMATION
+     ======================================== */
+  @keyframes ring-fill {
+    from { stroke-dashoffset: 100.5; }
+  }
+
+  /* ========================================
+     PAGE TURN ANIMATION CLASSES
+     (applied via JS)
+     ======================================== */
+  @keyframes page-flip-out-left {
+    0%   { transform: translate(-50%, -50%) perspective(1200px) rotateY(0deg); opacity: 1; }
+    100% { transform: translate(-50%, -50%) perspective(1200px) rotateY(-90deg) translateX(-20px); opacity: 0; }
+  }
+
+  @keyframes page-flip-in-right {
+    0%   { transform: translate(-50%, -50%) perspective(1200px) rotateY(90deg) translateX(20px); opacity: 0; }
+    100% { transform: translate(-50%, -50%) perspective(1200px) rotateY(0deg); opacity: 1; }
+  }
+
+  @keyframes page-flip-out-right {
+    0%   { transform: translate(-50%, -50%) perspective(1200px) rotateY(0deg); opacity: 1; }
+    100% { transform: translate(-50%, -50%) perspective(1200px) rotateY(90deg) translateX(20px); opacity: 0; }
+  }
+
+  @keyframes page-flip-in-left {
+    0%   { transform: translate(-50%, -50%) perspective(1200px) rotateY(-90deg) translateX(-20px); opacity: 0; }
+    100% { transform: translate(-50%, -50%) perspective(1200px) rotateY(0deg); opacity: 1; }
+  }
+
+  .page-flip-out-left  { animation: page-flip-out-left  320ms cubic-bezier(0.4, 0, 0.6, 1) forwards; }
+  .page-flip-out-right { animation: page-flip-out-right 320ms cubic-bezier(0.4, 0, 0.6, 1) forwards; }
+  .page-flip-in-right  { animation: page-flip-in-right  320ms cubic-bezier(0.2, 0, 0.4, 1) 280ms forwards; opacity: 0; }
+  .page-flip-in-left   { animation: page-flip-in-left   320ms cubic-bezier(0.2, 0, 0.4, 1) 280ms forwards; opacity: 0; }
+
+  /* ========================================
+     FILTER HIDE
+     ======================================== */
+  .card-slot[data-hidden="true"] {
+    opacity: 0.15;
+    pointer-events: none;
+    filter: grayscale(0.8);
+    transition: opacity 250ms ease, filter 250ms ease;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==========================================
+     SCENE
+     ========================================== -->
+<div id="scene">
+
+  <!-- ==========================================
+       BINDER COVER
+       ========================================== -->
+  <div id="binder-cover">
+    <div class="cover-book" id="cover-book">
+      <div class="cover-inner">
+        <!-- Set symbol (stylized MC hexagon) -->
+        <div class="cover-set-symbol">
+          <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="40,4 72,22 72,58 40,76 8,58 8,22" fill="none" stroke="rgba(245,158,11,0.4)" stroke-width="1.5"/>
+            <polygon points="40,12 64,26 64,54 40,68 16,54 16,26" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.2)" stroke-width="1"/>
+            <text x="40" y="48" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-weight="700" font-size="18" letter-spacing="2" fill="rgba(245,158,11,0.7)">MC</text>
+          </svg>
+        </div>
+
+        <div class="cover-title">
+          <h1>Mission Control</h1>
+          <p>Deliverable Collection — Series I</p>
+        </div>
+
+        <div class="cover-divider"></div>
+
+        <div class="cover-stats">
+          <div class="cover-stat">
+            <div class="cover-stat-value">9</div>
+            <div class="cover-stat-label">Collected</div>
+          </div>
+          <div class="cover-stat-sep"></div>
+          <div class="cover-stat">
+            <div class="cover-stat-value">16</div>
+            <div class="cover-stat-label">Total Slots</div>
+          </div>
+          <div class="cover-stat-sep"></div>
+          <div class="cover-stat">
+            <div class="cover-stat-value">56%</div>
+            <div class="cover-stat-label">Complete</div>
+          </div>
+        </div>
+
+        <button class="open-btn" id="open-binder-btn">Open Binder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       BINDER OPEN VIEW
+       ========================================== -->
+  <div id="binder-open">
+
+    <!-- HEADER -->
+    <div class="binder-header">
+      <div class="header-collection-name">Collection: <span>Mission Control</span></div>
+      <div class="header-sep"></div>
+      <div class="header-page-indicator" id="page-indicator">Page 1 of 2</div>
+      <div class="header-sep"></div>
+      <div class="header-completion">
+        <div class="completion-ring-wrap">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <circle class="completion-ring-bg" cx="18" cy="18" r="15"/>
+            <circle
+              class="completion-ring-fill"
+              cx="18" cy="18" r="15"
+              id="completion-ring"
+              stroke-dasharray="94.2 100.5"
+              stroke-dashoffset="100.5"
+            />
+          </svg>
+        </div>
+        <div class="completion-text">
+          <strong>9 / 16</strong><br>collected &nbsp;·&nbsp; 56%
+        </div>
+      </div>
+      <div class="header-filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="feature">Features</button>
+        <button class="filter-btn" data-filter="architecture">Architecture</button>
+        <button class="filter-btn" data-filter="bugfix">Bugfixes</button>
+      </div>
+    </div>
+
+    <!-- BODY / PAGE AREA -->
+    <div class="binder-body">
+      <div class="page-container">
+
+        <!-- PREV -->
+        <button class="page-nav prev" id="prev-btn" disabled aria-label="Previous page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+
+        <!-- PAGE 1 -->
+        <div class="binder-page" id="page-1" data-page="1">
+          <div class="ring-holes">
+            <div class="ring-hole"></div>
+            <div class="ring-hole"></div>
+            <div class="ring-hole"></div>
+          </div>
+          <div class="page-label">Sprint 1–2</div>
+          <div class="card-grid">
+
+            <!-- D01 Mythic complete -->
+            <div class="card-slot" data-type="feature" data-card="d01">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="mythic" data-status="complete" data-type="feature"
+                   data-id="D01" data-name="Mission Control Dashboard"
+                   data-desc="Full web-based dashboard replacing the raw terminal as the primary interface for directing Claude Code agents."
+                   data-sprint="Sprint 1" data-type-label="Feature · UI">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D01</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">🖥️</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">Mission Control Dashboard</div>
+                    <div class="card-type-line">Feature · UI System</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      Full web-based dashboard replacing the raw terminal as the primary interface for directing Claude Code agents.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge complete">Complete</span>
+                    <span class="card-sprint">S1</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- D02 Rare complete -->
+            <div class="card-slot" data-type="architecture" data-card="d02">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="rare" data-status="complete" data-type="architecture"
+                   data-id="D02" data-name="SDLC Parser"
+                   data-desc="Parses SDLC document structure from the filesystem, extracting deliverable state, phase, and metadata."
+                   data-sprint="Sprint 1" data-type-label="Architecture · Parser">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D02</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">📄</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">SDLC Parser</div>
+                    <div class="card-type-line">Architecture · Parser</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      Parses SDLC document structure from the filesystem, extracting deliverable state, phase, and metadata.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge complete">Complete</span>
+                    <span class="card-sprint">S1</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- D03 Epic complete -->
+            <div class="card-slot" data-type="architecture" data-card="d03">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="epic" data-status="complete" data-type="architecture"
+                   data-id="D03" data-name="PTY Terminal Multiplexer"
+                   data-desc="Node-pty backed terminal sessions with full ANSI support. Multiple concurrent Claude Code instances in named tabs."
+                   data-sprint="Sprint 1" data-type-label="Architecture · Terminal">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D03</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">⌨️</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">PTY Terminal Multiplexer</div>
+                    <div class="card-type-line">Architecture · Terminal</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      Node-pty backed terminal sessions with full ANSI support. Multiple concurrent Claude Code instances in named tabs.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge complete">Complete</span>
+                    <span class="card-sprint">S1</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- D04 Rare complete -->
+            <div class="card-slot" data-type="architecture" data-card="d04">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="rare" data-status="complete" data-type="architecture"
+                   data-id="D04" data-name="Express REST API"
+                   data-desc="Express 5 REST layer exposing SDLC state, terminal session management, file access, and process control."
+                   data-sprint="Sprint 1" data-type-label="Architecture · Server">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D04</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">🔌</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">Express REST API</div>
+                    <div class="card-type-line">Architecture · Server</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      Express 5 REST layer exposing SDLC state, terminal session management, file access, and process control.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge complete">Complete</span>
+                    <span class="card-sprint">S1</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- D05 Rare complete -->
+            <div class="card-slot" data-type="feature" data-card="d05">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="rare" data-status="complete" data-type="feature"
+                   data-id="D05" data-name="File Watcher Service"
+                   data-desc="Chokidar-based watcher that pushes live kanban updates over WebSocket when SDLC docs change on disk."
+                   data-sprint="Sprint 2" data-type-label="Feature · Infra">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D05</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">👁️</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">File Watcher Service</div>
+                    <div class="card-type-line">Feature · Infra</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      Chokidar-based watcher that pushes live kanban updates over WebSocket when SDLC docs change on disk.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge complete">Complete</span>
+                    <span class="card-sprint">S2</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- D06 Uncommon complete -->
+            <div class="card-slot" data-type="feature" data-card="d06">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="uncommon" data-status="complete" data-type="feature"
+                   data-id="D06" data-name="Process Manager"
+                   data-desc="Managed dev-server lifecycle with configurable commands, log streaming, and WebSocket status updates."
+                   data-sprint="Sprint 2" data-type-label="Feature · Infra">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D06</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">⚙️</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">Process Manager</div>
+                    <div class="card-type-line">Feature · Infra</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      Managed dev-server lifecycle with configurable commands, log streaming, and WebSocket status updates.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge complete">Complete</span>
+                    <span class="card-sprint">S2</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty slot -->
+            <div class="card-slot empty">
+              <div class="empty-pattern"></div>
+            </div>
+            <div class="card-slot empty">
+              <div class="empty-pattern"></div>
+            </div>
+            <div class="card-slot empty">
+              <div class="empty-pattern"></div>
+            </div>
+
+          </div><!-- /card-grid -->
+        </div><!-- /page-1 -->
+
+        <!-- PAGE 2 (hidden initially) -->
+        <div class="binder-page" id="page-2" data-page="2" style="opacity:0;pointer-events:none;transform:translate(50%,-50%)">
+          <div class="ring-holes">
+            <div class="ring-hole"></div>
+            <div class="ring-hole"></div>
+            <div class="ring-hole"></div>
+          </div>
+          <div class="page-label">Sprint 3–4</div>
+          <div class="card-grid">
+
+            <!-- D07 Rare complete -->
+            <div class="card-slot" data-type="feature" data-card="d07">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="rare" data-status="complete" data-type="feature"
+                   data-id="D07" data-name="Git Integration"
+                   data-desc="Live git status, branch info, and recent commit timeline surfaced in the kanban sidebar via git CLI parsing."
+                   data-sprint="Sprint 3" data-type-label="Feature · Git">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D07</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">🌿</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">Git Integration</div>
+                    <div class="card-type-line">Feature · Git</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      Live git status, branch info, and recent commit timeline surfaced in the kanban sidebar via git CLI parsing.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge complete">Complete</span>
+                    <span class="card-sprint">S3</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- D08 Uncommon complete -->
+            <div class="card-slot" data-type="bugfix" data-card="d08">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="uncommon" data-status="complete" data-type="bugfix"
+                   data-id="D08" data-name="WebSocket Reconnection"
+                   data-desc="Automatic exponential-backoff reconnection for both terminal and kanban WebSocket channels after disconnect."
+                   data-sprint="Sprint 3" data-type-label="Bugfix · Reliability">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D08</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">🔄</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">WebSocket Reconnection</div>
+                    <div class="card-type-line">Bugfix · Reliability</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      Automatic exponential-backoff reconnection for both terminal and kanban WebSocket channels after disconnect.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge complete">Complete</span>
+                    <span class="card-sprint">S3</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- D09 Uncommon BLOCKED -->
+            <div class="card-slot" data-type="feature" data-card="d09">
+              <div class="sleeve-gloss"></div>
+              <div class="card" data-rarity="uncommon" data-status="blocked" data-type="feature"
+                   data-id="D09" data-name="Remote Access"
+                   data-desc="LAN/Tailscale binding for remote dashboard access. Security review flagged session isolation gap."
+                   data-sprint="Sprint 4" data-type-label="Feature · Infra">
+                <div class="card-body">
+                  <div class="card-bg"></div>
+                  <div class="card-shimmer"></div>
+                  <div class="card-header-zone">
+                    <span class="card-id">D09</span>
+                    <span class="card-rarity-pip"></span>
+                  </div>
+                  <div class="card-art-zone">
+                    <span class="card-art-glyph">🌐</span>
+                  </div>
+                  <div class="card-name-zone">
+                    <div class="card-name">Remote Access</div>
+                    <div class="card-type-line">Feature · Infra</div>
+                  </div>
+                  <div class="card-text-zone">
+                    <div class="card-description">
+                      LAN/Tailscale binding for remote dashboard access. Security review flagged session isolation gap.
+                    </div>
+                  </div>
+                  <div class="card-footer-zone">
+                    <span class="card-status-badge blocked">Blocked</span>
+                    <span class="card-sprint">S4</span>
+                  </div>
+                </div>
+                <div class="blocked-overlay">
+                  <span class="blocked-stamp">Blocked</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty slots x6 -->
+            <div class="card-slot empty"><div class="empty-pattern"></div></div>
+            <div class="card-slot empty"><div class="empty-pattern"></div></div>
+            <div class="card-slot empty"><div class="empty-pattern"></div></div>
+            <div class="card-slot empty"><div class="empty-pattern"></div></div>
+            <div class="card-slot empty"><div class="empty-pattern"></div></div>
+            <div class="card-slot empty"><div class="empty-pattern"></div></div>
+
+          </div><!-- /card-grid -->
+        </div><!-- /page-2 -->
+
+        <!-- NEXT -->
+        <button class="page-nav next" id="next-btn" aria-label="Next page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+
+      </div><!-- /page-container -->
+    </div><!-- /binder-body -->
+  </div><!-- /binder-open -->
+
+</div><!-- /scene -->
+
+<!-- ==========================================
+     MODAL
+     ========================================== -->
+<div id="modal-backdrop" role="dialog" aria-modal="true" aria-label="Card detail">
+  <div class="modal-inner">
+    <div class="modal-card-wrap">
+      <div class="modal-card" id="modal-card">
+        <div class="card-body">
+          <div class="card-bg"></div>
+          <div class="card-shimmer"></div>
+          <div class="card-header-zone">
+            <span class="card-id" id="modal-card-id"></span>
+            <span class="card-rarity-pip"></span>
+          </div>
+          <div class="card-art-zone">
+            <span class="card-art-glyph" id="modal-card-glyph"></span>
+          </div>
+          <div class="card-name-zone">
+            <div class="card-name" id="modal-card-name"></div>
+            <div class="card-type-line" id="modal-card-type"></div>
+          </div>
+          <div class="card-text-zone">
+            <div class="card-description" id="modal-card-desc"></div>
+          </div>
+          <div class="card-footer-zone">
+            <span class="card-status-badge" id="modal-card-status"></span>
+            <span class="card-sprint" id="modal-card-sprint"></span>
+          </div>
+        </div>
+        <div class="blocked-overlay" id="modal-blocked-overlay" style="display:none">
+          <span class="blocked-stamp">Blocked</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-detail">
+      <button class="modal-close" id="modal-close" aria-label="Close card detail">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      <div class="modal-title-block">
+        <h2 id="modal-title"></h2>
+        <div class="meta" id="modal-meta"></div>
+      </div>
+
+      <div>
+        <div class="timeline-label">SDLC Timeline</div>
+        <div class="timeline" id="modal-timeline"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ==========================================
+     DATA
+     ========================================== */
+  const CARD_GLYPHS = {
+    'd01': '🖥️', 'd02': '📄', 'd03': '⌨️', 'd04': '🔌',
+    'd05': '👁️', 'd06': '⚙️', 'd07': '🌿', 'd08': '🔄', 'd09': '🌐',
+  };
+
+  const TIMELINE_DATA = {
+    'd01': [
+      { label: 'Spec', date: '2025-10-01', status: 'done' },
+      { label: 'Plan', date: '2025-10-03', status: 'done' },
+      { label: 'Implementation', date: '2025-10-05', status: 'done' },
+      { label: 'Review', date: '2025-10-08', status: 'done' },
+      { label: 'Result', date: '2025-10-09', status: 'done' },
+    ],
+    'd02': [
+      { label: 'Spec', date: '2025-10-02', status: 'done' },
+      { label: 'Plan', date: '2025-10-04', status: 'done' },
+      { label: 'Implementation', date: '2025-10-06', status: 'done' },
+      { label: 'Review', date: '2025-10-07', status: 'done' },
+      { label: 'Result', date: '2025-10-07', status: 'done' },
+    ],
+    'd03': [
+      { label: 'Spec', date: '2025-10-05', status: 'done' },
+      { label: 'Plan', date: '2025-10-07', status: 'done' },
+      { label: 'Implementation', date: '2025-10-10', status: 'done' },
+      { label: 'Review', date: '2025-10-14', status: 'done' },
+      { label: 'Result', date: '2025-10-15', status: 'done' },
+    ],
+    'd04': [
+      { label: 'Spec', date: '2025-10-03', status: 'done' },
+      { label: 'Plan', date: '2025-10-05', status: 'done' },
+      { label: 'Implementation', date: '2025-10-08', status: 'done' },
+      { label: 'Review', date: '2025-10-09', status: 'done' },
+      { label: 'Result', date: '2025-10-10', status: 'done' },
+    ],
+    'd05': [
+      { label: 'Spec', date: '2025-10-14', status: 'done' },
+      { label: 'Plan', date: '2025-10-15', status: 'done' },
+      { label: 'Implementation', date: '2025-10-17', status: 'done' },
+      { label: 'Review', date: '2025-10-18', status: 'done' },
+      { label: 'Result', date: '2025-10-19', status: 'done' },
+    ],
+    'd06': [
+      { label: 'Spec', date: '2025-10-16', status: 'done' },
+      { label: 'Plan', date: '2025-10-17', status: 'done' },
+      { label: 'Implementation', date: '2025-10-20', status: 'done' },
+      { label: 'Review', date: '2025-10-21', status: 'done' },
+      { label: 'Result', date: '2025-10-22', status: 'done' },
+    ],
+    'd07': [
+      { label: 'Spec', date: '2025-11-01', status: 'done' },
+      { label: 'Plan', date: '2025-11-03', status: 'done' },
+      { label: 'Implementation', date: '2025-11-06', status: 'done' },
+      { label: 'Review', date: '2025-11-08', status: 'done' },
+      { label: 'Result', date: '2025-11-09', status: 'done' },
+    ],
+    'd08': [
+      { label: 'Spec', date: '2025-11-05', status: 'done' },
+      { label: 'Plan', date: '2025-11-06', status: 'done' },
+      { label: 'Implementation', date: '2025-11-09', status: 'done' },
+      { label: 'Review', date: '2025-11-10', status: 'done' },
+      { label: 'Result', date: '2025-11-11', status: 'done' },
+    ],
+    'd09': [
+      { label: 'Spec', date: '2025-11-14', status: 'done' },
+      { label: 'Plan', date: '2025-11-15', status: 'done' },
+      { label: 'Implementation', date: '2025-11-20', status: 'done' },
+      { label: 'Review', date: '2025-11-22', status: 'blocked' },
+      { label: 'Result', date: '—', status: 'pending' },
+    ],
+  };
+
+  /* ==========================================
+     STATE
+     ========================================== */
+  let currentPage = 1;
+  const totalPages = 2;
+  let isAnimating = false;
+  let activeFilter = 'all';
+
+  /* ==========================================
+     ELEMENTS
+     ========================================== */
+  const coverEl       = document.getElementById('binder-cover');
+  const openBtn       = document.getElementById('open-binder-btn');
+  const coverBook     = document.getElementById('cover-book');
+  const binderOpen    = document.getElementById('binder-open');
+  const prevBtn       = document.getElementById('prev-btn');
+  const nextBtn       = document.getElementById('next-btn');
+  const pageIndicator = document.getElementById('page-indicator');
+  const completionRing = document.getElementById('completion-ring');
+  const modalBackdrop = document.getElementById('modal-backdrop');
+  const modalClose    = document.getElementById('modal-close');
+  const filterBtns    = document.querySelectorAll('.filter-btn');
+
+  /* ==========================================
+     OPEN BINDER
+     ========================================== */
+  function openBinder() {
+    coverEl.classList.add('hidden');
+    binderOpen.classList.add('visible');
+    animateRing();
+  }
+
+  openBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openBinder();
+  });
+
+  coverBook.addEventListener('click', openBinder);
+
+  /* ==========================================
+     COMPLETION RING ANIMATION
+     ========================================== */
+  function animateRing() {
+    // 9/16 = 56.25%
+    // circumference = 2 * pi * 15 = ~94.25
+    const circumference = 2 * Math.PI * 15;
+    const pct = 9 / 16;
+    const fillAmt = circumference * pct;
+    const gap = circumference - fillAmt;
+
+    // Start at 0 (dashoffset = full circumference = hidden)
+    completionRing.style.strokeDasharray = `0 ${circumference}`;
+    completionRing.style.strokeDashoffset = '0';
+
+    // Force reflow
+    completionRing.getBoundingClientRect();
+
+    // Animate to filled state
+    completionRing.style.transition = 'stroke-dasharray 1400ms cubic-bezier(0.4, 0, 0.2, 1)';
+    completionRing.style.strokeDasharray = `${fillAmt} ${gap}`;
+  }
+
+  /* ==========================================
+     PAGE NAVIGATION
+     ========================================== */
+  function updateNavState() {
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+    pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+  }
+
+  function goToPage(newPage) {
+    if (isAnimating || newPage === currentPage || newPage < 1 || newPage > totalPages) return;
+    isAnimating = true;
+
+    const direction = newPage > currentPage ? 'forward' : 'backward';
+    const outPage = document.getElementById(`page-${currentPage}`);
+    const inPage  = document.getElementById(`page-${newPage}`);
+
+    if (direction === 'forward') {
+      // Current page flips left, new page comes from right
+      outPage.classList.add('page-flip-out-left');
+      inPage.style.opacity = '0';
+      inPage.style.transform = 'translate(50%, -50%)';
+      inPage.style.pointerEvents = 'none';
+      inPage.classList.add('page-flip-in-right');
+    } else {
+      outPage.classList.add('page-flip-out-right');
+      inPage.style.opacity = '0';
+      inPage.style.transform = 'translate(-150%, -50%)';
+      inPage.style.pointerEvents = 'none';
+      inPage.classList.add('page-flip-in-left');
+    }
+
+    setTimeout(() => {
+      outPage.classList.remove('page-flip-out-left', 'page-flip-out-right');
+      outPage.style.opacity = '0';
+      outPage.style.pointerEvents = 'none';
+      if (direction === 'forward') {
+        outPage.style.transform = 'translate(-150%, -50%)';
+      } else {
+        outPage.style.transform = 'translate(50%, -50%)';
+      }
+
+      inPage.classList.remove('page-flip-in-right', 'page-flip-in-left');
+      inPage.style.opacity = '1';
+      inPage.style.pointerEvents = 'all';
+      inPage.style.transform = 'translate(-50%, -50%)';
+
+      currentPage = newPage;
+      updateNavState();
+      applyFilter(activeFilter);
+      isAnimating = false;
+    }, 640);
+  }
+
+  prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
+  nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
+
+  // Click page edges
+  document.querySelectorAll('.binder-page').forEach(page => {
+    page.addEventListener('click', (e) => {
+      const rect = page.getBoundingClientRect();
+      const relX = e.clientX - rect.left;
+      if (relX > rect.width * 0.85) {
+        goToPage(currentPage + 1);
+      } else if (relX < rect.width * 0.15) {
+        goToPage(currentPage - 1);
+      }
+    });
+  });
+
+  /* ==========================================
+     FILTERS
+     ========================================== */
+  function applyFilter(filter) {
+    activeFilter = filter;
+    const activePage = document.getElementById(`page-${currentPage}`);
+    const slots = activePage ? activePage.querySelectorAll('.card-slot:not(.empty)') : [];
+    slots.forEach(slot => {
+      const slotType = slot.getAttribute('data-type');
+      if (filter === 'all') {
+        slot.setAttribute('data-hidden', 'false');
+      } else {
+        slot.setAttribute('data-hidden', slotType !== filter ? 'true' : 'false');
+      }
+    });
+  }
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilter(btn.getAttribute('data-filter'));
+    });
+  });
+
+  /* ==========================================
+     MODAL
+     ========================================== */
+  function openModal(cardEl) {
+    const id      = (cardEl.dataset.id    || '').toLowerCase();
+    const name    = cardEl.dataset.name   || '';
+    const desc    = cardEl.dataset.desc   || '';
+    const rarity  = cardEl.dataset.rarity || 'common';
+    const status  = cardEl.dataset.status || 'complete';
+    const sprint  = cardEl.dataset.sprint || '';
+    const typelabel = cardEl.dataset.typeLabel || cardEl.querySelector('.card-type-line')?.textContent || '';
+    const glyph   = CARD_GLYPHS[id] || '📦';
+    const typeAttr = cardEl.dataset.type || '';
+
+    const modalCard = document.getElementById('modal-card');
+    modalCard.dataset.rarity = rarity;
+    modalCard.dataset.status = status;
+
+    document.getElementById('modal-card-id').textContent    = cardEl.dataset.id;
+    document.getElementById('modal-card-glyph').textContent = glyph;
+    document.getElementById('modal-card-name').textContent  = name;
+    document.getElementById('modal-card-type').textContent  = typelabel;
+    document.getElementById('modal-card-desc').textContent  = desc;
+    document.getElementById('modal-card-sprint').textContent = sprint;
+
+    const statusBadge = document.getElementById('modal-card-status');
+    statusBadge.textContent = status === 'complete' ? 'Complete' : 'Blocked';
+    statusBadge.className = `card-status-badge ${status}`;
+
+    const blockedOverlay = document.getElementById('modal-blocked-overlay');
+    blockedOverlay.style.display = status === 'blocked' ? 'flex' : 'none';
+
+    // Reset bg class
+    const bgEl = modalCard.querySelector('.card-bg');
+    const bgMap = {
+      common:   'linear-gradient(180deg, #1a2030 0%, #111520 100%)',
+      uncommon: 'linear-gradient(180deg, #111f1a 0%, #0d1813 100%)',
+      rare:     'linear-gradient(180deg, #111a2a 0%, #0d1420 100%)',
+      epic:     'linear-gradient(180deg, #1a1428 0%, #120e1e 100%)',
+      mythic:   'linear-gradient(180deg, #1e1808 0%, #150f04 100%)',
+    };
+    bgEl.style.background = bgMap[rarity] || bgMap.common;
+
+    // Title
+    document.getElementById('modal-title').textContent = name;
+
+    // Meta tags
+    const metaEl = document.getElementById('modal-meta');
+    const rarityLabel = rarity.charAt(0).toUpperCase() + rarity.slice(1);
+    const typeLabel2 = typeAttr.charAt(0).toUpperCase() + typeAttr.slice(1);
+    metaEl.innerHTML = `
+      <span class="meta-tag rarity-${rarity}">${rarityLabel}</span>
+      <span class="meta-tag type-${typeAttr}">${typeLabel2}</span>
+      <span class="meta-tag rarity-${status === 'complete' ? 'uncommon' : 'common'}" style="border-color:${status === 'complete' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}; background:${status === 'complete' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'}; color:${status === 'complete' ? '#22C55E' : '#EF4444'}">${status === 'complete' ? 'Complete' : 'Blocked'}</span>
+    `;
+
+    // Timeline
+    const timelineEl = document.getElementById('modal-timeline');
+    const steps = TIMELINE_DATA[id] || [];
+    const stepIcons = { done: '✓', pending: '○', blocked: '!' };
+    timelineEl.innerHTML = steps.map(s => `
+      <div class="timeline-step">
+        <div class="timeline-dot ${s.status}">${stepIcons[s.status]}</div>
+        <div class="timeline-content">
+          <strong>${s.label}</strong>
+          <span>${s.date}</span>
+        </div>
+      </div>
+    `).join('');
+
+    modalBackdrop.classList.add('open');
+    document.addEventListener('keydown', handleModalKey);
+  }
+
+  function closeModal() {
+    modalBackdrop.classList.remove('open');
+    document.removeEventListener('keydown', handleModalKey);
+  }
+
+  function handleModalKey(e) {
+    if (e.key === 'Escape') closeModal();
+  }
+
+  modalClose.addEventListener('click', closeModal);
+  modalBackdrop.addEventListener('click', (e) => {
+    if (e.target === modalBackdrop) closeModal();
+  });
+
+  // Attach card click handlers
+  document.querySelectorAll('.card-slot:not(.empty)').forEach(slot => {
+    const card = slot.querySelector('.card');
+    if (!card) return;
+    slot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Don't open modal if page-edge click was going to navigate
+      openModal(card);
+    });
+  });
+
+  /* ==========================================
+     INIT
+     ========================================== */
+  updateNavState();
+</script>
+</body>
+</html>

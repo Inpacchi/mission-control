@@ -17,9 +17,9 @@ function StatItem({ value, label, color, loading }: StatItemProps) {
   return (
     <Flex direction="column" align="center" gap="2px">
       <Text
-        fontSize="xl"
+        fontSize="lg"
         fontWeight={700}
-        lineHeight={1.3}
+        lineHeight={1.2}
         letterSpacing="-0.02em"
         color={color}
         filter={loading ? 'blur(2px)' : 'none'}
@@ -30,9 +30,9 @@ function StatItem({ value, label, color, loading }: StatItemProps) {
       </Text>
       <Text
         fontSize="xs"
-        fontWeight={400}
+        fontWeight={500}
         lineHeight={1.4}
-        letterSpacing="0.06em"
+        letterSpacing="0.05em"
         color="text.muted"
         textTransform="uppercase"
       >

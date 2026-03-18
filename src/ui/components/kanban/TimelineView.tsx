@@ -77,7 +77,7 @@ export function TimelineView({ deliverable, expanded }: TimelineViewProps) {
       gridTemplateRows={expanded ? '1fr' : '0fr'}
       transition={
         expanded
-          ? 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)'
+          ? 'grid-template-rows 280ms cubic-bezier(0, 0, 0.2, 1)'
           : 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
       }
     >

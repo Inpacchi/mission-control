@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control — Field of Play</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  /* ========================================
+     TOKENS
+     ======================================== */
+  :root {
+    --bg-canvas: #0D1117;
+    --bg-deep: #08042F;
+    --bg-surface: #151B25;
+    --bg-elevated: #1C2333;
+    --bg-hover: #242D3D;
+
+    --text-primary: #E8EDF4;
+    --text-secondary: #8B99B3;
+    --text-muted: #5A6578;
+
+    --border-default: #2A3444;
+    --border-subtle: #1E2736;
+
+    --col-idea: #A78BFA;
+    --col-spec: #60A5FA;
+    --col-plan: #34D399;
+    --col-progress: #F59E0B;
+    --col-review: #FB923C;
+    --col-complete: #22C55E;
+    --col-blocked: #EF4444;
+
+    --type-feature: #F59E0B;
+    --type-bugfix: #A78BFA;
+    --type-refactor: #E879A8;
+    --type-research: #34D399;
+    --type-architecture: #60A5FA;
+
+    --doc-spec: #60A5FA;
+    --doc-plan: #34D399;
+    --doc-result: #22C55E;
+
+    --shadow-sm: 0 2px 4px rgba(6,15,28,0.6), 0 1px 2px rgba(6,15,28,0.7);
+    --shadow-md: 0 4px 12px rgba(6,15,28,0.6), 0 2px 4px rgba(6,15,28,0.7);
+    --shadow-lg: 0 8px 24px rgba(6,15,28,0.7), 0 4px 8px rgba(6,15,28,0.5);
+
+    --mini-w: 168px;
+    --mini-h: 220px;
+    --card-radius: 8px;
+    --card-border: 3px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* ========================================
+     TOP BAR
+     ======================================== */
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 52px;
+    background: rgba(13,17,23,0.92);
+    border-bottom: 1px solid var(--border-default);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .top-bar-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+
+  .top-bar-title span {
+    color: var(--col-plan);
+  }
+
+  .top-bar-path {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .top-bar-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .phase-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-radius: 9999px;
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.25);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--col-progress);
+    letter-spacing: 0.04em;
+  }
+
+  .phase-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--col-progress);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .lp-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .lp-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .lp-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+
+  .lp-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--col-complete);
+    line-height: 1;
+  }
+
+  .lp-value.amber { color: var(--col-progress); }
+  .lp-value.blue { color: var(--col-spec); }
+
+  .lp-divider {
+    width: 1px;
+    height: 28px;
+    background: var(--border-default);
+  }
+
+  /* ========================================
+     PLAY MAT WRAPPER
+     ======================================== */
+  .mat-wrapper {
+    min-height: calc(100vh - 52px);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 28px 32px;
+
+    /* Felt texture */
+    background:
+      repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 4px),
+      radial-gradient(ellipse at 50% 50%, #141B27 0%, #0D1117 100%);
+
+    /* Vignette */
+    box-shadow: inset 0 0 120px rgba(0,0,0,0.7), inset 0 0 40px rgba(0,0,0,0.4);
+    position: relative;
+  }
+
+  /* Vignette overlay */
+  .mat-wrapper::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 50%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .mat-inner {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* ========================================
+     ZONE SHARED STYLES
+     ======================================== */
+  .zone {
+    border: 1px dashed rgba(255,255,255,0.1);
+    border-radius: 12px;
+    position: relative;
+    transition: border-color 300ms ease, box-shadow 300ms ease;
+    padding: 14px 16px;
+  }
+
+  .zone:hover {
+    border-color: rgba(255,255,255,0.18);
+  }
+
+  .zone-label {
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--zone-color, var(--text-muted));
+    background: var(--bg-canvas);
+    padding: 0 8px;
+    opacity: 0.7;
+    transition: opacity 300ms ease;
+  }
+
+  .zone:hover .zone-label {
+    opacity: 1;
+  }
+
+  .zone:hover {
+    box-shadow: inset 0 0 40px rgba(var(--zone-r, 90), var(--zone-g, 90), var(--zone-b, 90), 0.04);
+  }
+
+  /* Zone accent glow on hover */
+  .zone-idea { --zone-color: var(--col-idea); --zone-r: 167; --zone-g: 139; --zone-b: 250; }
+  .zone-idea:hover { border-color: rgba(167,139,250,0.25); box-shadow: inset 0 0 40px rgba(167,139,250,0.04); }
+
+  .zone-spec { --zone-color: var(--col-spec); }
+  .zone-spec:hover { border-color: rgba(96,165,250,0.25); box-shadow: inset 0 0 40px rgba(96,165,250,0.04); }
+
+  .zone-field { --zone-color: var(--col-plan); }
+  .zone-field:hover { border-color: rgba(52,211,153,0.25); box-shadow: inset 0 0 40px rgba(52,211,153,0.04); }
+
+  .zone-review { --zone-color: var(--col-review); }
+  .zone-review:hover { border-color: rgba(251,146,60,0.25); box-shadow: inset 0 0 40px rgba(251,146,60,0.04); }
+
+  .zone-graveyard { --zone-color: var(--col-complete); }
+  .zone-graveyard:hover { border-color: rgba(34,197,94,0.25); box-shadow: inset 0 0 40px rgba(34,197,94,0.04); }
+
+  .zone-extra { --zone-color: var(--col-blocked); }
+  .zone-extra:hover { border-color: rgba(239,68,68,0.25); box-shadow: inset 0 0 40px rgba(239,68,68,0.04); }
+
+  /* ========================================
+     LAYOUT: TOP ROW (deck + field + extra/GY)
+     ======================================== */
+  .mat-top-row {
+    display: grid;
+    grid-template-columns: 200px 1fr 200px;
+    gap: 12px;
+    flex: 0 0 auto;
+  }
+
+  /* ========================================
+     DECK ZONE
+     ======================================== */
+  .zone-deck-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 160px;
+  }
+
+  .deck-stack {
+    position: relative;
+    width: var(--mini-w);
+    height: var(--mini-h);
+    cursor: pointer;
+  }
+
+  /* Stacked cards offset */
+  .deck-ghost {
+    position: absolute;
+    width: var(--mini-w);
+    height: var(--mini-h);
+    border-radius: var(--card-radius);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+  }
+
+  .deck-ghost:nth-child(1) { top: 6px; left: 4px; opacity: 0.4; transform: rotate(1.5deg); }
+  .deck-ghost:nth-child(2) { top: 3px; left: 2px; opacity: 0.6; transform: rotate(0.7deg); }
+  .deck-ghost:nth-child(3) { top: 0; left: 0; opacity: 1; }
+
+  .deck-top-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--mini-w);
+    height: var(--mini-h);
+    border-radius: var(--card-radius);
+    background: linear-gradient(135deg, #1a1f35 0%, #0f1420 100%);
+    border: 1px solid var(--border-default);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+    overflow: hidden;
+  }
+
+  .deck-stack:hover .deck-top-card {
+    transform: translateY(-4px) rotate(-1deg);
+    box-shadow: 0 8px 24px rgba(167,139,250,0.2);
+  }
+
+  .deck-back-pattern {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+  }
+
+  .deck-back-pattern::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(167,139,250,0.04) 8px, rgba(167,139,250,0.04) 9px),
+      repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(96,165,250,0.03) 8px, rgba(96,165,250,0.03) 9px);
+  }
+
+  .deck-back-logo {
+    position: relative;
+    z-index: 2;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--col-idea), var(--col-spec));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    opacity: 0.6;
+    letter-spacing: -0.04em;
+  }
+
+  .deck-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .deck-hint {
+    font-size: 11px;
+    color: var(--col-idea);
+    opacity: 0.7;
+    font-style: italic;
+  }
+
+  /* Revealed card from deck */
+  .deck-revealed {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 200;
+  }
+
+  .deck-revealed.show {
+    display: block;
+    animation: deck-flip-in 500ms cubic-bezier(0, 0, 0.2, 1) both;
+  }
+
+  @keyframes deck-flip-in {
+    0% { opacity: 0; transform: translate(-50%, -50%) rotateY(90deg) scale(0.9); }
+    60% { transform: translate(-50%, -50%) rotateY(-5deg) scale(1.05); }
+    100% { opacity: 1; transform: translate(-50%, -50%) rotateY(0deg) scale(1); }
+  }
+
+  .deck-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 199;
+    backdrop-filter: blur(4px);
+  }
+
+  .deck-overlay.show {
+    display: block;
+    animation: fade-in 200ms ease;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .revealed-close {
+    position: absolute;
+    top: -32px;
+    right: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    transition: color 200ms ease;
+  }
+
+  .revealed-close:hover { color: var(--text-primary); }
+
+  /* ========================================
+     FIELD / MONSTER ZONE
+     ======================================== */
+  .zone-field-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    min-height: 260px;
+    flex-wrap: wrap;
+  }
+
+  /* ========================================
+     SIDE PANEL (graveyard + extra deck)
+     ======================================== */
+  .side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Graveyard */
+  .zone-gy-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .gy-stack {
+    position: relative;
+    width: 80px;
+    height: 104px;
+    cursor: pointer;
+    transition: transform 200ms ease;
+  }
+
+  .gy-stack:hover {
+    transform: scale(1.05);
+  }
+
+  .gy-ghost {
+    position: absolute;
+    border-radius: 6px;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.15);
+  }
+
+  .gy-ghost:nth-child(1) { inset: 0; top: 5px; left: 4px; opacity: 0.4; }
+  .gy-ghost:nth-child(2) { inset: 0; top: 2px; left: 2px; opacity: 0.6; }
+
+  .gy-top {
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    background: rgba(34,197,94,0.06);
+    border: 1px solid rgba(34,197,94,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .gy-count-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--col-complete);
+    color: var(--bg-canvas);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+
+  .gy-peek {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--col-complete);
+    opacity: 0.7;
+    text-align: center;
+    line-height: 1.4;
+    padding: 4px;
+  }
+
+  .gy-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* Graveyard expanded */
+  .gy-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 200;
+    background: var(--bg-surface);
+    border-radius: 16px;
+    border: 1px solid var(--border-default);
+    padding: 20px;
+    width: 580px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .gy-modal.show {
+    display: block;
+    animation: modal-in 300ms cubic-bezier(0, 0, 0.2, 1) both;
+  }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  .gy-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .gy-modal-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--col-complete);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .gy-modal-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-default);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 200ms ease;
+  }
+
+  .gy-modal-close:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--text-primary);
+  }
+
+  .gy-modal-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Extra deck zone */
+  .zone-extra-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .extra-stack {
+    width: 60px;
+    height: 80px;
+    border-radius: 6px;
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .extra-x {
+    font-size: 20px;
+    color: var(--col-blocked);
+    opacity: 0.4;
+    font-weight: 700;
+  }
+
+  .extra-count-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--col-blocked);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .extra-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  /* ========================================
+     REVIEW / SPELL-TRAP ZONE
+     ======================================== */
+  .mat-review-row {
+    flex: 0 0 auto;
+  }
+
+  .zone-review-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 100px;
+    justify-content: center;
+  }
+
+  /* Face-down card */
+  .facedown-card {
+    width: var(--mini-w);
+    height: var(--mini-h);
+    border-radius: var(--card-radius);
+    cursor: pointer;
+    position: relative;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+
+  .facedown-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 32px rgba(251,146,60,0.2);
+  }
+
+  .facedown-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--card-radius);
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid rgba(251,146,60,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .facedown-inner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(251,146,60,0.03) 6px, rgba(251,146,60,0.03) 7px),
+      repeating-linear-gradient(-45deg, transparent, transparent 6px, rgba(251,146,60,0.03) 6px, rgba(251,146,60,0.03) 7px);
+  }
+
+  .facedown-symbol {
+    position: relative;
+    z-index: 2;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    color: var(--col-review);
+    opacity: 0.25;
+    font-weight: 700;
+  }
+
+  .facedown-id {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--col-review);
+    opacity: 0.5;
+    z-index: 2;
+  }
+
+  /* Review zone label hint */
+  .review-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    margin-top: 6px;
+    opacity: 0.6;
+  }
+
+  /* ========================================
+     HAND ZONE (bottom)
+     ======================================== */
+  .mat-hand-row {
+    flex: 0 0 auto;
+    margin-top: 8px;
+  }
+
+  .zone-hand-inner {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: -8px;
+    min-height: 140px;
+    padding-top: 24px;
+    perspective: 800px;
+  }
+
+  .hand-card-wrap {
+    margin: 0 -10px;
+    transition: transform 300ms cubic-bezier(0, 0, 0.2, 1), z-index 0ms;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hand-card-wrap:nth-child(1) { transform: rotate(-5deg) translateY(8px); }
+  .hand-card-wrap:nth-child(2) { transform: rotate(-2deg) translateY(3px); }
+  .hand-card-wrap:nth-child(3) { transform: rotate(2deg) translateY(3px); }
+
+  .hand-card-wrap:hover {
+    transform: rotate(0deg) translateY(-28px) scale(1.05) !important;
+    z-index: 20;
+  }
+
+  .hand-hint {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 8px;
+    opacity: 0.6;
+  }
+
+  /* ========================================
+     MINI-CARD STYLES
+     ======================================== */
+  .mini-card {
+    width: var(--mini-w);
+    background: var(--bg-elevated);
+    border-radius: var(--card-radius);
+    border-left: var(--card-border) solid var(--accent, var(--col-idea));
+    overflow: hidden;
+    cursor: default;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .mini-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--card-radius);
+    background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 4px);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .mini-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .mini-card-identity {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 8px 10px 6px;
+    gap: 6px;
+  }
+
+  .mini-card-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .mini-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text-primary);
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mini-cost {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .cost-pip {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent, var(--col-idea));
+    opacity: 0.7;
+  }
+
+  .cost-pip.empty {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    opacity: 0.35;
+  }
+
+  .mini-type-bar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.02);
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .type-icon-sm {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--type-color, var(--type-feature));
+    opacity: 0.8;
+    flex-shrink: 0;
+  }
+
+  .type-dot-sm {
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .type-status { color: var(--accent, var(--col-idea)); }
+
+  .mini-body {
+    padding: 6px 10px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  .mini-artifacts {
+    display: flex;
+    gap: 4px;
+    padding: 0 10px 6px;
+    flex-wrap: wrap;
+  }
+
+  .artifact-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    background: var(--pill-color, var(--doc-spec));
+    color: var(--bg-canvas);
+  }
+
+  .mini-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px 7px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .stat-group { display: flex; gap: 8px; }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .stat-label {
+    font-size: 8px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .stat-value { color: var(--text-primary); }
+  .stat-value.impact { color: var(--col-complete); }
+  .stat-value.effort { color: var(--col-progress); }
+
+  .set-symbol-sm {
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px;
+    font-weight: 700;
+    border-radius: 3px;
+    background: var(--accent, var(--col-idea));
+    color: var(--bg-canvas);
+    opacity: 0.8;
+    flex-shrink: 0;
+  }
+
+  /* ========================================
+     RARITY TREATMENTS (mini-card)
+     ======================================== */
+  .mini-card.rarity-uncommon .mini-card-id {
+    background: linear-gradient(135deg, #888 0%, #ccc 25%, #999 50%, #ddd 75%, #aaa 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  @keyframes foil-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .mini-card.rarity-rare {
+    border-left-color: transparent;
+    position: relative;
+  }
+
+  .mini-card.rarity-rare::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: var(--card-border);
+    background: linear-gradient(180deg, var(--accent) 0%, #fff 50%, var(--accent) 100%);
+    background-size: 100% 200%;
+    animation: border-shimmer 2.5s ease-in-out infinite;
+    border-radius: var(--card-radius) 0 0 var(--card-radius);
+    z-index: 2;
+  }
+
+  @keyframes border-shimmer {
+    0%, 100% { background-position: 0% 0%; }
+    50% { background-position: 0% 100%; }
+  }
+
+  .mini-card.rarity-rare .mini-card-id {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #b8860b 50%, #ffe44d 80%, #b8860b 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  /* Epic: gold border wrap */
+  .gold-wrap {
+    position: relative;
+    padding: 2px;
+    border-radius: calc(var(--card-radius) + 2px);
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 20%, #b8860b 40%, #ffe44d 60%, #b8860b 80%, #ffd700 100%);
+    background-size: 300% 300%;
+    animation: gold-border 4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  .gold-wrap .mini-card {
+    border-left: none;
+    border: none;
+  }
+
+  @keyframes gold-border {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .mini-card.rarity-epic .mini-card-id {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #ffe44d 60%, #b8860b 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 2.5s ease-in-out infinite;
+  }
+
+  /* Completed */
+  .mini-card.rarity-completed {
+    border-left: none;
+    border: 2px solid rgba(34,197,94,0.35);
+  }
+
+  .mini-card.rarity-completed::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: calc(var(--card-radius) + 2px);
+    background: linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.04) 50%, rgba(34,197,94,0.18) 100%);
+    z-index: -1;
+    animation: complete-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes complete-pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  .mini-card.rarity-completed .mini-card-id { color: var(--col-complete); }
+  .mini-card.rarity-completed .mini-card-name { color: rgba(34,197,94,0.85); }
+
+  /* Blocked */
+  .mini-card.rarity-blocked {
+    border-left-color: var(--col-blocked);
+    opacity: 0.7;
+  }
+
+  .mini-card.rarity-blocked .mini-card-id { color: var(--col-blocked); }
+
+  /* ========================================
+     FIELD CARD LARGER PRESENCE
+     ======================================== */
+  .field-card-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .field-status-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    border: 1px solid;
+  }
+
+  .field-status-plan {
+    color: var(--col-plan);
+    border-color: rgba(52,211,153,0.3);
+    background: rgba(52,211,153,0.08);
+  }
+
+  .field-status-progress {
+    color: var(--col-progress);
+    border-color: rgba(245,158,11,0.3);
+    background: rgba(245,158,11,0.08);
+    animation: progress-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes progress-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+    50% { box-shadow: 0 0 0 4px rgba(245,158,11,0.08); }
+  }
+
+  /* ========================================
+     SCROLLBAR
+     ======================================== */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-canvas); }
+  ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+
+  /* ========================================
+     REDUCED MOTION
+     ======================================== */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="top-bar">
+  <div class="top-bar-left">
+    <span class="top-bar-title">Mission Control — <span>Field of Play</span></span>
+    <span class="top-bar-path">~/Projects/mission-control</span>
+  </div>
+
+  <div class="top-bar-center">
+    <div class="phase-pill">
+      <span class="phase-dot"></span>
+      Sprint 4 — Planning Phase
+    </div>
+  </div>
+
+  <div class="top-bar-right">
+    <div class="lp-display">
+      <div class="lp-stat">
+        <span class="lp-label">Total</span>
+        <span class="lp-value blue">17</span>
+      </div>
+      <div class="lp-divider"></div>
+      <div class="lp-stat">
+        <span class="lp-label">Complete</span>
+        <span class="lp-value">3</span>
+      </div>
+      <div class="lp-divider"></div>
+      <div class="lp-stat">
+        <span class="lp-label">Rate</span>
+        <span class="lp-value amber">18%</span>
+      </div>
+      <div class="lp-divider"></div>
+      <div class="lp-stat">
+        <span class="lp-label">Active</span>
+        <span class="lp-value amber">5</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- PLAY MAT -->
+<div class="mat-wrapper">
+  <div class="mat-inner">
+
+    <!-- TOP ROW: Deck | Field | Side Panel -->
+    <div class="mat-top-row">
+
+      <!-- DECK ZONE (Ideas) -->
+      <div class="zone zone-idea" style="align-self: start;">
+        <span class="zone-label">Deck — Ideas</span>
+        <div class="zone-deck-inner">
+          <div class="deck-stack" id="deckStack" onclick="drawCard()">
+            <div class="deck-ghost" style="top:6px;left:4px;"></div>
+            <div class="deck-ghost" style="top:3px;left:2px;"></div>
+            <div class="deck-top-card">
+              <div class="deck-back-pattern"></div>
+              <div class="deck-back-logo">MC</div>
+            </div>
+          </div>
+          <div class="deck-count" id="deckCount">3 cards remaining</div>
+          <div class="deck-hint">Click to draw</div>
+        </div>
+      </div>
+
+      <!-- FIELD / MONSTER ZONE (Plans + In Progress) -->
+      <div class="zone zone-field">
+        <span class="zone-label">Field — Plans & In Progress</span>
+        <div class="zone-field-inner">
+
+          <!-- D05 File watcher service — rare, Plan -->
+          <div class="field-card-wrap">
+            <div class="field-status-tag field-status-plan">Plan</div>
+            <div class="mini-card rarity-rare" style="--accent: var(--col-plan);">
+              <div class="mini-card-identity">
+                <span class="mini-card-id">D05</span>
+                <span class="mini-card-name">File watcher service</span>
+                <div class="mini-cost">
+                  <span class="cost-pip"></span>
+                  <span class="cost-pip"></span>
+                  <span class="cost-pip empty"></span>
+                </div>
+              </div>
+              <div class="mini-type-bar">
+                <span class="type-icon-sm" style="--type-color: var(--type-architecture);"></span>
+                Architecture
+                <span class="type-dot-sm"></span>
+                <span class="type-status">Plan</span>
+              </div>
+              <div class="mini-body">Chokidar-backed watcher for live deliverable state updates.</div>
+              <div class="mini-artifacts">
+                <span class="artifact-pill" style="--pill-color: var(--doc-plan);">Plan</span>
+              </div>
+              <div class="mini-stats">
+                <div class="stat-group">
+                  <div class="stat">
+                    <span class="stat-label">IMP</span>
+                    <span class="stat-value impact">8</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">EFF</span>
+                    <span class="stat-value effort">3</span>
+                  </div>
+                </div>
+                <span class="set-symbol-sm" style="--accent: var(--col-plan);">P</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- D07 Git integration — rare, In Progress -->
+          <div class="field-card-wrap">
+            <div class="field-status-tag field-status-progress">In Progress</div>
+            <div class="mini-card rarity-rare" style="--accent: var(--col-progress);">
+              <div class="mini-card-identity">
+                <span class="mini-card-id">D07</span>
+                <span class="mini-card-name">Git integration</span>
+                <div class="mini-cost">
+                  <span class="cost-pip" style="background: var(--col-progress);"></span>
+                  <span class="cost-pip" style="background: var(--col-progress);"></span>
+                  <span class="cost-pip" style="background: var(--col-progress);"></span>
+                </div>
+              </div>
+              <div class="mini-type-bar">
+                <span class="type-icon-sm" style="--type-color: var(--type-feature);"></span>
+                Feature
+                <span class="type-dot-sm"></span>
+                <span class="type-status" style="color: var(--col-progress);">In Progress</span>
+              </div>
+              <div class="mini-body">Parse git log for commit history and branch context.</div>
+              <div class="mini-artifacts">
+                <span class="artifact-pill" style="--pill-color: var(--doc-spec);">Spec</span>
+                <span class="artifact-pill" style="--pill-color: var(--doc-plan);">Plan</span>
+              </div>
+              <div class="mini-stats">
+                <div class="stat-group">
+                  <div class="stat">
+                    <span class="stat-label">IMP</span>
+                    <span class="stat-value impact">7</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">EFF</span>
+                    <span class="stat-value effort">4</span>
+                  </div>
+                </div>
+                <span class="set-symbol-sm" style="--accent: var(--col-progress);">W</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- D03 PTY terminal — epic, In Progress -->
+          <div class="field-card-wrap">
+            <div class="field-status-tag field-status-progress">In Progress</div>
+            <div class="gold-wrap">
+              <div class="mini-card rarity-epic" style="--accent: var(--col-progress);">
+                <div class="mini-card-identity">
+                  <span class="mini-card-id">D03</span>
+                  <span class="mini-card-name">PTY terminal multiplexer</span>
+                  <div class="mini-cost">
+                    <span class="cost-pip" style="background: var(--col-progress);"></span>
+                    <span class="cost-pip" style="background: var(--col-progress);"></span>
+                    <span class="cost-pip" style="background: var(--col-progress);"></span>
+                  </div>
+                </div>
+                <div class="mini-type-bar">
+                  <span class="type-icon-sm" style="--type-color: var(--type-architecture);"></span>
+                  Architecture
+                  <span class="type-dot-sm"></span>
+                  <span class="type-status" style="color: var(--col-progress);">In Progress</span>
+                </div>
+                <div class="mini-body">node-pty backed sessions with full ANSI support and tab management.</div>
+                <div class="mini-artifacts">
+                  <span class="artifact-pill" style="--pill-color: var(--doc-spec);">Spec</span>
+                  <span class="artifact-pill" style="--pill-color: var(--doc-plan);">Plan</span>
+                </div>
+                <div class="mini-stats">
+                  <div class="stat-group">
+                    <div class="stat">
+                      <span class="stat-label">IMP</span>
+                      <span class="stat-value impact">10</span>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-label">EFF</span>
+                      <span class="stat-value effort">5</span>
+                    </div>
+                  </div>
+                  <span class="set-symbol-sm" style="--accent: var(--col-progress);">E</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SIDE PANEL (Graveyard + Extra Deck) -->
+      <div class="side-panel">
+
+        <!-- GRAVEYARD (Completed) -->
+        <div class="zone zone-graveyard">
+          <span class="zone-label">Graveyard — Complete</span>
+          <div class="zone-gy-inner">
+            <div class="gy-stack" onclick="openGraveyard()">
+              <div class="gy-ghost" style="top:5px;left:4px;"></div>
+              <div class="gy-ghost" style="top:2px;left:2px;"></div>
+              <div class="gy-top">
+                <span class="gy-count-badge">3</span>
+                <div class="gy-peek">D04<br>Express<br>REST API</div>
+              </div>
+            </div>
+            <div class="gy-label">3 resolved</div>
+          </div>
+        </div>
+
+        <!-- EXTRA DECK (Blocked) -->
+        <div class="zone zone-extra">
+          <span class="zone-label">Extra Deck — Blocked</span>
+          <div class="zone-extra-inner">
+            <div class="extra-stack">
+              <span class="extra-x">✕</span>
+              <span class="extra-count-badge">1</span>
+            </div>
+            <div class="extra-label">Removed<br>from play</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- REVIEW / SPELL-TRAP ZONE -->
+    <div class="mat-review-row">
+      <div class="zone zone-review">
+        <span class="zone-label">Spell/Trap Zone — Review</span>
+        <div class="zone-review-inner">
+          <!-- D11 Markdown preview — face-down, set -->
+          <div class="facedown-card">
+            <div class="facedown-inner">
+              <div class="facedown-symbol">?</div>
+              <span class="facedown-id">D11</span>
+            </div>
+          </div>
+        </div>
+        <div class="review-hint">Cards set face-down — waiting to be resolved</div>
+      </div>
+    </div>
+
+    <!-- HAND ZONE (Specs) -->
+    <div class="mat-hand-row">
+      <div class="zone zone-spec">
+        <span class="zone-label">Hand — Specs</span>
+        <div class="zone-hand-inner">
+
+          <!-- D12 Toast z-index fix — uncommon -->
+          <div class="hand-card-wrap">
+            <div class="mini-card rarity-uncommon" style="--accent: var(--col-spec);">
+              <div class="mini-card-identity">
+                <span class="mini-card-id">D12</span>
+                <span class="mini-card-name">Toast z-index fix</span>
+                <div class="mini-cost">
+                  <span class="cost-pip"></span>
+                  <span class="cost-pip empty"></span>
+                  <span class="cost-pip empty"></span>
+                </div>
+              </div>
+              <div class="mini-type-bar">
+                <span class="type-icon-sm" style="--type-color: var(--type-bugfix);"></span>
+                Bugfix
+                <span class="type-dot-sm"></span>
+                <span class="type-status">Spec</span>
+              </div>
+              <div class="mini-body">Toast notifications render beneath modal overlays in the current stack.</div>
+              <div class="mini-artifacts">
+                <span class="artifact-pill" style="--pill-color: var(--doc-spec);">Spec</span>
+              </div>
+              <div class="mini-stats">
+                <div class="stat-group">
+                  <div class="stat">
+                    <span class="stat-label">IMP</span>
+                    <span class="stat-value impact">4</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">EFF</span>
+                    <span class="stat-value effort">1</span>
+                  </div>
+                </div>
+                <span class="set-symbol-sm">U</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- D08 WebSocket reconnection — uncommon -->
+          <div class="hand-card-wrap">
+            <div class="mini-card rarity-uncommon" style="--accent: var(--col-spec);">
+              <div class="mini-card-identity">
+                <span class="mini-card-id">D08</span>
+                <span class="mini-card-name">WebSocket reconnection</span>
+                <div class="mini-cost">
+                  <span class="cost-pip"></span>
+                  <span class="cost-pip"></span>
+                  <span class="cost-pip empty"></span>
+                </div>
+              </div>
+              <div class="mini-type-bar">
+                <span class="type-icon-sm" style="--type-color: var(--type-feature);"></span>
+                Feature
+                <span class="type-dot-sm"></span>
+                <span class="type-status">Spec</span>
+              </div>
+              <div class="mini-body">Auto-reconnect with exponential backoff on connection drop.</div>
+              <div class="mini-artifacts">
+                <span class="artifact-pill" style="--pill-color: var(--doc-spec);">Spec</span>
+              </div>
+              <div class="mini-stats">
+                <div class="stat-group">
+                  <div class="stat">
+                    <span class="stat-label">IMP</span>
+                    <span class="stat-value impact">6</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">EFF</span>
+                    <span class="stat-value effort">2</span>
+                  </div>
+                </div>
+                <span class="set-symbol-sm">U</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- D10 Search & filter — rare -->
+          <div class="hand-card-wrap">
+            <div class="mini-card rarity-rare" style="--accent: var(--col-spec);">
+              <div class="mini-card-identity">
+                <span class="mini-card-id">D10</span>
+                <span class="mini-card-name">Search &amp; filter</span>
+                <div class="mini-cost">
+                  <span class="cost-pip"></span>
+                  <span class="cost-pip"></span>
+                  <span class="cost-pip"></span>
+                </div>
+              </div>
+              <div class="mini-type-bar">
+                <span class="type-icon-sm" style="--type-color: var(--type-feature);"></span>
+                Feature
+                <span class="type-dot-sm"></span>
+                <span class="type-status">Spec</span>
+              </div>
+              <div class="mini-body">Full-text search across deliverable titles, IDs, and artifact content.</div>
+              <div class="mini-artifacts">
+                <span class="artifact-pill" style="--pill-color: var(--doc-spec);">Spec</span>
+              </div>
+              <div class="mini-stats">
+                <div class="stat-group">
+                  <div class="stat">
+                    <span class="stat-label">IMP</span>
+                    <span class="stat-value impact">7</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">EFF</span>
+                    <span class="stat-value effort">3</span>
+                  </div>
+                </div>
+                <span class="set-symbol-sm" style="--accent: var(--col-spec);">R</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="hand-hint">Hover a card to hold it up</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DECK OVERLAY + REVEALED CARD -->
+<div class="deck-overlay" id="deckOverlay" onclick="closeDeck()"></div>
+<div class="deck-revealed" id="deckRevealed">
+  <span class="revealed-close" onclick="closeDeck()">[ click anywhere to return ]</span>
+  <!-- Populated by JS -->
+</div>
+
+<!-- GRAVEYARD MODAL -->
+<div class="deck-overlay" id="gyOverlay" onclick="closeGraveyard()"></div>
+<div class="gy-modal" id="gyModal">
+  <div class="gy-modal-header">
+    <div class="gy-modal-title">
+      <span style="font-size:16px;">&#x2660;</span>
+      Graveyard — Completed
+    </div>
+    <button class="gy-modal-close" onclick="closeGraveyard()">&#x2715;</button>
+  </div>
+  <div class="gy-modal-grid" id="gyModalGrid"></div>
+</div>
+
+<script>
+  // ==========================================
+  // DECK DATA
+  // ==========================================
+  const deckCards = [
+    {
+      id: 'D15',
+      name: 'Dark mode toggle',
+      type: 'Feature',
+      typeColor: '#F59E0B',
+      status: 'Idea',
+      accent: '#A78BFA',
+      body: 'System-aware dark/light mode with manual override.',
+      pips: [true, false, false],
+      impact: 4,
+      effort: 1,
+      set: 'I',
+      rarity: 'common',
+      artifacts: []
+    },
+    {
+      id: 'D16',
+      name: 'Keyboard shortcuts',
+      type: 'Feature',
+      typeColor: '#F59E0B',
+      status: 'Idea',
+      accent: '#A78BFA',
+      body: 'Global hotkeys for navigation, new session, and panel focus.',
+      pips: [true, true, false],
+      impact: 5,
+      effort: 2,
+      set: 'I',
+      rarity: 'common',
+      artifacts: []
+    },
+    {
+      id: 'D17',
+      name: 'Export to PDF',
+      type: 'Feature',
+      typeColor: '#F59E0B',
+      status: 'Idea',
+      accent: '#A78BFA',
+      body: 'One-click export of deliverable documents to PDF for stakeholders.',
+      pips: [true, true, true],
+      impact: 6,
+      effort: 3,
+      set: 'I',
+      rarity: 'uncommon',
+      artifacts: []
+    }
+  ];
+
+  let deckIndex = 0;
+
+  function buildMiniCard(card, large) {
+    const pipHTML = card.pips.map(filled =>
+      `<span class="cost-pip${filled ? '' : ' empty'}" style="${filled ? `background: ${card.accent};` : ''}"></span>`
+    ).join('');
+
+    const artifactHTML = card.artifacts.map(a =>
+      `<span class="artifact-pill" style="--pill-color: ${a.color};">${a.label}</span>`
+    ).join('');
+
+    const inner = `
+      <div class="mini-card rarity-${card.rarity}" style="--accent: ${card.accent}; ${large ? `width: 220px;` : ''}">
+        <div class="mini-card-identity">
+          <span class="mini-card-id">${card.id}</span>
+          <span class="mini-card-name">${card.name}</span>
+          <div class="mini-cost">${pipHTML}</div>
+        </div>
+        <div class="mini-type-bar">
+          <span class="type-icon-sm" style="--type-color: ${card.typeColor};"></span>
+          ${card.type}
+          <span class="type-dot-sm"></span>
+          <span class="type-status" style="color: ${card.accent};">${card.status}</span>
+        </div>
+        <div class="mini-body">${card.body}</div>
+        ${artifactHTML ? `<div class="mini-artifacts">${artifactHTML}</div>` : ''}
+        <div class="mini-stats">
+          <div class="stat-group">
+            <div class="stat">
+              <span class="stat-label">IMP</span>
+              <span class="stat-value impact">${card.impact}</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">EFF</span>
+              <span class="stat-value effort">${card.effort}</span>
+            </div>
+          </div>
+          <span class="set-symbol-sm" style="--accent: ${card.accent};">${card.set}</span>
+        </div>
+      </div>`;
+
+    if (card.rarity === 'epic') {
+      return `<div class="gold-wrap">${inner}</div>`;
+    }
+    return inner;
+  }
+
+  function drawCard() {
+    if (deckIndex >= deckCards.length) {
+      // Deck empty — shake animation
+      const stack = document.getElementById('deckStack');
+      stack.style.animation = 'deck-shake 400ms ease';
+      setTimeout(() => stack.style.animation = '', 400);
+      return;
+    }
+
+    const card = deckCards[deckIndex];
+    deckIndex++;
+
+    const revealed = document.getElementById('deckRevealed');
+    const overlay = document.getElementById('deckOverlay');
+    const countEl = document.getElementById('deckCount');
+
+    revealed.innerHTML = `
+      <span class="revealed-close" onclick="closeDeck()">[ click anywhere to return ]</span>
+      ${buildMiniCard(card, true)}
+    `;
+
+    // Re-bind close on the newly injected close button
+    revealed.querySelector('.revealed-close').onclick = closeDeck;
+
+    overlay.classList.add('show');
+    revealed.classList.remove('show');
+    void revealed.offsetWidth; // force reflow for animation restart
+    revealed.classList.add('show');
+
+    // Update count
+    const remaining = deckCards.length - deckIndex;
+    countEl.textContent = remaining === 0 ? 'Deck empty' : `${remaining} card${remaining === 1 ? '' : 's'} remaining`;
+
+    // Shrink visual stack
+    const ghosts = document.querySelectorAll('.deck-ghost');
+    if (deckIndex === deckCards.length) {
+      ghosts.forEach(g => g.style.opacity = '0');
+      document.querySelector('.deck-top-card').style.opacity = '0';
+    } else if (deckIndex === deckCards.length - 1) {
+      ghosts[0].style.opacity = '0';
+    }
+  }
+
+  function closeDeck() {
+    document.getElementById('deckOverlay').classList.remove('show');
+    document.getElementById('deckRevealed').classList.remove('show');
+  }
+
+  // Close on overlay click
+  document.getElementById('deckOverlay').addEventListener('click', closeDeck);
+
+  // ==========================================
+  // GRAVEYARD
+  // ==========================================
+  const graveyardCards = [
+    {
+      id: 'D01',
+      name: 'Mission Control dashboard',
+      type: 'Architecture',
+      typeColor: '#60A5FA',
+      status: 'Complete',
+      accent: '#22C55E',
+      body: 'Initial kanban dashboard with deliverable tracking and column layout.',
+      pips: [true, true, true],
+      impact: 10,
+      effort: 5,
+      set: 'C',
+      rarity: 'completed',
+      artifacts: [
+        { label: 'Spec', color: '#60A5FA' },
+        { label: 'Plan', color: '#34D399' },
+        { label: 'Result', color: '#22C55E' }
+      ]
+    },
+    {
+      id: 'D02',
+      name: 'SDLC parser',
+      type: 'Architecture',
+      typeColor: '#60A5FA',
+      status: 'Complete',
+      accent: '#22C55E',
+      body: 'Parses spec/plan/result markdown files into deliverable state objects.',
+      pips: [true, true, false],
+      impact: 8,
+      effort: 3,
+      set: 'C',
+      rarity: 'completed',
+      artifacts: [
+        { label: 'Spec', color: '#60A5FA' },
+        { label: 'Result', color: '#22C55E' }
+      ]
+    },
+    {
+      id: 'D04',
+      name: 'Express REST API',
+      type: 'Architecture',
+      typeColor: '#60A5FA',
+      status: 'Complete',
+      accent: '#22C55E',
+      body: 'Express 5 routes for sdlc, sessions, processes, and file serving.',
+      pips: [true, true, false],
+      impact: 9,
+      effort: 3,
+      set: 'C',
+      rarity: 'completed',
+      artifacts: [
+        { label: 'Spec', color: '#60A5FA' },
+        { label: 'Plan', color: '#34D399' },
+        { label: 'Result', color: '#22C55E' }
+      ]
+    }
+  ];
+
+  function openGraveyard() {
+    const grid = document.getElementById('gyModalGrid');
+    grid.innerHTML = graveyardCards.map(c => buildMiniCard(c, false)).join('');
+
+    document.getElementById('gyOverlay').classList.add('show');
+    document.getElementById('gyModal').classList.add('show');
+  }
+
+  function closeGraveyard() {
+    document.getElementById('gyOverlay').classList.remove('show');
+    document.getElementById('gyModal').classList.remove('show');
+  }
+
+  // ==========================================
+  // KEYFRAME: deck shake (defined inline via JS since @keyframes needs to live in CSS)
+  // ==========================================
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes deck-shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-4px) rotate(-1deg); }
+      40% { transform: translateX(4px) rotate(1deg); }
+      60% { transform: translateX(-3px) rotate(-0.5deg); }
+      80% { transform: translateX(3px) rotate(0.5deg); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Close graveyard overlay click
+  document.getElementById('gyOverlay').addEventListener('click', closeGraveyard);
+</script>
+
+</body>
+</html>

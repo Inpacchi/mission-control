@@ -5,7 +5,8 @@ import { useSessionHistory } from '../../hooks/useSessionHistory';
 import { formatDate } from '../../utils/formatters';
 
 interface SessionHistoryProps {
-  defaultCollapsed?: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -14,7 +15,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps) {
+export function SessionHistory({ isOpen, onToggle }: SessionHistoryProps) {
   const {
     sessions,
     loading,
@@ -26,7 +27,6 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
     fetchLog,
   } = useSessionHistory();
 
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [viewingLog, setViewingLog] = useState<string | null>(null);
   const [logContent, setLogContent] = useState<string>('');
   const [logLoading, setLogLoading] = useState(false);
@@ -64,7 +64,7 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
       {/* Header */}
       <Flex
         as="button"
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={onToggle}
         align="center"
         gap="2"
         w="100%"
@@ -76,7 +76,7 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
         transition="background-color 100ms ease"
         _hover={{ bg: 'bg.elevated' }}
       >
-        <History size={16} color="#8B5CF6" />
+        <History size={16} color="#60A5FA" />
         <Text
           fontSize="md"
           fontWeight={600}
@@ -98,7 +98,7 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
           color="#4E5C72"
           style={{
             transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
         />
       </Flex>
@@ -106,16 +106,18 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
       {/* Collapsible body */}
       <Box
         display="grid"
-        gridTemplateRows={collapsed ? '0fr' : '1fr'}
-        transition={collapsed
-          ? 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'
-          : 'grid-template-rows 250ms cubic-bezier(0, 0, 0.2, 1)'}
+        gridTemplateRows={isOpen ? '1fr' : '0fr'}
+        transition={isOpen
+          ? 'grid-template-rows 280ms cubic-bezier(0, 0, 0.2, 1)'
+          : 'grid-template-rows 200ms cubic-bezier(0.4, 0, 1, 1)'}
       >
         <Box overflow="hidden">
           <Box
             borderTop="1px solid"
             borderColor="border.subtle"
             p="3 4"
+            maxH="280px"
+            overflowY="auto"
           >
             {/* Search + Date filter */}
             <Flex gap="2" mb="3">
@@ -208,8 +210,6 @@ export function SessionHistory({ defaultCollapsed = true }: SessionHistoryProps)
               <Flex
                 direction="column"
                 gap="1"
-                maxH="320px"
-                overflowY="auto"
               >
                 {sessions.map((session) => {
                   const isViewing = viewingLog === session.id;

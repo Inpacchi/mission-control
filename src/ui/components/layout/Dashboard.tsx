@@ -52,6 +52,8 @@ export function Dashboard({
     previewOpen,
     setSelectedCard,
     activeProject,
+    openSupplementaryPanel,
+    toggleSupplementaryPanel,
   } = useDashboardStore();
 
   const selectedDeliverable = useMemo(
@@ -149,7 +151,7 @@ export function Dashboard({
             <ProjectSwitcher projects={projects} onSwitch={onSwitchProject} />
           ) : (
             <Text
-              fontSize="2xl"
+              fontSize="xl"
               fontWeight={700}
               lineHeight={1.2}
               letterSpacing="-0.03em"
@@ -207,23 +209,26 @@ export function Dashboard({
             />
           </Flex>
 
-          {/* Supplementary sections -- Chronicle, Ad Hoc, Session History */}
+          {/* Supplementary sections -- Chronicle, Ad Hoc, Session History (accordion) */}
           <Flex
-            gap="3"
+            direction="column"
             px="5"
             pb="3"
-            overflowX="auto"
+            gap="1"
             flexShrink={0}
           >
-            <Box flex={1} minW="260px">
-              <ChronicleBrowser />
-            </Box>
-            <Box flex={1} minW="260px">
-              <AdHocTracker />
-            </Box>
-            <Box flex={1} minW="260px">
-              <SessionHistory />
-            </Box>
+            <ChronicleBrowser
+              isOpen={openSupplementaryPanel === 'chronicle'}
+              onToggle={() => toggleSupplementaryPanel('chronicle')}
+            />
+            <AdHocTracker
+              isOpen={openSupplementaryPanel === 'adhoc'}
+              onToggle={() => toggleSupplementaryPanel('adhoc')}
+            />
+            <SessionHistory
+              isOpen={openSupplementaryPanel === 'sessions'}
+              onToggle={() => toggleSupplementaryPanel('sessions')}
+            />
           </Flex>
         </Flex>
 
@@ -246,7 +251,8 @@ export function Dashboard({
         borderTop="1px solid"
         borderColor="border.default"
         boxShadow="0 -4px 16px rgba(0,0,0,0.4)"
-        borderRadius="lg lg 0 0"
+        borderTopLeftRadius="lg"
+        borderTopRightRadius="lg"
         direction="column"
         position="relative"
       >

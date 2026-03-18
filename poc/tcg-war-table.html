@@ -1,0 +1,1886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control — War Table</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+  /* ================================================================
+     DESIGN TOKENS
+     ================================================================ */
+  :root {
+    --bg-canvas: #0D1117;
+    --bg-surface: #151B25;
+    --bg-elevated: #1C2333;
+    --bg-hover: #242D3D;
+
+    --text-primary: #E8EDF4;
+    --text-secondary: #8B99B3;
+    --text-muted: #5A6578;
+
+    --border-default: #2A3444;
+    --border-subtle: #1E2736;
+
+    --col-idea: #A78BFA;
+    --col-spec: #60A5FA;
+    --col-plan: #34D399;
+    --col-progress: #F59E0B;
+    --col-review: #FB923C;
+    --col-complete: #22C55E;
+
+    --type-feature: #F59E0B;
+    --type-bugfix: #A78BFA;
+    --type-refactor: #E879A8;
+    --type-research: #34D399;
+    --type-architecture: #60A5FA;
+
+    --doc-spec: #60A5FA;
+    --doc-plan: #34D399;
+    --doc-result: #22C55E;
+
+    --shadow-sm: 0 2px 4px rgba(6,15,28,0.6), 0 1px 2px rgba(6,15,28,0.7);
+    --shadow-md: 0 4px 12px rgba(6,15,28,0.6), 0 2px 4px rgba(6,15,28,0.7);
+    --shadow-lg: 0 8px 24px rgba(6,15,28,0.7), 0 4px 8px rgba(6,15,28,0.5);
+
+    --card-radius: 8px;
+    --card-border: 3px;
+
+    --cmdbar-h: 40px;
+    --col-left: 35%;
+    --col-center: 30%;
+    --col-right: 35%;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+  }
+
+  /* ================================================================
+     KEYFRAMES
+     ================================================================ */
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  @keyframes foil-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  @keyframes border-shimmer {
+    0%, 100% { background-position: 0% 0%; }
+    50% { background-position: 0% 100%; }
+  }
+
+  @keyframes gold-border {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  @keyframes complete-pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes active-breathe {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(245,158,11,0.15); }
+    50% { transform: scale(1.01); box-shadow: 0 0 20px rgba(245,158,11,0.3), 0 0 40px rgba(245,158,11,0.1); }
+  }
+
+  @keyframes beam-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+  }
+
+  @keyframes ring-pulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.15); opacity: 0; }
+    100% { transform: scale(1); opacity: 0; }
+  }
+
+  /* ================================================================
+     SCROLLBAR
+     ================================================================ */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+
+  /* ================================================================
+     REDUCED MOTION
+     ================================================================ */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* ================================================================
+     LAYOUT SHELL
+     ================================================================ */
+  .shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ================================================================
+     COMMAND BAR
+     ================================================================ */
+  .cmdbar {
+    height: var(--cmdbar-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-default);
+    position: relative;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  /* Scan-line texture overlay on cmdbar */
+  .cmdbar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255,255,255,0.008) 2px,
+      rgba(255,255,255,0.008) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Subtle bottom glow */
+  .cmdbar::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,158,11,0.15), transparent);
+    z-index: 1;
+  }
+
+  .cmdbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cmdbar-title {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+  }
+
+  .cmdbar-path {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .cmdbar-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+  }
+
+  .phase-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 14px;
+    border-radius: 9999px;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--col-progress);
+    letter-spacing: 0.03em;
+  }
+
+  .phase-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--col-progress);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  .cmdbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+    position: relative;
+    z-index: 1;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .stat-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+
+  .stat-label { color: var(--text-muted); font-size: 10px; }
+  .stat-val { color: var(--text-primary); font-weight: 600; }
+
+  /* ================================================================
+     THREE-COLUMN BODY
+     ================================================================ */
+  .columns {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  .col-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .col-left { width: var(--col-left); border-right: 1px solid var(--border-subtle); }
+  .col-center { width: var(--col-center); border-right: 1px solid var(--border-subtle); }
+  .col-right { width: var(--col-right); }
+
+  .col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    height: 36px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(255,255,255,0.01);
+  }
+
+  .col-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+  }
+
+  /* ================================================================
+     LEFT COLUMN: TERMINAL
+     ================================================================ */
+  .term-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .term-tab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 100ms ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    position: relative;
+  }
+
+  .term-tab:hover { color: var(--text-secondary); }
+
+  .term-tab.active {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border-default);
+  }
+
+  .term-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    background: var(--col-plan);
+    border-radius: 1px;
+  }
+
+  .tab-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+
+  .term-new-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px dashed var(--border-default);
+    color: var(--text-muted);
+    cursor: pointer;
+    margin-left: auto;
+    transition: all 100ms ease;
+  }
+
+  .term-new-btn:hover {
+    border-color: var(--col-spec);
+    color: var(--col-spec);
+  }
+
+  .terminal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    background: #0A0A0F;
+    position: relative;
+    min-height: 0;
+  }
+
+  /* CRT scan-lines over terminal */
+  .terminal-body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 1px,
+      rgba(255,255,255,0.015) 1px,
+      rgba(255,255,255,0.015) 2px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .t-white { color: #E8EDF4; font-weight: 700; }
+  .t-amber { color: #F59E0B; }
+  .t-blue { color: #60A5FA; }
+  .t-path { color: #8B99B3; }
+  .t-green { color: #22C55E; }
+  .t-muted { color: #5A6578; }
+  .t-dim { opacity: 0.5; }
+
+  .cursor-blink {
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    background: #d4d4d4;
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+  }
+
+  .term-line {
+    white-space: pre-wrap;
+    word-break: break-word;
+    position: relative;
+    z-index: 2;
+  }
+
+  .term-input {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    background: #0D0D14;
+    border-top: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  .term-input-prefix {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .term-input-field {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .term-input-field::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  /* ================================================================
+     CENTER COLUMN: TACTICAL FIELD
+     ================================================================ */
+  .field-toggle {
+    display: flex;
+    gap: 2px;
+  }
+
+  .field-toggle-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-subtle);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 100ms ease;
+  }
+
+  .field-toggle-btn:hover { color: var(--text-secondary); }
+
+  .field-toggle-btn.active {
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+
+  .field-body {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Tactical field background */
+  .field-zones-view {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 50%, rgba(96,165,250,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 30% 30%, rgba(167,139,250,0.03) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 60% at 70% 70%, rgba(52,211,153,0.03) 0%, transparent 50%),
+      var(--bg-canvas);
+    transition: opacity 200ms ease;
+  }
+
+  .field-zones-view.hidden { opacity: 0; pointer-events: none; }
+
+  /* Concentric ring guides */
+  .field-zones-view::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    height: 60%;
+    border-radius: 50%;
+    border: 1px solid rgba(96,165,250,0.03);
+    pointer-events: none;
+    z-index: 0;
+    box-shadow:
+      0 0 0 40px transparent,
+      0 0 0 80px rgba(96,165,250,0.02),
+      0 0 0 160px rgba(96,165,250,0.015);
+  }
+
+  /* Radial vignette */
+  .field-zones-view::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.3) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Zones */
+  .zone-strip {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  .zone-strip-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    writing-mode: horizontal-tb;
+    flex-shrink: 0;
+    width: 90px;
+    opacity: 0.6;
+  }
+
+  .zone-strip-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .zone-deck {
+    height: 56px;
+    border: 1px dashed rgba(167,139,250,0.15);
+    border-radius: 8px;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+
+  .zone-deck:hover {
+    border-color: rgba(167,139,250,0.3);
+    box-shadow: inset 0 0 20px rgba(167,139,250,0.04);
+  }
+
+  .deck-stack-mini {
+    position: relative;
+    width: 44px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+
+  .deck-ghost-mini {
+    position: absolute;
+    width: 40px;
+    height: 32px;
+    border-radius: 4px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+  }
+
+  .deck-ghost-mini:nth-child(1) { top: 4px; left: 3px; opacity: 0.3; }
+  .deck-ghost-mini:nth-child(2) { top: 2px; left: 1px; opacity: 0.5; }
+
+  .deck-top-mini {
+    position: absolute;
+    top: 0; left: 0;
+    width: 40px;
+    height: 32px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #1a1f35, #0f1420);
+    border: 1px solid var(--border-default);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Crosshatch pattern */
+    background-image:
+      repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(167,139,250,0.05) 3px, rgba(167,139,250,0.05) 4px),
+      repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(167,139,250,0.05) 3px, rgba(167,139,250,0.05) 4px),
+      linear-gradient(135deg, #1a1f35, #0f1420);
+  }
+
+  .deck-watermark {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--col-idea);
+    opacity: 0.4;
+  }
+
+  .zone-count-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* Active zone — takes up the most space */
+  .zone-active {
+    flex: 1;
+    border: 1px dashed rgba(96,165,250,0.1);
+    border-radius: 10px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    min-height: 0;
+    overflow: hidden;
+    transition: border-color 200ms ease;
+  }
+
+  .zone-active:hover {
+    border-color: rgba(96,165,250,0.2);
+  }
+
+  .zone-active-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .subzone-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    opacity: 0.6;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.03);
+  }
+
+  .zone-active-cards {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-content: flex-start;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 2px;
+  }
+
+  /* Review zone */
+  .zone-review-strip {
+    height: 56px;
+    border: 1px dashed rgba(251,146,60,0.15);
+    border-radius: 8px;
+    transition: border-color 200ms ease;
+  }
+
+  .zone-review-strip:hover {
+    border-color: rgba(251,146,60,0.3);
+    box-shadow: inset 0 0 20px rgba(251,146,60,0.04);
+  }
+
+  /* Graveyard zone */
+  .zone-grave {
+    height: 56px;
+    border: 1px dashed rgba(34,197,94,0.15);
+    border-radius: 8px;
+    transition: border-color 200ms ease;
+  }
+
+  .zone-grave:hover {
+    border-color: rgba(34,197,94,0.3);
+    box-shadow: inset 0 0 20px rgba(34,197,94,0.04);
+  }
+
+  .grave-stack-mini {
+    position: relative;
+    width: 44px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+
+  .grave-ghost {
+    position: absolute;
+    width: 40px;
+    height: 32px;
+    border-radius: 4px;
+    background: var(--bg-elevated);
+    border: 1px solid rgba(34,197,94,0.2);
+  }
+
+  .grave-ghost:nth-child(1) { top: 4px; left: 3px; opacity: 0.2; }
+  .grave-ghost:nth-child(2) { top: 2px; left: 1px; opacity: 0.35; }
+  .grave-ghost:nth-child(3) { top: 0; left: 0; opacity: 0.5; box-shadow: 0 0 8px rgba(34,197,94,0.1); }
+
+  /* ================================================================
+     MINI FIELD CARDS
+     ================================================================ */
+  .fcard {
+    width: 170px;
+    background: var(--bg-elevated);
+    border-radius: var(--card-radius);
+    border-left: var(--card-border) solid var(--accent, var(--col-idea));
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  /* Card stock texture */
+  .fcard::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--card-radius);
+    background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 4px);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .fcard:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .fcard-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 6px 8px 4px;
+    gap: 4px;
+  }
+
+  .fcard-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .fcard-name {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-primary);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fcard-pips {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .fcard-pip {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent, var(--col-idea));
+    opacity: 0.7;
+  }
+
+  .fcard-pip.empty {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    opacity: 0.35;
+  }
+
+  .fcard-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .fcard-type-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--type-color, var(--type-feature));
+    opacity: 0.8;
+    flex-shrink: 0;
+  }
+
+  .fcard-status {
+    color: var(--accent, var(--col-idea));
+  }
+
+  .fcard-sep {
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.5;
+  }
+
+  /* Rarity: uncommon */
+  .fcard.rarity-uncommon .fcard-id {
+    background: linear-gradient(135deg, #888, #ccc 25%, #999 50%, #ddd 75%, #aaa);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  /* Rarity: rare */
+  .fcard.rarity-rare {
+    border-left-color: transparent;
+  }
+
+  .fcard.rarity-rare::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: var(--card-border);
+    background: linear-gradient(180deg, var(--accent) 0%, #fff 50%, var(--accent) 100%);
+    background-size: 100% 200%;
+    animation: border-shimmer 2.5s ease-in-out infinite;
+    border-radius: var(--card-radius) 0 0 var(--card-radius);
+    z-index: 2;
+  }
+
+  .fcard.rarity-rare .fcard-id {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #b8860b 50%, #ffe44d 80%, #b8860b 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  /* Rarity: epic — gold wrapper */
+  .gold-wrap {
+    position: relative;
+    padding: 2px;
+    border-radius: calc(var(--card-radius) + 2px);
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 20%, #b8860b 40%, #ffe44d 60%, #b8860b 80%, #ffd700 100%);
+    background-size: 300% 300%;
+    animation: gold-border 4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  .gold-wrap .fcard {
+    border-left: none;
+    border: none;
+  }
+
+  .fcard.rarity-epic .fcard-id {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #ffe44d 60%, #b8860b 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 2.5s ease-in-out infinite;
+  }
+
+  /* Active card — the one being worked on */
+  .fcard.active-card {
+    animation: active-breathe 3s ease-in-out infinite;
+    border-color: var(--col-progress);
+    box-shadow: 0 0 12px rgba(245,158,11,0.2);
+  }
+
+  .fcard.active-card:hover {
+    box-shadow: 0 0 20px rgba(245,158,11,0.3);
+  }
+
+  .active-indicator {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--col-progress);
+    background: rgba(245,158,11,0.12);
+    padding: 1px 4px;
+    border-radius: 3px;
+    z-index: 6;
+  }
+
+  /* Active beam — visual connection to terminal */
+  .active-beam {
+    position: absolute;
+    left: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(245,158,11,0.5), rgba(245,158,11,0));
+    animation: beam-pulse 2s ease-in-out infinite;
+    z-index: 10;
+    pointer-events: none;
+    /* Beam extends leftward to the column border */
+    width: calc(100% + 14px);
+    left: calc(-100% - 14px);
+  }
+
+  /* ================================================================
+     FIELD LIST VIEW
+     ================================================================ */
+  .field-list-view {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 8px;
+    background: var(--bg-canvas);
+    transition: opacity 200ms ease;
+  }
+
+  .field-list-view.hidden { opacity: 0; pointer-events: none; }
+
+  .list-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .list-table th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .list-table td {
+    padding: 5px 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .list-table tr:nth-child(even) td {
+    background: rgba(255,255,255,0.015);
+  }
+
+  .list-table tr:hover td {
+    background: rgba(255,255,255,0.03);
+  }
+
+  .list-status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  .list-id {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .list-name-cell {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--text-primary);
+  }
+
+  .list-rarity {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ================================================================
+     RIGHT COLUMN: INTEL PANEL
+     ================================================================ */
+  .intel-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+  }
+
+  .intel-tab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 100ms ease;
+    white-space: nowrap;
+  }
+
+  .intel-tab:hover { color: var(--text-secondary); }
+
+  .intel-tab.active {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border-default);
+  }
+
+  .intel-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Markdown viewer */
+  .md-viewer {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px;
+    min-height: 0;
+  }
+
+  .md-inner {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .md-viewer h1 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+
+  .md-viewer .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .meta-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .md-viewer h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 20px 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .md-viewer p {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+  }
+
+  .md-viewer code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-hover);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--col-spec);
+  }
+
+  .md-viewer ul {
+    padding-left: 20px;
+    margin: 0 0 14px;
+    list-style: none;
+  }
+
+  .md-viewer li {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    position: relative;
+    padding-left: 4px;
+  }
+
+  .md-viewer li::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 10px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--col-spec);
+    opacity: 0.6;
+  }
+
+  .md-viewer blockquote {
+    border-left: 3px solid var(--col-spec);
+    padding: 10px 16px;
+    margin: 12px 0 16px;
+    background: rgba(96,165,250,0.04);
+    border-radius: 0 6px 6px 0;
+    font-style: italic;
+  }
+
+  .md-viewer blockquote p {
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* Supplementary panels */
+  .supp-area {
+    border-top: 1px solid var(--border-default);
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+
+  .supp-panel {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .supp-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background 150ms ease;
+    user-select: none;
+  }
+
+  .supp-header:hover { background: rgba(255,255,255,0.02); }
+
+  .supp-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .supp-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+
+  .supp-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-muted);
+  }
+
+  .supp-chevron {
+    width: 12px;
+    height: 12px;
+    color: var(--text-muted);
+    transition: transform 200ms ease;
+  }
+
+  .supp-panel[data-open="true"] .supp-chevron {
+    transform: rotate(180deg);
+  }
+
+  .supp-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 250ms ease;
+  }
+
+  .supp-panel[data-open="true"] .supp-body {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .supp-list {
+    padding: 0 14px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .supp-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    transition: background 100ms ease;
+    cursor: default;
+  }
+
+  .supp-item:hover { background: rgba(255,255,255,0.03); }
+
+  .supp-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .supp-item-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .supp-item-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    width: 28px;
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ============================================================
+       COMMAND BAR
+       ============================================================ -->
+  <div class="cmdbar">
+    <div class="cmdbar-left">
+      <span class="cmdbar-title">MISSION CONTROL</span>
+      <span class="cmdbar-path">~/Projects/mc</span>
+    </div>
+    <div class="cmdbar-center">
+      <div class="phase-pill">
+        <span class="phase-dot"></span>
+        SPRINT 4 &mdash; PLANNING PHASE
+      </div>
+    </div>
+    <div class="cmdbar-right">
+      <div class="stat-item">
+        <span class="stat-dot" style="background: var(--text-primary)"></span>
+        <span class="stat-label">OPS</span>
+        <span class="stat-val">16</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-dot" style="background: var(--col-progress)"></span>
+        <span class="stat-label">ACTIVE</span>
+        <span class="stat-val">5</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-dot" style="background: var(--col-complete)"></span>
+        <span class="stat-label">COMPLETE</span>
+        <span class="stat-val">9</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-dot" style="background: var(--col-spec)"></span>
+        <span class="stat-label">RATE</span>
+        <span class="stat-val">56%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       THREE-COLUMN LAYOUT
+       ============================================================ -->
+  <div class="columns">
+
+    <!-- ========== LEFT: TERMINAL ========== -->
+    <div class="col-panel col-left">
+      <div class="col-header">
+        <span class="col-label">Comms</span>
+        <div class="term-tabs">
+          <button class="term-tab active" aria-label="Terminal session D07">
+            <span class="tab-dot" style="background: var(--col-complete)"></span>
+            claude &mdash; D07
+          </button>
+          <button class="term-tab" aria-label="Terminal session D03">
+            <span class="tab-dot" style="background: var(--text-muted)"></span>
+            claude &mdash; D03
+          </button>
+          <button class="term-new-btn" aria-label="New terminal session">+ NEW</button>
+        </div>
+      </div>
+
+      <div class="terminal-body" role="log" aria-label="Terminal output">
+        <div class="term-line"><span class="t-white">$ claude</span></div>
+        <div class="term-line"><span class="t-muted">Claude Code v1.0.22</span></div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line"><span class="t-white">&gt; Implement git log parser for D07</span></div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line"><span class="t-amber">Thinking...</span> I'll start by reading the existing git parser service.</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line"><span class="t-blue">&#9205; Read</span> <span class="t-path">src/server/services/gitParser.ts</span></div>
+        <div class="term-line">  Found parseGitLog(), parseBranches(), getCommitHistory()</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line"><span class="t-blue">&#9205; Read</span> <span class="t-path">src/server/routes/git.ts</span></div>
+        <div class="term-line">  3 endpoints: /api/git/status, /api/git/log, /api/git/branches</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line">I see the existing structure. The git parser already handles log</div>
+        <div class="term-line">parsing but doesn't extract branch tracking metadata. I'll extend</div>
+        <div class="term-line">parseGitLog() to include branch refs and add a new getBranchMap()</div>
+        <div class="term-line">function.</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line"><span class="t-blue">&#9205; Edit</span> <span class="t-path">src/server/services/gitParser.ts</span></div>
+        <div class="term-line">  Added getBranchMap() &mdash; maps commit SHAs to branch names</div>
+        <div class="term-line">  Extended parseGitLog() to include branch field</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line"><span class="t-blue">&#9205; Running</span> <span class="t-path">npx tsc --noEmit</span></div>
+        <div class="term-line">  <span class="t-green">&#10003;</span> Build clean</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line">The git parser now tracks which branch each commit belongs to.</div>
+        <div class="term-line">Next I'll wire this into the stats bar component.</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line"><span class="cursor-blink"></span></div>
+      </div>
+
+      <div class="term-input">
+        <span class="term-input-prefix">&gt;</span>
+        <input class="term-input-field" type="text" placeholder="Send a message to Claude..." aria-label="Terminal input">
+      </div>
+    </div>
+
+    <!-- ========== CENTER: TACTICAL FIELD ========== -->
+    <div class="col-panel col-center">
+      <div class="col-header">
+        <span class="col-label">Field</span>
+        <div class="field-toggle">
+          <button class="field-toggle-btn active" data-view="zones" aria-label="Zones view">Zones</button>
+          <button class="field-toggle-btn" data-view="list" aria-label="List view">List</button>
+        </div>
+      </div>
+
+      <div class="field-body">
+        <!-- ZONES VIEW -->
+        <div class="field-zones-view" id="zones-view">
+
+          <!-- DECK strip -->
+          <div class="zone-strip zone-deck" style="height: 56px; margin: 8px 8px 0;">
+            <div class="zone-strip-label">Deck &mdash; Ideas</div>
+            <div class="zone-strip-content">
+              <div class="deck-stack-mini">
+                <div class="deck-ghost-mini"></div>
+                <div class="deck-ghost-mini"></div>
+                <div class="deck-top-mini">
+                  <span class="deck-watermark">MC</span>
+                </div>
+              </div>
+              <span class="zone-count-badge">2</span>
+            </div>
+          </div>
+
+          <!-- ACTIVE ZONE -->
+          <div class="zone-active" style="margin: 6px 8px;">
+            <div class="zone-active-header">
+              <span class="subzone-label" style="color: var(--col-spec)">Spec</span>
+              <span class="subzone-label" style="color: var(--col-plan)">Plan</span>
+              <span class="subzone-label" style="color: var(--col-progress)">In Progress</span>
+            </div>
+            <div class="zone-active-cards" id="active-cards">
+              <!-- D12: Uncommon, Spec -->
+              <div class="fcard rarity-uncommon" style="--accent: var(--col-spec); --type-color: var(--type-bugfix);" data-card="d12" tabindex="0" role="button" aria-label="D12 Toast z-index fix, Spec phase">
+                <div class="fcard-top">
+                  <span class="fcard-id">D12</span>
+                  <span class="fcard-name">Toast z-index fix</span>
+                  <div class="fcard-pips">
+                    <span class="fcard-pip"></span>
+                    <span class="fcard-pip empty"></span>
+                    <span class="fcard-pip empty"></span>
+                  </div>
+                </div>
+                <div class="fcard-meta">
+                  <span class="fcard-type-dot"></span>
+                  <span>Bugfix</span>
+                  <span class="fcard-sep"></span>
+                  <span class="fcard-status" style="color: var(--col-spec)">Spec</span>
+                </div>
+              </div>
+
+              <!-- D05: Rare, Plan -->
+              <div class="fcard rarity-rare" style="--accent: var(--col-plan); --type-color: var(--type-feature);" data-card="d05" tabindex="0" role="button" aria-label="D05 File watcher service, Plan phase">
+                <div class="fcard-top">
+                  <span class="fcard-id">D05</span>
+                  <span class="fcard-name">File watcher service</span>
+                  <div class="fcard-pips">
+                    <span class="fcard-pip" style="background: var(--col-plan)"></span>
+                    <span class="fcard-pip" style="background: var(--col-plan)"></span>
+                    <span class="fcard-pip empty"></span>
+                  </div>
+                </div>
+                <div class="fcard-meta">
+                  <span class="fcard-type-dot"></span>
+                  <span>Feature</span>
+                  <span class="fcard-sep"></span>
+                  <span class="fcard-status" style="color: var(--col-plan)">Plan</span>
+                </div>
+              </div>
+
+              <!-- D07: Rare, ACTIVE, In Progress -->
+              <div class="fcard rarity-rare active-card" style="--accent: var(--col-progress); --type-color: var(--type-feature);" data-card="d07" tabindex="0" role="button" aria-label="D07 Git integration, In Progress, currently active">
+                <span class="active-indicator">Active</span>
+                <div class="active-beam"></div>
+                <div class="fcard-top">
+                  <span class="fcard-id">D07</span>
+                  <span class="fcard-name">Git integration</span>
+                  <div class="fcard-pips">
+                    <span class="fcard-pip" style="background: var(--col-progress)"></span>
+                    <span class="fcard-pip" style="background: var(--col-progress)"></span>
+                    <span class="fcard-pip" style="background: var(--col-progress)"></span>
+                  </div>
+                </div>
+                <div class="fcard-meta">
+                  <span class="fcard-type-dot"></span>
+                  <span>Feature</span>
+                  <span class="fcard-sep"></span>
+                  <span class="fcard-status" style="color: var(--col-progress)">In Progress</span>
+                </div>
+              </div>
+
+              <!-- D08: Uncommon, In Progress -->
+              <div class="fcard rarity-uncommon" style="--accent: var(--col-progress); --type-color: var(--type-architecture);" data-card="d08" tabindex="0" role="button" aria-label="D08 WebSocket reconnection, In Progress">
+                <div class="fcard-top">
+                  <span class="fcard-id">D08</span>
+                  <span class="fcard-name">WS reconnection</span>
+                  <div class="fcard-pips">
+                    <span class="fcard-pip" style="background: var(--col-progress)"></span>
+                    <span class="fcard-pip" style="background: var(--col-progress)"></span>
+                    <span class="fcard-pip empty"></span>
+                  </div>
+                </div>
+                <div class="fcard-meta">
+                  <span class="fcard-type-dot"></span>
+                  <span>Arch</span>
+                  <span class="fcard-sep"></span>
+                  <span class="fcard-status" style="color: var(--col-progress)">In Progress</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- REVIEW strip -->
+          <div class="zone-strip zone-review-strip" style="height: 56px; margin: 0 8px;">
+            <div class="zone-strip-label">Review</div>
+            <div class="zone-strip-content">
+              <!-- D03: Epic, Review -->
+              <div class="gold-wrap" style="opacity: 0.8;">
+                <div class="fcard rarity-epic" style="--accent: var(--col-review); --type-color: var(--type-architecture); width: 170px;" data-card="d03" tabindex="0" role="button" aria-label="D03 PTY terminal multiplexer, Review phase, epic rarity">
+                  <div class="fcard-top">
+                    <span class="fcard-id">D03</span>
+                    <span class="fcard-name">PTY terminal mux</span>
+                    <div class="fcard-pips">
+                      <span class="fcard-pip" style="background: var(--col-review)"></span>
+                      <span class="fcard-pip" style="background: var(--col-review)"></span>
+                      <span class="fcard-pip" style="background: var(--col-review)"></span>
+                    </div>
+                  </div>
+                  <div class="fcard-meta">
+                    <span class="fcard-type-dot"></span>
+                    <span>Arch</span>
+                    <span class="fcard-sep"></span>
+                    <span class="fcard-status" style="color: var(--col-review)">Review</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRAVEYARD strip -->
+          <div class="zone-strip zone-grave" style="height: 56px; margin: 0 8px 8px;">
+            <div class="zone-strip-label">Graveyard &mdash; Complete</div>
+            <div class="zone-strip-content">
+              <div class="grave-stack-mini">
+                <div class="grave-ghost"></div>
+                <div class="grave-ghost"></div>
+                <div class="grave-ghost"></div>
+              </div>
+              <span class="zone-count-badge" style="color: var(--col-complete)">9</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- LIST VIEW -->
+        <div class="field-list-view hidden" id="list-view">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Effort</th>
+                <th>Rarity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="list-id">D03</td>
+                <td class="list-name-cell">PTY terminal multiplexer</td>
+                <td>Architecture</td>
+                <td><span class="list-status-dot" style="background: var(--col-review)"></span>Review</td>
+                <td>3/3</td>
+                <td class="list-rarity" style="color: #ffd700">Epic</td>
+              </tr>
+              <tr>
+                <td class="list-id">D05</td>
+                <td class="list-name-cell">File watcher service</td>
+                <td>Feature</td>
+                <td><span class="list-status-dot" style="background: var(--col-plan)"></span>Plan</td>
+                <td>2/3</td>
+                <td class="list-rarity" style="color: #ffd700">Rare</td>
+              </tr>
+              <tr>
+                <td class="list-id">D07</td>
+                <td class="list-name-cell">Git integration</td>
+                <td>Feature</td>
+                <td><span class="list-status-dot" style="background: var(--col-progress)"></span>Progress</td>
+                <td>3/3</td>
+                <td class="list-rarity" style="color: #ffd700">Rare</td>
+              </tr>
+              <tr>
+                <td class="list-id">D08</td>
+                <td class="list-name-cell">WebSocket reconnection</td>
+                <td>Architecture</td>
+                <td><span class="list-status-dot" style="background: var(--col-progress)"></span>Progress</td>
+                <td>2/3</td>
+                <td class="list-rarity" style="color: #ccc">Uncommon</td>
+              </tr>
+              <tr>
+                <td class="list-id">D12</td>
+                <td class="list-name-cell">Toast z-index fix</td>
+                <td>Bugfix</td>
+                <td><span class="list-status-dot" style="background: var(--col-spec)"></span>Spec</td>
+                <td>1/3</td>
+                <td class="list-rarity" style="color: #ccc">Uncommon</td>
+              </tr>
+              <tr>
+                <td class="list-id">D01</td>
+                <td class="list-name-cell">Mission Control scaffold</td>
+                <td>Feature</td>
+                <td><span class="list-status-dot" style="background: var(--col-complete)"></span>Complete</td>
+                <td>3/3</td>
+                <td class="list-rarity" style="color: #ffd700">Rare</td>
+              </tr>
+              <tr>
+                <td class="list-id">D02</td>
+                <td class="list-name-cell">SDLC parser</td>
+                <td>Feature</td>
+                <td><span class="list-status-dot" style="background: var(--col-complete)"></span>Complete</td>
+                <td>2/3</td>
+                <td class="list-rarity" style="color: #ccc">Uncommon</td>
+              </tr>
+              <tr>
+                <td class="list-id">D04</td>
+                <td class="list-name-cell">Kanban board</td>
+                <td>Feature</td>
+                <td><span class="list-status-dot" style="background: var(--col-complete)"></span>Complete</td>
+                <td>2/3</td>
+                <td class="list-rarity" style="color: #ccc">Uncommon</td>
+              </tr>
+              <tr>
+                <td class="list-id">D06</td>
+                <td class="list-name-cell">Dark theme system</td>
+                <td>Feature</td>
+                <td><span class="list-status-dot" style="background: var(--col-complete)"></span>Complete</td>
+                <td>1/3</td>
+                <td class="list-rarity" style="color: var(--text-muted)">Common</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== RIGHT: INTEL PANEL ========== -->
+    <div class="col-panel col-right">
+      <div class="col-header">
+        <span class="col-label">Intel</span>
+        <div class="intel-tabs">
+          <button class="intel-tab active" data-intel="d07-spec" aria-label="D07 Spec document">D07 &mdash; Spec</button>
+          <button class="intel-tab" data-intel="d07-plan" aria-label="D07 Plan document">D07 &mdash; Plan</button>
+          <button class="intel-tab" data-intel="d05-spec" aria-label="D05 Spec document">D05 &mdash; Spec</button>
+        </div>
+      </div>
+
+      <div class="intel-body">
+        <!-- Markdown viewer -->
+        <div class="md-viewer">
+          <div class="md-inner">
+            <h1>D07 &mdash; Git Integration</h1>
+            <div class="meta">
+              <span class="meta-dot" style="background: var(--type-feature)"></span> Feature
+              <span class="meta-dot" style="background: var(--col-progress)"></span> Sprint 3
+              <span class="meta-dot" style="background: #ffd700"></span> Rare
+            </div>
+
+            <h2>Overview</h2>
+            <p>Parse git log and branch state to surface project context
+            in the Mission Control dashboard. This powers the stats bar
+            commit sparkline and the branch indicator.</p>
+
+            <h2>Requirements</h2>
+            <ul>
+              <li>Extract commit history with branch tracking metadata</li>
+              <li>Parse current branch, ahead/behind counts</li>
+              <li>Surface recent commits in the stats bar</li>
+              <li>Provide commit-to-deliverable linking via conventional commit parsing</li>
+            </ul>
+
+            <h2>Technical Approach</h2>
+            <p>Extend the existing <code>gitParser</code> service with a new
+            <code>getBranchMap()</code> function that maps commit SHAs to branch names.
+            The function will shell out to <code>git for-each-ref</code> and parse the
+            output into a <code>Map&lt;string, string[]&gt;</code>.</p>
+
+            <blockquote>
+              <p>"Every commit tells a story. This deliverable makes that
+              story visible."</p>
+            </blockquote>
+
+            <h2>Acceptance Criteria</h2>
+            <ul>
+              <li>Stats bar shows commit count for last 7 days</li>
+              <li>Branch name displayed in command bar</li>
+              <li>Commits linked to deliverable IDs when present in message</li>
+              <li>No performance regression on dashboard load</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Supplementary panels -->
+        <div class="supp-area">
+
+          <!-- Session Log -->
+          <div class="supp-panel" data-open="true">
+            <div class="supp-header" role="button" tabindex="0" aria-expanded="true" aria-label="Toggle session log panel">
+              <svg class="supp-icon" style="color: var(--col-spec)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              <span class="supp-name">Session Log</span>
+              <span class="supp-badge">4</span>
+              <svg class="supp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+            <div class="supp-body">
+              <div class="supp-list">
+                <div class="supp-item">
+                  <span class="supp-item-id">D07</span>
+                  <span class="supp-item-name">claude &mdash; D07</span>
+                  <span class="supp-item-meta">now &middot; 6.4KB</span>
+                </div>
+                <div class="supp-item">
+                  <span class="supp-item-id">D02</span>
+                  <span class="supp-item-name">claude &mdash; D02</span>
+                  <span class="supp-item-meta">2h ago &middot; 14.2KB</span>
+                </div>
+                <div class="supp-item">
+                  <span class="supp-item-id">D05</span>
+                  <span class="supp-item-name">claude &mdash; D05</span>
+                  <span class="supp-item-meta">yesterday &middot; 8.7KB</span>
+                </div>
+                <div class="supp-item">
+                  <span class="supp-item-id">D03</span>
+                  <span class="supp-item-name">claude &mdash; D03</span>
+                  <span class="supp-item-meta">2d ago &middot; 22.1KB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ad Hoc Ops -->
+          <div class="supp-panel" data-open="true">
+            <div class="supp-header" role="button" tabindex="0" aria-expanded="true" aria-label="Toggle ad hoc ops panel">
+              <svg class="supp-icon" style="color: var(--col-progress)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span class="supp-name">Ad Hoc Ops</span>
+              <span class="supp-badge">3</span>
+              <svg class="supp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+            <div class="supp-body">
+              <div class="supp-list">
+                <div class="supp-item">
+                  <span class="supp-item-name">fix: toast z-index on mobile</span>
+                  <span class="supp-item-meta">3h ago</span>
+                </div>
+                <div class="supp-item">
+                  <span class="supp-item-name">chore: update deps</span>
+                  <span class="supp-item-meta">yesterday</span>
+                </div>
+                <div class="supp-item">
+                  <span class="supp-item-name">fix: scrollbar flash on mount</span>
+                  <span class="supp-item-meta">2d ago</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chronicles -->
+          <div class="supp-panel" data-open="true">
+            <div class="supp-header" role="button" tabindex="0" aria-expanded="true" aria-label="Toggle chronicles panel">
+              <svg class="supp-icon" style="color: var(--col-idea)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              <span class="supp-name">Chronicles</span>
+              <span class="supp-badge">4</span>
+              <svg class="supp-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+            <div class="supp-body">
+              <div class="supp-list">
+                <div class="supp-item">
+                  <span class="supp-item-id">D01</span>
+                  <span class="supp-item-name">Mission Control scaffold</span>
+                  <span class="supp-item-meta">Sprint 1</span>
+                </div>
+                <div class="supp-item">
+                  <span class="supp-item-id">D02</span>
+                  <span class="supp-item-name">SDLC parser</span>
+                  <span class="supp-item-meta">Sprint 2</span>
+                </div>
+                <div class="supp-item">
+                  <span class="supp-item-id">D04</span>
+                  <span class="supp-item-name">Kanban board</span>
+                  <span class="supp-item-meta">Sprint 2</span>
+                </div>
+                <div class="supp-item">
+                  <span class="supp-item-id">D06</span>
+                  <span class="supp-item-name">Dark theme system</span>
+                  <span class="supp-item-meta">Sprint 3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Field view toggle
+  const zonesView = document.getElementById('zones-view');
+  const listView = document.getElementById('list-view');
+  const toggleBtns = document.querySelectorAll('.field-toggle-btn');
+
+  toggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      toggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const view = btn.dataset.view;
+      if (view === 'zones') {
+        zonesView.classList.remove('hidden');
+        listView.classList.add('hidden');
+      } else {
+        zonesView.classList.add('hidden');
+        listView.classList.remove('hidden');
+      }
+    });
+  });
+
+  // Supplementary panel collapse
+  document.querySelectorAll('.supp-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const panel = header.closest('.supp-panel');
+      const isOpen = panel.dataset.open === 'true';
+      panel.dataset.open = isOpen ? 'false' : 'true';
+      header.setAttribute('aria-expanded', !isOpen);
+    });
+    header.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        header.click();
+      }
+    });
+  });
+
+  // Card click -> intel tab highlight
+  document.querySelectorAll('.fcard').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.card;
+      // Highlight corresponding intel tab if exists
+      const tabs = document.querySelectorAll('.intel-tab');
+      tabs.forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.intel && tab.dataset.intel.startsWith(id)) {
+          tab.classList.add('active');
+        }
+      });
+      // If no matching tab, activate the first one
+      const anyActive = document.querySelector('.intel-tab.active');
+      if (!anyActive && tabs.length > 0) {
+        tabs[0].classList.add('active');
+      }
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+      }
+    });
+  });
+
+  // Intel tab click
+  document.querySelectorAll('.intel-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.intel-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

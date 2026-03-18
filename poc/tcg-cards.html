@@ -1,0 +1,2093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control — TCG Card System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  /* ========================================
+     TOKENS
+     ======================================== */
+  :root {
+    --bg-canvas: #0D1117;
+    --bg-deep: #08042F;
+    --bg-surface: #151B25;
+    --bg-elevated: #1C2333;
+    --bg-hover: #242D3D;
+
+    --text-primary: #E8EDF4;
+    --text-secondary: #8B99B3;
+    --text-muted: #5A6578;
+
+    --border-default: #2A3444;
+    --border-subtle: #1E2736;
+
+    --col-idea: #A78BFA;
+    --col-spec: #60A5FA;
+    --col-plan: #34D399;
+    --col-progress: #F59E0B;
+    --col-review: #FB923C;
+    --col-complete: #22C55E;
+
+    --type-feature: #F59E0B;
+    --type-bugfix: #A78BFA;
+    --type-refactor: #E879A8;
+    --type-research: #34D399;
+    --type-architecture: #60A5FA;
+
+    --doc-spec: #60A5FA;
+    --doc-plan: #34D399;
+    --doc-result: #22C55E;
+
+    --shadow-sm: 0 2px 4px rgba(6,15,28,0.6), 0 1px 2px rgba(6,15,28,0.7);
+    --shadow-md: 0 4px 12px rgba(6,15,28,0.6), 0 2px 4px rgba(6,15,28,0.7);
+    --shadow-lg: 0 8px 24px rgba(6,15,28,0.7), 0 4px 8px rgba(6,15,28,0.5);
+    --shadow-glow-blue: 0 0 0 1px rgba(47,116,208,0.15);
+
+    --card-w: 280px;
+    --card-radius: 10px;
+    --card-border: 3px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    overflow-x: hidden;
+  }
+
+  /* ========================================
+     GLOBAL SCROLL ANIMATIONS
+     ======================================== */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 600ms cubic-bezier(0, 0, 0.2, 1), transform 600ms cubic-bezier(0, 0, 0.2, 1);
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .reveal-delay-1 { transition-delay: 100ms; }
+  .reveal-delay-2 { transition-delay: 200ms; }
+  .reveal-delay-3 { transition-delay: 300ms; }
+  .reveal-delay-4 { transition-delay: 400ms; }
+  .reveal-delay-5 { transition-delay: 500ms; }
+
+  /* ========================================
+     HERO SECTION
+     ======================================== */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 64px 32px;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 20% 30%, rgba(167,139,250,0.15) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 60% at 80% 20%, rgba(96,165,250,0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 80% 40% at 50% 80%, rgba(52,211,153,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 50% at 90% 70%, rgba(245,158,11,0.1) 0%, transparent 55%);
+    z-index: 0;
+  }
+
+  /* Animated grid overlay */
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(167,139,250,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(167,139,250,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 70%);
+    z-index: 0;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-radius: 9999px;
+    background: rgba(167,139,250,0.1);
+    border: 1px solid rgba(167,139,250,0.2);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--col-idea);
+    margin-bottom: 32px;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .hero-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--col-idea);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  .hero-title {
+    font-size: clamp(40px, 7vw, 72px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+  }
+
+  .hero-title .gradient-text {
+    background: linear-gradient(
+      135deg,
+      var(--col-idea) 0%,
+      var(--col-spec) 25%,
+      var(--col-plan) 50%,
+      var(--col-progress) 75%,
+      var(--col-review) 100%
+    );
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-shift 4s ease-in-out infinite;
+  }
+
+  @keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .hero-subtitle {
+    font-size: clamp(16px, 2vw, 20px);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-width: 560px;
+    margin: 0 auto 48px;
+  }
+
+  .hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--col-idea), var(--col-spec));
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+    box-shadow: 0 4px 16px rgba(167,139,250,0.3);
+  }
+
+  .hero-cta:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 32px rgba(167,139,250,0.4);
+  }
+
+  .hero-cta:active {
+    transform: scale(0.98);
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    animation: float 2s ease-in-out infinite;
+  }
+
+  .scroll-arrow {
+    width: 20px;
+    height: 20px;
+    border-right: 2px solid var(--text-muted);
+    border-bottom: 2px solid var(--text-muted);
+    transform: rotate(45deg);
+    animation: scroll-bounce 2s ease-in-out infinite;
+  }
+
+  @keyframes scroll-bounce {
+    0%, 100% { transform: rotate(45deg) translateY(0); opacity: 0.5; }
+    50% { transform: rotate(45deg) translateY(4px); opacity: 1; }
+  }
+
+  /* ========================================
+     SECTIONS
+     ======================================== */
+  .section {
+    position: relative;
+    padding: 120px 32px;
+    overflow: hidden;
+  }
+
+  .section-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .section-desc {
+    font-size: 16px;
+    color: var(--text-secondary);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ========================================
+     SECTION: RARITY — Purple/Blue atmosphere
+     ======================================== */
+  .section-rarity {
+    background:
+      radial-gradient(ellipse 80% 60% at 10% 20%, rgba(167,139,250,0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 70% at 90% 80%, rgba(96,165,250,0.1) 0%, transparent 50%),
+      radial-gradient(ellipse 100% 40% at 50% 0%, rgba(167,139,250,0.06) 0%, transparent 40%),
+      var(--bg-canvas);
+  }
+
+  .section-rarity .section-label { color: var(--col-idea); }
+
+  .rarity-showcase {
+    display: flex;
+    gap: 28px;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    perspective: 1200px;
+  }
+
+  .rarity-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .rarity-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    margin-top: 16px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* Floating cards in showcase */
+  .rarity-slot:nth-child(1) .card { animation: float-1 4s ease-in-out infinite; }
+  .rarity-slot:nth-child(2) .card { animation: float-2 4.5s ease-in-out infinite; }
+  .rarity-slot:nth-child(3) .card { animation: float-3 3.8s ease-in-out infinite; }
+  .rarity-slot:nth-child(4) .card { animation: float-4 4.2s ease-in-out infinite; }
+  .rarity-slot:nth-child(5) .card { animation: float-5 5s ease-in-out infinite; }
+
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes float-1 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  @keyframes float-2 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  @keyframes float-3 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes float-4 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes float-5 { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+
+  /* ========================================
+     SECTION: ANATOMY — Green/Teal atmosphere
+     ======================================== */
+  .section-anatomy {
+    background:
+      radial-gradient(ellipse 60% 80% at 80% 30%, rgba(52,211,153,0.1) 0%, transparent 55%),
+      radial-gradient(ellipse 80% 50% at 20% 70%, rgba(96,165,250,0.08) 0%, transparent 50%),
+      var(--bg-canvas);
+  }
+
+  .section-anatomy .section-label { color: var(--col-plan); }
+
+  .anatomy-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 64px;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .anatomy-annotations {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .annotation {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 16px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid transparent;
+    transition: all 300ms ease;
+    cursor: default;
+  }
+
+  .annotation:hover {
+    background: rgba(52,211,153,0.04);
+    border-color: rgba(52,211,153,0.15);
+  }
+
+  .annotation-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(52,211,153,0.15);
+    color: var(--col-plan);
+    flex-shrink: 0;
+  }
+
+  .annotation-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .annotation-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .anatomy-card-wrapper {
+    display: flex;
+    justify-content: center;
+    animation: float-3 4s ease-in-out infinite;
+  }
+
+  /* ========================================
+     SECTION: COLUMNS — Multi-color atmosphere
+     ======================================== */
+  .section-columns {
+    background:
+      radial-gradient(ellipse 50% 60% at 10% 40%, rgba(167,139,250,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 50% at 50% 30%, rgba(96,165,250,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 60% at 90% 60%, rgba(34,197,94,0.08) 0%, transparent 50%),
+      var(--bg-canvas);
+  }
+
+  .section-columns .section-label { color: var(--col-spec); }
+
+  .columns-showcase {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .column-demo-item {
+    width: 180px;
+    transition: transform 300ms ease;
+  }
+
+  .column-demo-item:hover {
+    transform: translateY(-4px);
+  }
+
+  .column-header {
+    padding: 14px 16px;
+    border-radius: 10px;
+    border-top: 2px solid var(--col-color);
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 300ms ease;
+  }
+
+  .column-demo-item:hover .column-header {
+    box-shadow: var(--shadow-md);
+  }
+
+  .column-header-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    position: relative;
+    z-index: 2;
+  }
+
+  .column-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    position: relative;
+    z-index: 2;
+    margin-top: 2px;
+  }
+
+  .column-pattern {
+    position: absolute;
+    inset: 0;
+    opacity: 0.04;
+    z-index: 1;
+    transition: opacity 300ms ease;
+  }
+
+  .column-demo-item:hover .column-pattern {
+    opacity: 0.08;
+  }
+
+  .pattern-idea { background: radial-gradient(circle at 20% 50%, var(--col-idea) 0%, transparent 50%), radial-gradient(circle at 80% 30%, var(--col-idea) 0%, transparent 40%), radial-gradient(circle at 50% 80%, var(--col-idea) 0%, transparent 45%); }
+  .pattern-spec { background: repeating-linear-gradient(0deg, var(--col-spec) 0px, var(--col-spec) 1px, transparent 1px, transparent 20px), repeating-linear-gradient(90deg, var(--col-spec) 0px, var(--col-spec) 1px, transparent 1px, transparent 20px); }
+  .pattern-plan { background: repeating-linear-gradient(-45deg, transparent, transparent 8px, var(--col-plan) 8px, var(--col-plan) 9px); }
+  .pattern-progress { background: radial-gradient(circle at 10px 10px, var(--col-progress) 2px, transparent 2px), radial-gradient(circle at 30px 30px, var(--col-progress) 2px, transparent 2px); background-size: 40px 40px; }
+  .pattern-review { background: repeating-linear-gradient(45deg, transparent, transparent 12px, var(--col-review) 12px, var(--col-review) 13px), repeating-linear-gradient(-45deg, transparent, transparent 12px, var(--col-review) 12px, var(--col-review) 13px); }
+  .pattern-complete { background: radial-gradient(circle at 50% 50%, var(--col-complete) 0%, transparent 60%); }
+
+  .column-progress {
+    height: 3px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 10px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .column-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--col-color);
+    transition: width 600ms cubic-bezier(0, 0, 0.2, 1);
+    opacity: 0.7;
+  }
+
+  /* ========================================
+     SECTION: INTERACTIONS — Amber/Pink atmosphere
+     ======================================== */
+  .section-interactions {
+    background:
+      radial-gradient(ellipse 70% 60% at 30% 20%, rgba(245,158,11,0.1) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 70% at 70% 80%, rgba(251,146,60,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 90% 40% at 50% 100%, rgba(167,139,250,0.06) 0%, transparent 40%),
+      var(--bg-canvas);
+  }
+
+  .section-interactions .section-label { color: var(--col-progress); }
+
+  .interactions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .interaction-demo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .interaction-title {
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .interaction-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  /* ========================================
+     FOOTER
+     ======================================== */
+  .footer {
+    text-align: center;
+    padding: 80px 32px;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 100%, rgba(8,4,47,0.8) 0%, transparent 60%),
+      var(--bg-canvas);
+  }
+
+  .footer-text {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .footer-text a {
+    color: var(--col-idea);
+    text-decoration: none;
+  }
+
+  /* ========================================
+     CARD STYLES (kept from v1)
+     ======================================== */
+  .card {
+    position: relative;
+    width: var(--card-w);
+    background: var(--bg-elevated);
+    border-radius: var(--card-radius);
+    border-left: var(--card-border) solid var(--accent, var(--col-idea));
+    overflow: hidden;
+    cursor: default;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+    box-shadow: var(--shadow-sm);
+    transform-style: preserve-3d;
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-md), var(--shadow-glow-blue);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--card-radius);
+    background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 4px);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .card-identity {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 12px 14px 8px;
+    gap: 8px;
+  }
+
+  .card-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .card-name {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--text-primary);
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-cost {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .cost-pip {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent, var(--col-idea));
+    opacity: 0.7;
+  }
+
+  .cost-pip.empty {
+    background: transparent;
+    border: 1.5px solid var(--text-muted);
+    opacity: 0.4;
+  }
+
+  .card-type-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.02);
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .type-icon {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--type-color, var(--type-feature));
+    opacity: 0.8;
+  }
+
+  .type-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .type-status {
+    color: var(--accent, var(--col-idea));
+  }
+
+  .card-body {
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  .card-flavor {
+    font-style: italic;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-size: 11px;
+  }
+
+  .card-artifacts {
+    display: flex;
+    gap: 6px;
+    padding: 0 14px 8px;
+    flex-wrap: wrap;
+  }
+
+  .artifact-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background: var(--pill-color, var(--doc-spec));
+    color: var(--bg-canvas);
+  }
+
+  .card-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px 10px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .stat-group { display: flex; gap: 12px; }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .stat-label {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .stat-value { color: var(--text-primary); }
+  .stat-value.impact { color: var(--col-complete); }
+  .stat-value.effort { color: var(--col-progress); }
+
+  .set-symbol {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    border-radius: 4px;
+    background: var(--accent, var(--col-idea));
+    color: var(--bg-canvas);
+    opacity: 0.8;
+  }
+
+  /* ========================================
+     RARITY TREATMENTS
+     ======================================== */
+  .card.rarity-common {}
+
+  .card.rarity-uncommon .card-id {
+    background: linear-gradient(135deg, #888 0%, #ccc 25%, #999 50%, #ddd 75%, #aaa 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  @keyframes foil-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .card.rarity-rare {
+    border-left-color: transparent;
+  }
+
+  .card.rarity-rare::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: var(--card-border);
+    background: linear-gradient(180deg, var(--accent) 0%, #fff 50%, var(--accent) 100%);
+    background-size: 100% 200%;
+    animation: border-shimmer 2.5s ease-in-out infinite;
+    border-radius: var(--card-radius) 0 0 var(--card-radius);
+    z-index: 2;
+  }
+
+  @keyframes border-shimmer {
+    0%, 100% { background-position: 0% 0%; }
+    50% { background-position: 0% 100%; }
+  }
+
+  .card.rarity-rare .card-id {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #b8860b 50%, #ffe44d 80%, #b8860b 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  /* Gold border wrapper — wraps .card to provide the animated gold frame */
+  .gold-border-wrap {
+    position: relative;
+    padding: 2px;
+    border-radius: calc(var(--card-radius) + 2px);
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 20%, #b8860b 40%, #ffe44d 60%, #b8860b 80%, #ffd700 100%);
+    background-size: 300% 300%;
+    animation: gold-border 4s ease-in-out infinite;
+  }
+
+  .gold-border-wrap .card {
+    border-left: none;
+    border: none;
+    border-radius: calc(var(--card-radius));
+  }
+
+  @keyframes gold-border {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .card.rarity-epic .card-id {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #ffe44d 60%, #b8860b 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 2.5s ease-in-out infinite;
+  }
+
+  .card.rarity-mythic {
+    --pointer-x: 50%;
+    --pointer-y: 50%;
+    --rotation-x: 0deg;
+    --rotation-y: 0deg;
+  }
+
+  .card.rarity-mythic .card-id {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #ffe44d 60%, #b8860b 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 2.5s ease-in-out infinite;
+  }
+
+  .holo-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--card-radius);
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 300ms ease;
+    mix-blend-mode: soft-light;
+    background:
+      radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255,255,255,0.2) 0%, transparent 60%),
+      linear-gradient(110deg, rgba(168,85,247,0.15) 0%, rgba(59,130,246,0.15) 15%, rgba(16,185,129,0.15) 30%, rgba(245,158,11,0.15) 45%, rgba(239,68,68,0.15) 60%, rgba(168,85,247,0.15) 75%, rgba(59,130,246,0.15) 90%, rgba(16,185,129,0.15) 100%);
+    background-size: 100% 100%, 300% 300%;
+    filter: brightness(1.2) saturate(1.3);
+  }
+
+  .card.rarity-mythic:hover .holo-overlay { opacity: 1; }
+
+  .gold-border-wrap:has(.rarity-mythic):hover {
+    transform: rotateX(var(--rotation-x, 0deg)) rotateY(var(--rotation-y, 0deg)) translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-lg), 0 0 30px rgba(168,85,247,0.15), 0 0 60px rgba(59,130,246,0.08);
+    animation: none;
+    transition: transform 100ms ease-out;
+  }
+
+  .gold-border-wrap:has(.rarity-mythic) {
+    transform-style: preserve-3d;
+    transition: transform 100ms ease-out;
+  }
+
+  .holo-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--card-radius);
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px);
+  }
+
+  /* Completed card */
+  .card.rarity-completed {
+    border-left: none;
+    border: 2px solid rgba(34,197,94,0.4);
+  }
+
+  .card.rarity-completed::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: calc(var(--card-radius) + 2px);
+    background: linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(34,197,94,0.05) 50%, rgba(34,197,94,0.2) 100%);
+    z-index: -1;
+    animation: complete-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes complete-pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  .card.rarity-completed .card-id { color: var(--col-complete); }
+  .card.rarity-completed .card-name { color: var(--col-complete); }
+
+  /* ========================================
+     PACK REVEAL
+     ======================================== */
+  .card.pack-reveal {
+    animation: pack-enter 500ms cubic-bezier(0, 0, 0.2, 1) both;
+  }
+
+  @keyframes pack-enter {
+    0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+    60% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .card.pack-reveal .shimmer-sweep {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--card-radius);
+    pointer-events: none;
+    z-index: 15;
+    overflow: hidden;
+  }
+
+  .card.pack-reveal .shimmer-sweep::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 40%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.08) 60%, transparent 100%);
+    animation: sweep 600ms 200ms ease-out forwards;
+  }
+
+  @keyframes sweep {
+    0% { left: -60%; }
+    100% { left: 120%; }
+  }
+
+  /* ========================================
+     CELEBRATION
+     ======================================== */
+  .celebration-demo { position: relative; display: inline-block; }
+
+  .check-anim {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 20;
+    opacity: 0;
+  }
+
+  .celebration-demo:hover .check-anim { animation: check-appear 600ms ease-out forwards; }
+
+  @keyframes check-appear {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    40% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+  }
+
+  .check-anim svg { width: 48px; height: 48px; }
+  .check-anim svg circle { fill: none; stroke: var(--col-complete); stroke-width: 2; stroke-dasharray: 150; stroke-dashoffset: 150; }
+  .celebration-demo:hover .check-anim svg circle { animation: draw-circle 400ms ease-out forwards; }
+  @keyframes draw-circle { to { stroke-dashoffset: 0; } }
+  .check-anim svg polyline { fill: none; stroke: var(--col-complete); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 40; stroke-dashoffset: 40; }
+  .celebration-demo:hover .check-anim svg polyline { animation: draw-check 300ms 200ms ease-out forwards; }
+  @keyframes draw-check { to { stroke-dashoffset: 0; } }
+
+  .particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 21;
+  }
+
+  .celebration-demo:hover .particle { animation: particle-burst 500ms 150ms ease-out forwards; }
+  .particle:nth-child(2) { --px: -20px; --py: -25px; background: var(--col-complete); }
+  .particle:nth-child(3) { --px: 22px; --py: -18px; background: var(--col-spec); }
+  .particle:nth-child(4) { --px: -15px; --py: 22px; background: var(--col-progress); }
+  .particle:nth-child(5) { --px: 18px; --py: 20px; background: var(--col-idea); }
+  .particle:nth-child(6) { --px: 25px; --py: 0px; background: var(--col-complete); }
+  .particle:nth-child(7) { --px: -25px; --py: 5px; background: var(--doc-plan); }
+
+  @keyframes particle-burst {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--px), var(--py)) scale(0); opacity: 0; }
+  }
+
+  /* ========================================
+     CARD FLIP
+     ======================================== */
+  .flip-container { perspective: 800px; width: var(--card-w); cursor: pointer; }
+  .flip-inner { position: relative; width: 100%; transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
+  .flip-container.flipped .flip-inner { transform: rotateY(180deg); }
+  .flip-front, .flip-back { backface-visibility: hidden; }
+  .flip-back { position: absolute; top: 0; left: 0; width: 100%; transform: rotateY(180deg); }
+
+  .card-back-content {
+    width: var(--card-w);
+    background: var(--bg-elevated);
+    border-radius: var(--card-radius);
+    border: 2px solid var(--border-default);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-back-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-back-header .card-id { font-size: 13px; font-weight: 700; }
+  .card-back-header .card-name { font-size: 13px; font-weight: 600; }
+
+  .card-back-timeline { padding: 14px; }
+
+  .timeline-entry {
+    display: flex;
+    gap: 10px;
+    padding-bottom: 12px;
+    position: relative;
+  }
+
+  .timeline-entry:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 14px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border-default);
+  }
+
+  .timeline-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 2px solid var(--dot-color, var(--col-idea));
+    background: var(--bg-canvas);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .timeline-dot.filled { background: var(--dot-color, var(--col-idea)); }
+  .timeline-text { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+  .timeline-date { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
+
+  .card-back-flavor {
+    padding: 0 14px 14px;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 12px;
+  }
+
+  /* ========================================
+     BUTTON STYLES
+     ======================================== */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-default);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 200ms ease;
+    font-family: inherit;
+  }
+
+  .btn-ghost:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: var(--col-idea);
+    color: var(--text-primary);
+  }
+
+  /* ========================================
+     REDUCED MOTION
+     ======================================== */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    .reveal { opacity: 1; transform: none; }
+  }
+
+  /* ========================================
+     SECTION: THE BOARD — where cards live
+     ======================================== */
+  .section-board {
+    background:
+      radial-gradient(ellipse 60% 50% at 15% 30%, rgba(167,139,250,0.08) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 60% at 85% 70%, rgba(34,197,94,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse 100% 30% at 50% 100%, rgba(8,4,47,0.5) 0%, transparent 50%),
+      var(--bg-canvas);
+    padding-bottom: 140px;
+  }
+
+  .section-board .section-label { color: var(--col-review); }
+
+  .board-frame {
+    background: var(--bg-surface);
+    border-radius: 16px;
+    border: 1px solid var(--border-default);
+    box-shadow: 0 16px 64px rgba(6,15,28,0.5), 0 4px 16px rgba(6,15,28,0.4);
+    overflow: hidden;
+  }
+
+  /* Board top bar */
+  .board-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(255,255,255,0.015);
+  }
+
+  .board-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .board-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .board-project {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .board-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toolbar-btn {
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 150ms ease;
+  }
+
+  .toolbar-btn:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--text-secondary);
+    border-color: var(--border-default);
+  }
+
+  .toolbar-btn.active {
+    background: rgba(167,139,250,0.1);
+    border-color: rgba(167,139,250,0.25);
+    color: var(--col-idea);
+  }
+
+  /* Board columns area */
+  .board-columns {
+    display: flex;
+    gap: 2px;
+    padding: 0;
+    overflow-x: auto;
+    min-height: 520px;
+  }
+
+  .board-col {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    background: rgba(255,255,255,0.01);
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .board-col:last-child {
+    border-right: none;
+  }
+
+  .board-col-header {
+    padding: 12px 14px;
+    border-top: 2px solid var(--col-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .board-col-header .column-pattern {
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+  }
+
+  .board-col-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    position: relative;
+    z-index: 2;
+  }
+
+  .board-col-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.04);
+    padding: 2px 6px;
+    border-radius: 4px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .board-col-progress {
+    height: 2px;
+    background: rgba(255,255,255,0.03);
+    overflow: hidden;
+  }
+
+  .board-col-progress-fill {
+    height: 100%;
+    background: var(--col-color);
+    opacity: 0.5;
+    transition: width 600ms cubic-bezier(0, 0, 0.2, 1);
+  }
+
+  .board-col-body {
+    flex: 1;
+    padding: 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* Mini cards for the board */
+  .mini-card {
+    background: var(--bg-elevated);
+    border-radius: 8px;
+    border-left: 3px solid var(--accent, var(--col-idea));
+    padding: 10px 12px;
+    cursor: default;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mini-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md), var(--shadow-glow-blue);
+  }
+
+  /* Mini card texture */
+  .mini-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.006) 2px, rgba(255,255,255,0.006) 4px);
+    pointer-events: none;
+  }
+
+  .mini-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .mini-card-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .mini-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mini-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .mini-type-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+
+  .mini-pips {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+  }
+
+  .mini-pip {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+
+  .mini-pip.empty {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    opacity: 0.3;
+  }
+
+  .mini-artifacts {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .mini-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 9999px;
+    background: var(--pill-color);
+    color: var(--bg-canvas);
+  }
+
+  /* Mini card rarity treatments */
+  .mini-card.rarity-uncommon .mini-card-id {
+    background: linear-gradient(135deg, #888, #ccc, #999, #ddd, #aaa);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  .mini-card.rarity-rare {
+    border-left-color: transparent;
+  }
+
+  .mini-card.rarity-rare::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent) 0%, #fff 50%, var(--accent) 100%);
+    background-size: 100% 200%;
+    animation: border-shimmer 2.5s ease-in-out infinite;
+    border-radius: 8px 0 0 8px;
+  }
+
+  .mini-card.rarity-rare .mini-card-id {
+    background: linear-gradient(135deg, #b8860b, #ffd700, #b8860b, #ffe44d, #b8860b);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  .mini-card.rarity-epic {
+    border-left: none;
+    border: 1.5px solid transparent;
+    background: var(--bg-elevated);
+    background-clip: padding-box;
+  }
+
+  .mini-card.rarity-epic::after {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 9.5px;
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 25%, #b8860b 50%, #ffe44d 75%, #b8860b 100%);
+    background-size: 300% 300%;
+    animation: gold-border 4s ease-in-out infinite;
+    z-index: -1;
+  }
+
+  .mini-card.rarity-completed {
+    border-left-color: var(--col-complete);
+    border: 1.5px solid rgba(34,197,94,0.3);
+  }
+
+  .mini-card.rarity-completed .mini-card-name {
+    color: var(--col-complete);
+  }
+
+  /* Empty column CTA */
+  .board-empty-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 64px;
+    border: 1.5px dashed var(--border-default);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 200ms ease;
+  }
+
+  .board-empty-cta:hover {
+    border-color: var(--col-color);
+    color: var(--col-color);
+    background: rgba(255,255,255,0.02);
+  }
+
+  @media (max-width: 768px) {
+    .anatomy-layout { grid-template-columns: 1fr; }
+    .interactions-grid { grid-template-columns: 1fr; }
+    .rarity-showcase { gap: 16px; }
+    .board-columns { min-height: 400px; }
+    .board-col { min-width: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================
+     HERO
+     ============================================ -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge reveal">
+      <span class="hero-badge-dot"></span>
+      Proof of Concept
+    </div>
+    <h1 class="hero-title reveal reveal-delay-1">
+      Your deliverables<br>deserve a <span class="gradient-text">rarity tier</span>
+    </h1>
+    <p class="hero-subtitle reveal reveal-delay-2">
+      Trading card game aesthetics meet SDLC workflow. Every deliverable is a card. Every card earns its visual treatment through complexity and impact.
+    </p>
+    <a href="#rarity" class="hero-cta reveal reveal-delay-3">Explore the system</a>
+  </div>
+  <div class="scroll-hint">
+    Scroll
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ============================================
+     RARITY TIERS
+     ============================================ -->
+<section class="section section-rarity" id="rarity">
+  <div class="section-inner">
+    <div class="section-header reveal">
+      <div class="section-label">Visual Escalation</div>
+      <h2 class="section-title">Five rarity tiers.<br>Earned, not assigned.</h2>
+      <p class="section-desc">Each tier adds one more visual layer. A simple bugfix stays clean. A cross-cutting architecture change gets the mythic treatment.</p>
+    </div>
+
+    <div class="rarity-showcase">
+      <!-- COMMON -->
+      <div class="rarity-slot reveal reveal-delay-1">
+        <div class="card rarity-common" style="--accent: var(--col-spec)">
+          <div class="card-identity">
+            <span class="card-id">D12</span>
+            <span class="card-name">Fix toast z-index on mobile</span>
+            <div class="card-cost"><span class="cost-pip"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span></div>
+          </div>
+          <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-bugfix)"></span>BUGFIX<span class="type-dot"></span><span class="type-status" style="color: var(--col-spec)">Spec</span></div>
+          <div class="card-body">Toast notifications render behind the modal overlay on viewport widths below 768px.</div>
+          <div class="card-artifacts"><span class="artifact-pill" style="--pill-color: var(--doc-spec)">SPEC</span></div>
+          <div class="card-stats">
+            <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">2</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">1</span></div></div>
+            <div class="set-symbol" style="background: var(--col-spec)">S4</div>
+          </div>
+        </div>
+        <div class="rarity-name">Common</div>
+      </div>
+
+      <!-- UNCOMMON -->
+      <div class="rarity-slot reveal reveal-delay-2">
+        <div class="card rarity-uncommon" style="--accent: var(--col-progress)">
+          <div class="card-identity">
+            <span class="card-id">D08</span>
+            <span class="card-name">WebSocket reconnection with exponential backoff</span>
+            <div class="card-cost"><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span></div>
+          </div>
+          <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-feature)"></span>FEATURE<span class="type-dot"></span><span class="type-status" style="color: var(--col-progress)">In Progress</span></div>
+          <div class="card-body">Implement connection recovery with jittered exponential backoff. Reconnect at 1s, 2s, 4s, 8s, capped at 30s.<div class="card-flavor">"The connection that bends does not break."</div></div>
+          <div class="card-artifacts"><span class="artifact-pill" style="--pill-color: var(--doc-spec)">SPEC</span><span class="artifact-pill" style="--pill-color: var(--doc-plan)">PLAN</span></div>
+          <div class="card-stats">
+            <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">4</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">3</span></div></div>
+            <div class="set-symbol" style="background: var(--col-progress)">S4</div>
+          </div>
+        </div>
+        <div class="rarity-name">Uncommon</div>
+      </div>
+
+      <!-- RARE -->
+      <div class="rarity-slot reveal reveal-delay-3">
+        <div class="card rarity-rare" style="--accent: var(--col-plan)">
+          <div class="card-identity">
+            <span class="card-id">D05</span>
+            <span class="card-name">File watcher service with debounced kanban updates</span>
+            <div class="card-cost"><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span></div>
+          </div>
+          <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-feature)"></span>FEATURE<span class="type-dot"></span><span class="type-status" style="color: var(--col-plan)">Plan</span></div>
+          <div class="card-body">Chokidar-based file watcher monitors docs/ for deliverable state changes. Debounces rapid writes, broadcasts deltas over WebSocket.<div class="card-flavor">"It watches. It knows. It updates."</div></div>
+          <div class="card-artifacts"><span class="artifact-pill" style="--pill-color: var(--doc-spec)">SPEC</span><span class="artifact-pill" style="--pill-color: var(--doc-plan)">PLAN</span></div>
+          <div class="card-stats">
+            <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">5</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">4</span></div></div>
+            <div class="set-symbol" style="background: var(--col-plan)">S3</div>
+          </div>
+        </div>
+        <div class="rarity-name">Rare</div>
+      </div>
+
+      <!-- EPIC -->
+      <div class="rarity-slot reveal reveal-delay-4">
+        <div class="gold-border-wrap">
+          <div class="card rarity-epic" style="--accent: var(--col-review)">
+            <div class="card-identity">
+              <span class="card-id">D03</span>
+              <span class="card-name">PTY terminal multiplexer with session persistence</span>
+              <div class="card-cost"><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip empty"></span></div>
+            </div>
+            <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-architecture)"></span>ARCHITECTURE<span class="type-dot"></span><span class="type-status" style="color: var(--col-review)">Review</span></div>
+            <div class="card-body">Node-pty backed terminal sessions with xterm.js rendering. Concurrent Claude CLI instances with session history.<div class="card-flavor">"Many terminals, one command center."</div></div>
+            <div class="card-artifacts"><span class="artifact-pill" style="--pill-color: var(--doc-spec)">SPEC</span><span class="artifact-pill" style="--pill-color: var(--doc-plan)">PLAN</span><span class="artifact-pill" style="--pill-color: var(--doc-result)">RESULT</span></div>
+            <div class="card-stats">
+              <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">5</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">5</span></div></div>
+              <div class="set-symbol" style="background: var(--col-review)">S2</div>
+            </div>
+          </div>
+        </div>
+        <div class="rarity-name">Epic</div>
+      </div>
+
+      <!-- MYTHIC -->
+      <div class="rarity-slot reveal reveal-delay-5">
+        <div class="card-wrapper" id="mythic-wrapper" style="perspective: 800px;">
+          <div class="gold-border-wrap" style="transform-style: preserve-3d;">
+          <div class="card rarity-mythic" style="--accent: var(--col-idea)" id="mythic-card">
+            <div class="holo-overlay" id="holo-overlay"></div>
+            <div class="card-identity">
+              <span class="card-id">D01</span>
+              <span class="card-name">Mission Control: Web-based SDLC dashboard for Claude Code</span>
+              <div class="card-cost"><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip"></span></div>
+            </div>
+            <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-architecture)"></span>ARCHITECTURE<span class="type-dot"></span><span class="type-status" style="color: var(--col-idea)">Idea</span></div>
+            <div class="card-body">Full-stack developer dashboard replacing the raw terminal. Express + React + WebSocket + node-pty.<div class="card-flavor">"One command. One process. Works with any project."</div></div>
+            <div class="card-artifacts"><span class="artifact-pill" style="--pill-color: var(--doc-spec)">SPEC</span><span class="artifact-pill" style="--pill-color: var(--doc-plan)">PLAN</span><span class="artifact-pill" style="--pill-color: var(--doc-result)">RESULT</span></div>
+            <div class="card-stats">
+              <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">5</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">5</span></div></div>
+              <div class="set-symbol" style="background: var(--col-idea)">S1</div>
+            </div>
+          </div>
+          </div>
+        </div>
+        <div class="rarity-name">Mythic</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     CARD ANATOMY
+     ============================================ -->
+<section class="section section-anatomy" id="anatomy">
+  <div class="section-inner">
+    <div class="section-header reveal">
+      <div class="section-label">Card Anatomy</div>
+      <h2 class="section-title">Five zones. One glance.</h2>
+      <p class="section-desc">Every TCG card solves the same problem: communicate type, status, and value in a fixed frame. So does every deliverable.</p>
+    </div>
+
+    <div class="anatomy-layout">
+      <div class="anatomy-annotations">
+        <div class="annotation reveal reveal-delay-1">
+          <div class="annotation-num">1</div>
+          <div><div class="annotation-title">Identity Zone</div><div class="annotation-desc">Deliverable ID (monospace), name (2-line max), and energy pips showing effort cost at a glance.</div></div>
+        </div>
+        <div class="annotation reveal reveal-delay-2">
+          <div class="annotation-num">2</div>
+          <div><div class="annotation-title">Type Bar</div><div class="annotation-desc">Full-width structural divider. Type icon + FEATURE/BUGFIX/REFACTOR + current SDLC status. Replaces the typical badge stack.</div></div>
+        </div>
+        <div class="annotation reveal reveal-delay-3">
+          <div class="annotation-num">3</div>
+          <div><div class="annotation-title">Ability Text</div><div class="annotation-desc">What the deliverable does (primary) and why it matters (italic flavor text). Two-tier hierarchy from every TCG ever made.</div></div>
+        </div>
+        <div class="annotation reveal reveal-delay-4">
+          <div class="annotation-num">4</div>
+          <div><div class="annotation-title">Artifact Pills</div><div class="annotation-desc">Doc-type colored: SPEC (blue), PLAN (teal), RESULT (green). Shows which SDLC artifacts exist for this deliverable.</div></div>
+        </div>
+        <div class="annotation reveal reveal-delay-5">
+          <div class="annotation-num">5</div>
+          <div><div class="annotation-title">Stat Block</div><div class="annotation-desc">IMP/EFF numbers (like ATK/DEF) plus a set symbol showing the sprint or milestone this card belongs to.</div></div>
+        </div>
+      </div>
+
+      <div class="anatomy-card-wrapper reveal">
+        <div class="card rarity-rare" style="--accent: var(--col-progress); --card-w: 300px;">
+          <div class="card-identity">
+            <span class="card-id">D07</span>
+            <span class="card-name">Git integration with commit history and branch tracking</span>
+            <div class="card-cost"><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span></div>
+          </div>
+          <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-feature)"></span>FEATURE<span class="type-dot"></span><span class="type-status" style="color: var(--col-progress)">In Progress</span></div>
+          <div class="card-body">Parse git log and branch state to surface project context in the dashboard. Powers the stats bar and commit sparkline.<div class="card-flavor">"Every commit tells a story."</div></div>
+          <div class="card-artifacts"><span class="artifact-pill" style="--pill-color: var(--doc-spec)">SPEC</span><span class="artifact-pill" style="--pill-color: var(--doc-plan)">PLAN</span></div>
+          <div class="card-stats">
+            <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">4</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">3</span></div></div>
+            <div class="set-symbol" style="background: var(--col-progress)">S3</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     COLUMN PATTERNS
+     ============================================ -->
+<section class="section section-columns" id="columns">
+  <div class="section-inner">
+    <div class="section-header reveal">
+      <div class="section-label">Column Identity</div>
+      <h2 class="section-title">Each stage has its own pattern.</h2>
+      <p class="section-desc">Lorcana-inspired geometric textures give each SDLC column a visual identity beyond color. Progress bars fill as deliverables advance.</p>
+    </div>
+
+    <div class="columns-showcase">
+      <div class="column-demo-item reveal reveal-delay-1">
+        <div class="column-header" style="--col-color: var(--col-idea)"><div class="column-pattern pattern-idea"></div><div class="column-header-text">Idea</div><div class="column-count">3 cards</div><div class="column-progress"><div class="column-progress-fill" style="width: 15%; background: var(--col-idea)"></div></div></div>
+      </div>
+      <div class="column-demo-item reveal reveal-delay-2">
+        <div class="column-header" style="--col-color: var(--col-spec)"><div class="column-pattern pattern-spec"></div><div class="column-header-text">Spec</div><div class="column-count">2 cards</div><div class="column-progress"><div class="column-progress-fill" style="width: 35%; background: var(--col-spec)"></div></div></div>
+      </div>
+      <div class="column-demo-item reveal reveal-delay-3">
+        <div class="column-header" style="--col-color: var(--col-plan)"><div class="column-pattern pattern-plan"></div><div class="column-header-text">Plan</div><div class="column-count">1 card</div><div class="column-progress"><div class="column-progress-fill" style="width: 50%; background: var(--col-plan)"></div></div></div>
+      </div>
+      <div class="column-demo-item reveal reveal-delay-3">
+        <div class="column-header" style="--col-color: var(--col-progress)"><div class="column-pattern pattern-progress"></div><div class="column-header-text">In Progress</div><div class="column-count">2 cards</div><div class="column-progress"><div class="column-progress-fill" style="width: 65%; background: var(--col-progress)"></div></div></div>
+      </div>
+      <div class="column-demo-item reveal reveal-delay-4">
+        <div class="column-header" style="--col-color: var(--col-review)"><div class="column-pattern pattern-review"></div><div class="column-header-text">Review</div><div class="column-count">1 card</div><div class="column-progress"><div class="column-progress-fill" style="width: 80%; background: var(--col-review)"></div></div></div>
+      </div>
+      <div class="column-demo-item reveal reveal-delay-5">
+        <div class="column-header" style="--col-color: var(--col-complete)"><div class="column-pattern pattern-complete"></div><div class="column-header-text">Complete</div><div class="column-count">5 cards</div><div class="column-progress"><div class="column-progress-fill" style="width: 100%; background: var(--col-complete); box-shadow: 0 0 8px rgba(34,197,94,0.4)"></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     INTERACTIONS
+     ============================================ -->
+<section class="section section-interactions" id="interactions">
+  <div class="section-inner">
+    <div class="section-header reveal">
+      <div class="section-label">Micro-Interactions</div>
+      <h2 class="section-title">Cards that feel alive.</h2>
+      <p class="section-desc">Pack opening reveals, completion celebrations, and card flip detail views bring every state transition to life.</p>
+    </div>
+
+    <div class="interactions-grid">
+      <!-- PACK OPENING -->
+      <div class="interaction-demo reveal reveal-delay-1">
+        <div class="interaction-title">Pack Opening Reveal</div>
+        <div class="interaction-desc">New deliverables enter with a shimmer sweep.</div>
+        <div class="card rarity-uncommon pack-reveal" style="--accent: var(--col-idea)" id="pack-card">
+          <div class="shimmer-sweep"></div>
+          <div class="card-identity">
+            <span class="card-id">D15</span>
+            <span class="card-name">Add dark mode toggle with system detection</span>
+            <div class="card-cost"><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span></div>
+          </div>
+          <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-feature)"></span>FEATURE<span class="type-dot"></span><span class="type-status" style="color: var(--col-idea)">Idea</span></div>
+          <div class="card-body">Detect system color scheme and expose a manual toggle.</div>
+          <div class="card-stats">
+            <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">3</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">2</span></div></div>
+            <div class="set-symbol" style="background: var(--col-idea)">S5</div>
+          </div>
+        </div>
+        <button class="btn-ghost" id="replay-btn" style="margin-top: 12px;">Replay animation</button>
+      </div>
+
+      <!-- CELEBRATION -->
+      <div class="interaction-demo reveal reveal-delay-2">
+        <div class="interaction-title">Completion Celebration</div>
+        <div class="interaction-desc">Hover the completed card for the checkmark burst.</div>
+        <div class="celebration-demo">
+          <div class="check-anim"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20"/><polyline points="14,24 22,32 34,18"/></svg></div>
+          <span class="particle"></span><span class="particle"></span><span class="particle"></span><span class="particle"></span><span class="particle"></span><span class="particle"></span>
+          <div class="card rarity-completed" style="--accent: var(--col-complete)">
+            <div class="card-identity">
+              <span class="card-id">D02</span>
+              <span class="card-name">SDLC parser with deliverable state machine</span>
+              <div class="card-cost"><span class="cost-pip" style="background: var(--col-complete)"></span><span class="cost-pip" style="background: var(--col-complete)"></span><span class="cost-pip" style="background: var(--col-complete)"></span><span class="cost-pip" style="background: var(--col-complete)"></span><span class="cost-pip empty"></span></div>
+            </div>
+            <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-feature)"></span>FEATURE<span class="type-dot"></span><span class="type-status" style="color: var(--col-complete)">Complete</span></div>
+            <div class="card-body">Parses markdown frontmatter and filename conventions to derive deliverable state.<div class="card-flavor">"From chaos, order. From markdown, state."</div></div>
+            <div class="card-artifacts"><span class="artifact-pill" style="--pill-color: var(--doc-spec)">SPEC</span><span class="artifact-pill" style="--pill-color: var(--doc-plan)">PLAN</span><span class="artifact-pill" style="--pill-color: var(--doc-result)">RESULT</span></div>
+            <div class="card-stats">
+              <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">5</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">4</span></div></div>
+              <div class="set-symbol" style="background: var(--col-complete)">S2</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD FLIP -->
+      <div class="interaction-demo reveal reveal-delay-3" style="grid-column: 1 / -1;">
+        <div class="interaction-title">Card Flip &mdash; Front / Back</div>
+        <div class="interaction-desc">Click to flip between summary and SDLC timeline with lore text.</div>
+        <div class="flip-container" id="flip-card">
+          <div class="flip-inner">
+            <div class="flip-front">
+              <div class="card rarity-rare" style="--accent: var(--col-progress)">
+                <div class="card-identity">
+                  <span class="card-id">D07</span>
+                  <span class="card-name">Git integration with commit history and branch tracking</span>
+                  <div class="card-cost"><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip"></span><span class="cost-pip empty"></span><span class="cost-pip empty"></span></div>
+                </div>
+                <div class="card-type-bar"><span class="type-icon" style="--type-color: var(--type-feature)"></span>FEATURE<span class="type-dot"></span><span class="type-status" style="color: var(--col-progress)">In Progress</span></div>
+                <div class="card-body">Parse git log and branch state to surface project context in the dashboard.<div class="card-flavor">"Every commit tells a story."</div></div>
+                <div class="card-artifacts"><span class="artifact-pill" style="--pill-color: var(--doc-spec)">SPEC</span><span class="artifact-pill" style="--pill-color: var(--doc-plan)">PLAN</span></div>
+                <div class="card-stats">
+                  <div class="stat-group"><div class="stat"><span class="stat-label">IMP</span><span class="stat-value impact">4</span></div><div class="stat"><span class="stat-label">EFF</span><span class="stat-value effort">3</span></div></div>
+                  <div class="set-symbol" style="background: var(--col-progress)">S3</div>
+                </div>
+              </div>
+            </div>
+            <div class="flip-back">
+              <div class="card-back-content">
+                <div class="card-back-header">
+                  <span class="card-id" style="color: var(--col-progress); -webkit-text-fill-color: var(--col-progress);">D07</span>
+                  <span class="card-name">Git Integration</span>
+                </div>
+                <div class="card-back-timeline">
+                  <div class="timeline-entry"><div class="timeline-dot filled" style="--dot-color: var(--col-idea)"></div><div><div class="timeline-text">Idea proposed</div><div class="timeline-date">2026-02-28</div></div></div>
+                  <div class="timeline-entry"><div class="timeline-dot filled" style="--dot-color: var(--col-spec)"></div><div><div class="timeline-text">Spec approved by CD</div><div class="timeline-date">2026-03-02</div></div></div>
+                  <div class="timeline-entry"><div class="timeline-dot filled" style="--dot-color: var(--col-plan)"></div><div><div class="timeline-text">Plan reviewed, 2 phases</div><div class="timeline-date">2026-03-04</div></div></div>
+                  <div class="timeline-entry"><div class="timeline-dot" style="--dot-color: var(--col-progress)"></div><div><div class="timeline-text">Phase 1 in progress</div><div class="timeline-date">2026-03-10</div></div></div>
+                  <div class="timeline-entry"><div class="timeline-dot" style="--dot-color: var(--col-review)"></div><div><div class="timeline-text" style="color: var(--text-muted)">Review &mdash; pending</div><div class="timeline-date">&mdash;</div></div></div>
+                </div>
+                <div class="card-back-flavor">"Every commit tells a story. This deliverable makes that story visible &mdash; surfacing the rhythm of work across branches, authors, and time."</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     THE BOARD — where cards live
+     ============================================ -->
+<section class="section section-board" id="board">
+  <div class="section-inner">
+    <div class="section-header reveal">
+      <div class="section-label">The Board</div>
+      <h2 class="section-title">Every card needs a zone.</h2>
+      <p class="section-desc">Cards live on a board. Each column is an SDLC stage with its own identity, pattern, and progress signal. Rarity treatments carry through.</p>
+    </div>
+
+    <div class="board-frame reveal reveal-delay-1">
+      <!-- Toolbar -->
+      <div class="board-toolbar">
+        <div class="board-toolbar-left">
+          <span class="board-title">Mission Control</span>
+          <span class="board-project">~/Projects/mc</span>
+        </div>
+        <div class="board-toolbar-right">
+          <button class="toolbar-btn active">Board</button>
+          <button class="toolbar-btn">Timeline</button>
+          <button class="toolbar-btn">List</button>
+        </div>
+      </div>
+
+      <!-- Columns -->
+      <div class="board-columns">
+        <!-- IDEA -->
+        <div class="board-col">
+          <div class="board-col-header" style="--col-color: var(--col-idea)">
+            <div class="column-pattern pattern-idea"></div>
+            <span class="board-col-name">Idea</span>
+            <span class="board-col-count">2</span>
+          </div>
+          <div class="board-col-progress"><div class="board-col-progress-fill" style="width: 10%; background: var(--col-idea)"></div></div>
+          <div class="board-col-body">
+            <div class="mini-card" style="--accent: var(--col-idea)">
+              <div class="mini-card-top"><span class="mini-card-id">D15</span><div class="mini-pips"><span class="mini-pip"></span><span class="mini-pip empty"></span><span class="mini-pip empty"></span></div></div>
+              <div class="mini-card-name">Dark mode toggle with system preference detection</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Feature</span></div>
+            </div>
+            <div class="mini-card" style="--accent: var(--col-idea)">
+              <div class="mini-card-top"><span class="mini-card-id">D16</span><div class="mini-pips"><span class="mini-pip"></span><span class="mini-pip empty"></span><span class="mini-pip empty"></span></div></div>
+              <div class="mini-card-name">Keyboard shortcut overlay</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Feature</span></div>
+            </div>
+            <div class="board-empty-cta" style="--col-color: var(--col-idea)">+ New Idea</div>
+          </div>
+        </div>
+
+        <!-- SPEC -->
+        <div class="board-col">
+          <div class="board-col-header" style="--col-color: var(--col-spec)">
+            <div class="column-pattern pattern-spec"></div>
+            <span class="board-col-name">Spec</span>
+            <span class="board-col-count">1</span>
+          </div>
+          <div class="board-col-progress"><div class="board-col-progress-fill" style="width: 25%; background: var(--col-spec)"></div></div>
+          <div class="board-col-body">
+            <div class="mini-card rarity-uncommon" style="--accent: var(--col-spec)">
+              <div class="mini-card-top"><span class="mini-card-id">D12</span><div class="mini-pips"><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip empty"></span></div></div>
+              <div class="mini-card-name">Toast notification z-index fix across breakpoints</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Bugfix</span></div>
+              <div class="mini-artifacts"><span class="mini-pill" style="--pill-color: var(--doc-spec)">Spec</span></div>
+            </div>
+            <div class="board-empty-cta" style="--col-color: var(--col-spec)">+ Write Spec</div>
+          </div>
+        </div>
+
+        <!-- PLAN -->
+        <div class="board-col">
+          <div class="board-col-header" style="--col-color: var(--col-plan)">
+            <div class="column-pattern pattern-plan"></div>
+            <span class="board-col-name">Plan</span>
+            <span class="board-col-count">1</span>
+          </div>
+          <div class="board-col-progress"><div class="board-col-progress-fill" style="width: 45%; background: var(--col-plan)"></div></div>
+          <div class="board-col-body">
+            <div class="mini-card rarity-rare" style="--accent: var(--col-plan)">
+              <div class="mini-card-top"><span class="mini-card-id">D05</span><div class="mini-pips"><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip empty"></span></div></div>
+              <div class="mini-card-name">File watcher service with debounced kanban updates</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Feature</span></div>
+              <div class="mini-artifacts"><span class="mini-pill" style="--pill-color: var(--doc-spec)">Spec</span><span class="mini-pill" style="--pill-color: var(--doc-plan)">Plan</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- IN PROGRESS -->
+        <div class="board-col">
+          <div class="board-col-header" style="--col-color: var(--col-progress)">
+            <div class="column-pattern pattern-progress"></div>
+            <span class="board-col-name">In Progress</span>
+            <span class="board-col-count">2</span>
+          </div>
+          <div class="board-col-progress"><div class="board-col-progress-fill" style="width: 60%; background: var(--col-progress)"></div></div>
+          <div class="board-col-body">
+            <div class="mini-card rarity-uncommon" style="--accent: var(--col-progress)">
+              <div class="mini-card-top"><span class="mini-card-id">D08</span><div class="mini-pips"><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip empty"></span></div></div>
+              <div class="mini-card-name">WebSocket reconnection with exponential backoff</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Feature</span></div>
+              <div class="mini-artifacts"><span class="mini-pill" style="--pill-color: var(--doc-spec)">Spec</span><span class="mini-pill" style="--pill-color: var(--doc-plan)">Plan</span></div>
+            </div>
+            <div class="mini-card rarity-rare" style="--accent: var(--col-progress)">
+              <div class="mini-card-top"><span class="mini-card-id">D07</span><div class="mini-pips"><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip empty"></span></div></div>
+              <div class="mini-card-name">Git integration with commit history</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Feature</span></div>
+              <div class="mini-artifacts"><span class="mini-pill" style="--pill-color: var(--doc-spec)">Spec</span><span class="mini-pill" style="--pill-color: var(--doc-plan)">Plan</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REVIEW -->
+        <div class="board-col">
+          <div class="board-col-header" style="--col-color: var(--col-review)">
+            <div class="column-pattern pattern-review"></div>
+            <span class="board-col-name">Review</span>
+            <span class="board-col-count">1</span>
+          </div>
+          <div class="board-col-progress"><div class="board-col-progress-fill" style="width: 80%; background: var(--col-review)"></div></div>
+          <div class="board-col-body">
+            <div class="mini-card rarity-epic" style="--accent: var(--col-review)">
+              <div class="mini-card-top"><span class="mini-card-id">D03</span><div class="mini-pips"><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip"></span><span class="mini-pip empty"></span></div></div>
+              <div class="mini-card-name">PTY terminal multiplexer with session persistence</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Architecture</span></div>
+              <div class="mini-artifacts"><span class="mini-pill" style="--pill-color: var(--doc-spec)">Spec</span><span class="mini-pill" style="--pill-color: var(--doc-plan)">Plan</span><span class="mini-pill" style="--pill-color: var(--doc-result)">Result</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COMPLETE -->
+        <div class="board-col">
+          <div class="board-col-header" style="--col-color: var(--col-complete)">
+            <div class="column-pattern pattern-complete"></div>
+            <span class="board-col-name">Complete</span>
+            <span class="board-col-count">3</span>
+          </div>
+          <div class="board-col-progress"><div class="board-col-progress-fill" style="width: 100%; background: var(--col-complete); box-shadow: 0 0 6px rgba(34,197,94,0.3)"></div></div>
+          <div class="board-col-body">
+            <div class="mini-card rarity-completed" style="--accent: var(--col-complete)">
+              <div class="mini-card-top"><span class="mini-card-id">D02</span><div class="mini-pips"><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span></div></div>
+              <div class="mini-card-name">SDLC parser with deliverable state machine</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Feature</span></div>
+              <div class="mini-artifacts"><span class="mini-pill" style="--pill-color: var(--doc-spec)">Spec</span><span class="mini-pill" style="--pill-color: var(--doc-plan)">Plan</span><span class="mini-pill" style="--pill-color: var(--doc-result)">Result</span></div>
+            </div>
+            <div class="mini-card rarity-completed" style="--accent: var(--col-complete)">
+              <div class="mini-card-top"><span class="mini-card-id">D01</span><div class="mini-pips"><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span></div></div>
+              <div class="mini-card-name">Mission Control: Web-based SDLC dashboard</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Architecture</span></div>
+              <div class="mini-artifacts"><span class="mini-pill" style="--pill-color: var(--doc-spec)">Spec</span><span class="mini-pill" style="--pill-color: var(--doc-plan)">Plan</span><span class="mini-pill" style="--pill-color: var(--doc-result)">Result</span></div>
+            </div>
+            <div class="mini-card rarity-completed" style="--accent: var(--col-complete)">
+              <div class="mini-card-top"><span class="mini-card-id">D04</span><div class="mini-pips"><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span><span class="mini-pip" style="background: var(--col-complete)"></span></div></div>
+              <div class="mini-card-name">Express REST API with SDLC routes</div>
+              <div class="mini-card-meta"><span class="mini-type-badge">Feature</span></div>
+              <div class="mini-artifacts"><span class="mini-pill" style="--pill-color: var(--doc-spec)">Spec</span><span class="mini-pill" style="--pill-color: var(--doc-plan)">Plan</span><span class="mini-pill" style="--pill-color: var(--doc-result)">Result</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================
+     FOOTER
+     ============================================ -->
+<section class="footer">
+  <p class="footer-text">Mission Control &mdash; TCG Card System POC &mdash; <a href="#">View the research</a></p>
+</section>
+
+<script>
+  // Scroll reveal via IntersectionObserver
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Mythic card — holographic tilt
+  const mythicCard = document.getElementById('mythic-card');
+  const holoOverlay = document.getElementById('holo-overlay');
+  const mythicWrapper = document.getElementById('mythic-wrapper');
+
+  if (mythicCard && mythicWrapper) {
+    const goldWrap = mythicCard.closest('.gold-border-wrap');
+    mythicWrapper.addEventListener('mousemove', (e) => {
+      const rect = mythicCard.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      const rotY = ((x - 50) / 50) * 8;
+      const rotX = ((50 - y) / 50) * 8;
+      // Set pointer vars on card (for holo overlay)
+      mythicCard.style.setProperty('--pointer-x', x + '%');
+      mythicCard.style.setProperty('--pointer-y', y + '%');
+      // Set rotation vars on gold wrapper (for tilt)
+      if (goldWrap) {
+        goldWrap.style.setProperty('--rotation-x', rotX + 'deg');
+        goldWrap.style.setProperty('--rotation-y', rotY + 'deg');
+      }
+      holoOverlay.style.backgroundPosition = `${x}% ${y}%, ${x * 2}% ${y * 2}%`;
+    });
+
+    mythicWrapper.addEventListener('mouseleave', () => {
+      if (goldWrap) {
+        goldWrap.style.setProperty('--rotation-x', '0deg');
+        goldWrap.style.setProperty('--rotation-y', '0deg');
+      }
+      mythicCard.style.setProperty('--pointer-x', '50%');
+      mythicCard.style.setProperty('--pointer-y', '50%');
+    });
+  }
+
+  // Pack opening replay
+  const replayBtn = document.getElementById('replay-btn');
+  const packCard = document.getElementById('pack-card');
+  if (replayBtn && packCard) {
+    replayBtn.addEventListener('click', () => {
+      packCard.classList.remove('pack-reveal');
+      void packCard.offsetWidth;
+      packCard.classList.add('pack-reveal');
+    });
+  }
+
+  // Card flip
+  const flipCard = document.getElementById('flip-card');
+  if (flipCard) {
+    flipCard.addEventListener('click', () => {
+      flipCard.classList.toggle('flipped');
+    });
+  }
+
+  // Animate column progress bars on scroll
+  const colObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.querySelectorAll('.column-progress-fill').forEach(bar => {
+          const w = bar.style.width;
+          bar.style.width = '0%';
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => { bar.style.width = w; });
+          });
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  const colSection = document.querySelector('.section-columns');
+  if (colSection) colObserver.observe(colSection);
+</script>
+</body>
+</html>

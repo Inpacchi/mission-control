@@ -93,7 +93,7 @@ export function SkillActions({ status, deliverableId, visible, wsSend: _wsSend }
   return (
     <chakra.button
       onClick={handleClick}
-      aria-label={`${action.label} for ${deliverableId}`}
+      aria-label={`${action.label} for ${deliverableId} — Skill actions available`}
       display="flex"
       alignItems="center"
       gap="6px"
@@ -102,7 +102,7 @@ export function SkillActions({ status, deliverableId, visible, wsSend: _wsSend }
       border="1px solid"
       borderColor="border.default"
       borderRadius="md"
-      color="text.secondary"
+      color="#8B99B3"
       fontSize="xs"
       fontWeight={500}
       fontFamily="body"

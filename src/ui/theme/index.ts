@@ -152,6 +152,8 @@ const config = defineConfig({
         inset: { value: 'inset 0 1px 3px rgba(0,0,0,0.4)' },
         'glow.blue': { value: '0 0 0 3px rgba(47,116,208,0.35)' },
         'glow.violet': { value: '0 0 0 3px rgba(107,70,193,0.35)' },
+        selected: { value: '0 0 0 4px rgba(47,116,208,0.5)' },
+        panel: { value: '-8px 0 40px rgba(0,0,0,0.6), -2px 0 8px rgba(0,0,0,0.4)' },
       },
     },
   },

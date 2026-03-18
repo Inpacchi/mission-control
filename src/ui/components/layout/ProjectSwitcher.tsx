@@ -93,7 +93,7 @@ export function ProjectSwitcher({ projects, onSwitch }: ProjectSwitcherProps) {
         cursor="pointer"
         color="text.primary"
         fontFamily="heading"
-        fontSize="2xl"
+        fontSize="xl"
         fontWeight={700}
         letterSpacing="-0.03em"
         lineHeight={1.2}
