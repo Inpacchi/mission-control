@@ -8,15 +8,17 @@ This is the single source of truth for all deliverable IDs and their statuses.
 
 | ID | Name | Status | Spec | Plan | Result |
 |----|------|--------|------|------|--------|
-| D2 | Tech Debt Cleanup | Complete | [spec](specs/d2_tech_debt_cleanup_spec.md) | [plan](planning/d2_tech_debt_cleanup_plan.md) | [result](results/d2_tech_debt_cleanup_result.md) |
-| D3 | TCG Card Design System | Complete | [spec](specs/d3_tcg_card_design_system_spec.md) | [plan](planning/d3_tcg_card_design_system_plan.md) | [result](results/d3_tcg_card_design_system_result.md) |
-| D4 | Terminal-First Mission Control | Complete | [spec](specs/d4_terminal_first_mission_control_spec.md) | [plan](planning/d4_terminal_first_mission_control_plan.md) | [result](results/d4_terminal_first_mission_control_result.md) |
 
-## Completed Deliverables
+_No active deliverables._
 
-| ID | Name | Chronicle Location |
-|----|------|-------------------|
-| D1 | Mission Control MVP | [spec](specs/d1_mission_control_mvp_spec.md) · [plan](planning/d1_mission_control_mvp_plan.md) · [result](results/d1_mission_control_mvp_result.md) |
+## Completed & Archived
+
+| ID | Name | Status | Chronicle |
+|----|------|--------|-----------|
+| D1 | Mission Control MVP | Archived | [mvp](chronicle/mvp/) |
+| D2 | Tech Debt Cleanup | Archived | [mvp](chronicle/mvp/) |
+| D3 | TCG Card Design System | Archived | [mvp](chronicle/mvp/) |
+| D4 | Terminal-First Mission Control | Archived | [mvp](chronicle/mvp/) |
 
 ## Notes
 
