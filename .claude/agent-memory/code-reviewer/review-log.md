@@ -4,6 +4,233 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-17 — Notepad.tsx new component review (no deliverable ID)
+
+**Deliverable:** none (ad hoc new component)
+**Scope:** New `src/tui/components/Notepad.tsx` — multi-line in-memory text editor backed by `{projectPath}/.mc/notes.md`
+**Files reviewed:** Notepad.tsx (diff, 215 lines), DetailPanel.tsx, Pager.tsx, BoardApp.tsx, useKeyboard.ts, cli.ts
+
+**Key findings:**
+1. CRITICAL: `loadNotes` called 3 separate times during initialization (lines 39–46) — `lines`, `cursor`, and `col` derived from three independent `readFileSync` calls. File-change between calls can leave cursor index out of bounds, making every `lines[cursor]` access return `undefined`.
+2. HIGH: `setCol(mergeCol)` called inside a `setLines(prev => ...)` functional updater (line ~100) — state side-effect in updater, non-deterministic in Strict Mode / concurrent rendering.
+3. HIGH: Cursor rendered against truncated `displayLine` rather than raw `line` (lines 181–183 area) — cursor becomes invisible for any line longer than `contentWidth`. Silent failure.
+4. HIGH: No path traversal guard on `saveNotes` write path — asymmetric with `DetailPanel.tsx` which guards reads at lines 52–59.
+5. MEDIUM: `setCol` inside `setCursor` updater repeated for arrow key navigation (lines 120–129) — same anti-pattern as H1 in two more locations.
+6. MEDIUM: Synchronous `fs.readFileSync` / `fs.writeFileSync` — architectural deviation from async fs pattern in `DetailPanel`. Blocks event loop on every debounced save.
+7. MEDIUM: Notes written to `{projectPath}/.mc/notes.md` — deviates from CLAUDE.md architecture doc (`~/.mc/` for session storage) without explanation.
+
+**Blockers for merge:** H1 (setCol in setLines updater) and C1 (triple file read / divergent init state). M3 (same setter-in-updater pattern for arrow keys) should be fixed alongside H1.
+
+**Patterns confirmed:**
+- Setter-in-updater anti-pattern (calling setX inside a setY functional updater) is a new recurring pattern to watch. Adding to recurring-patterns.md.
+- Defense-in-depth gap on file writes vs. reads is a second instance of the DetailPanel path-guard asymmetry (previously flagged in D4 round 1 for reads; now also present for writes in Notepad).
+
+---
+
+## 2026-03-18 — Notepad.tsx post-fix re-review (no deliverable ID)
+
+**Deliverable:** none (ad hoc)
+**Scope:** Re-review of `src/tui/components/Notepad.tsx` after 9 fixes applied. Verified all 9 fixes correct. Identified new issues introduced by the fix approach.
+**Files reviewed:** Notepad.tsx (233 lines post-fix), node_modules/ink/build/hooks/use-input.js (Ink dependency contract)
+
+**Key findings:**
+1. HIGH: `inputHandler` passed to `useInput` is an inline arrow function — new reference every render. Ink's `use-input.js` (line 121) lists `inputHandler` as a useEffect dependency. This causes listener teardown + re-attach on every keystroke. The ref-based stale closure fix (Finding 4) resolved the read side but did not stabilize the handler reference.
+2. MEDIUM: `onExit` and `projectPath` props not wrapped in refs — stale closure for Escape path. `linesRef/cursorRef/colRef` were added for state, but props were missed. `onExit` from a parent that re-renders with captured state will call the old version.
+3. MEDIUM: `!key.meta` guard at line 165 silently drops Option/Alt character input on macOS (Ink sets `key.meta = true` for Option combinations). Pre-existing gap now confirmed after reading Ink source.
+4. LOW: Four "Finding N:" prefixed comments embedded in source (lines 59, 78, 115, 130) — no meaning without the review document. Should describe the invariant, not the ticket.
+
+**New pattern confirmed:**
+- Ink `useInput` lists the handler function as a useEffect dependency. Passing inline arrow functions to `useInput` causes listener churn on every render. Must use a stable ref-wrapped callback. Adding to recurring-patterns.md.
+
+**Blockers for merge:** H1 (listener churn per keystroke). M2 (stale onExit) is a correctness gap that should be fixed alongside H1 since both require the same ref-wrapping pattern.
+
+---
+
+## 2026-03-18 — Notepad.tsx round 2 re-review (no deliverable ID)
+
+**Deliverable:** none (ad hoc)
+**Scope:** Verified all round-1 and round-1.5 fixes. Checked for new issues in 246-line post-fix file.
+**Files reviewed:** Notepad.tsx (246 lines, provided inline), recurring-patterns.md, architectural-decisions.md
+
+**Key findings:**
+1. HIGH: H3 from round 1 (cursor rendered against truncated displayLine) was NOT fixed. `visualCol = Math.min(col, displayLine.length)` clamps col against the truncated string — cursor still renders at the wrong position for any line longer than contentWidth.
+2. MEDIUM: `key.delete` and `key.backspace` handled in the same branch, both performing backspace (col-1 deletion). Forward-delete (col deletion) is unimplemented; Delete key silently does wrong thing.
+3. MEDIUM: `saveNotesSync` called synchronously from Escape handler — blocks Node.js event loop at the exact moment user exits. Async `saveNotes` already exists; sync write is unnecessary.
+4. MEDIUM: `loadNotes` calls `fs.readFileSync` inside a `useState` initializer — blocks initial render. Deviates from async-first fs pattern established by DetailPanel.
+
+**Blockers for merge:** H1 (cursor rendering on truncated lines) is a visible correctness bug on any line longer than contentWidth.
+
+**Note:** The prior round-1 H3 finding was not carried forward into the round-1.5 fix list and therefore was not addressed.
+
+---
+
+## 2026-03-17 — D4 Polish Commits (1b10de4..2859718) — Pager, renderMarkdown, view cmd, card redesign
+
+**Deliverable:** D4
+**Scope:** D4 polish commits — new Pager, renderMarkdown, view command flags, DeliverableCard 3-row redesign, DetailPanel doc-type switching, ZoneStrip dividers, BoardApp proportional widths, useKeyboard activeDocType
+
+**Files reviewed:** Pager.tsx, renderMarkdown.ts, commands/view.ts, DeliverableCard.tsx, DetailPanel.tsx, ZoneStrip.tsx, BoardApp.tsx, hooks/useKeyboard.ts, cli.ts, shared/types.ts
+
+**Key findings:**
+1. HIGH: `marked.use({ renderer })` mutates global marked singleton on every `renderMarkdownToAnsi` call — concurrent/repeated renders produce non-deterministic output. Instance API (`new marked.Marked(...)`) needed.
+2. HIGH: `DetailPanel.tsx` has no path traversal guard (view.ts has one; DetailPanel reads the same sdlcParser paths without checking). Currently safe because sdlcParser confines paths, but defense-in-depth is absent.
+3. HIGH: `useKeyboard` collapsed-mode `useEffect` has eslint-disable suppressing real stale-closure on `selectedZone` — zone reset may not fire when resizing from wide to collapsed after navigating to Graveyard.
+4. HIGH: `renderMarkdownToAnsi` called synchronously in `DetailPanel` component body on every render including scroll — full re-parse on every keypress.
+5. HIGH: `lines` array in `Pager` not memoized, new reference each render defeats `matchingLines` useMemo — search scan runs on every scroll keypress.
+6. MEDIUM: Search submit handler in Pager duplicates matchingLines reduce logic inline (DRY + correctness coupling to un-memoized lines).
+7. MEDIUM: `DocType` defined twice — `useKeyboard.ts` export and `DetailPanel.tsx` local. Will silently diverge if one is extended.
+8. MEDIUM: `ZONE_HEADER_COLOR` and `ZONE_BORDER_COLOR` in ZoneStrip are identical — dead abstraction.
+9. MEDIUM: `CARD_HEIGHT = 4` does not account for conditional flavor row — 2-row cards overestimate height, causing fewer cards than available space allows.
+10. MEDIUM: `detailScrollOffset` has magic ceiling `10000` with no connection to actual document length — runaway scroll.
+11. LOW: SIGTERM handler in view.ts registered with `once` but never removed on clean exit.
+12. LOW: HelpOverlay still shows "Phase 5" planning language in user-facing help text.
+13. LOW: `stripAnsi` function duplicated in Pager.tsx and renderMarkdown.ts; regex only handles SGR sequences.
+
+**Patterns confirmed:**
+- `marked.use()` global mutation risk: now confirmed as a HIGH finding (previously noted as LOW/latent in prior entry because view.ts was one-shot; DetailPanel renders repeatedly).
+- Unclamped scroll offset pattern recurs again (finding #10) — third instance in D4 TUI layer.
+- Async useEffect missing cancellation in DetailPanel remains open from prior review round.
+
+---
+
+## 2026-03-17 — D4: Terminal-First Mission Control — Round 2 re-review (post-8-fix verification)
+
+**Deliverable:** D4
+**Scope:** Targeted verification of 8 round-1 fixes. No CRITICAL or HIGH findings.
+
+**Fix verification (all 8 confirmed):**
+1. ZoneStrip.tsx virtual scroll centering formula: VERIFIED — lines 82-84 correctly compute idealOffset = max(0, selectedCard - floor(visibleCount/2)) clamped to maxOffset.
+2. DetailPanel.tsx scroll clamp (end-of-document indicator): VERIFIED — line 110 shows "— end of document —" when visibleLines.length === 0 && scrollOffset > 0. Note: scrollOffset itself is not clamped in hook or component; indicator is the visual fix.
+3. SessionBrowser.tsx error handling: VERIFIED — lines 57-59 add .catch(() => { setLoading(false); }).
+4. ChronicleList.tsx error handling: VERIFIED — lines 50-52 add .catch(() => { setLoading(false); }).
+5. useKeyboard.ts zone reset on collapse: VERIFIED — useEffect at lines 49-57 resets selectedZone to first navigable zone when collapsed=true.
+6. src/tui/index.ts process.once + dead code: VERIFIED — process.once at line 27; file is 42 lines, no dead code found.
+7. sessions.tsx process.once: VERIFIED — line 21.
+8. chronicle.tsx process.once: VERIFIED — line 21.
+9. BoardApp.tsx help overlay replaces zone layout: VERIFIED — all three layout branches (vertical, collapsed, full) return HelpOverlay+StatusBar+HelpBar when showHelp=true.
+
+**New findings introduced by fixes:**
+- LOW (NEW): ZoneStrip.tsx lines 150-151 — scroll indicator renders ▼▲ order (more-below then more-above). Conventional order is ▲▼ (above then below). Purely cosmetic inversion.
+
+**Remaining open from round 1 (not in fix scope):**
+- MEDIUM: DetailPanel.tsx async useEffect still has no isCancelled flag — stale content flash on rapid navigation.
+- LOW: ChronicleList.tsx still has no path.startsWith(projectPath) traversal guard on resultPath.
+- LOW: useKeyboard.ts line 57 eslint-disable suppresses both getNavigableZones and selectedZone from effect deps. Safe in practice (events cannot co-occur in same render) but broad suppression.
+
+**Verdict:** All 8 fixes correctly applied. No regressions. One new LOW cosmetic finding in scroll indicator.
+
+---
+
+## 2026-03-17 — D4: Terminal-First Mission Control — Post-execution code review
+
+**Deliverable:** D4
+**Scope:** Full post-execution review of all 22 new TUI files plus 4 modified files
+**Files reviewed:** src/tui/* (all), src/shared/zones.ts, src/cli.ts, src/ui/components/warTable/TacticalField.tsx, package.json, tsconfig.server.json
+
+**Plan compliance:** All 7 key design decisions verified correct. No CRITICAL or HIGH findings.
+
+**MEDIUM findings (4):**
+1. DetailPanel.tsx: missing cancellation in async useEffect — stale content flash when navigating between cards
+2. DetailPanel.tsx: detailScrollOffset not clamped — panel goes blank when scrolling past document end (SessionBrowser/ChronicleList both correctly clamp)
+3. useDeliverables.ts: dead code — hook defined but never imported; superseded by useFileWatcher
+4. SessionBrowser.tsx + ChronicleList.tsx: unhandled promise rejections on data load — app hangs in loading state on fs errors
+
+**LOW findings (7):**
+- SIGTERM listener never removed (single-process invocation, harmless in production)
+- marked.use() global mutation in view.ts (one-shot context, plan-compliant, latent risk)
+- useFileWatcher stats return value never consumed by any component (StatusBar derives counts from zone card arrays directly)
+- process.exit(0) in runAdhoc is redundant (function is already synchronous)
+- ChronicleList.tsx lacks path traversal guard (view.ts has one; risk is low since sdlcParser controls paths)
+- formatEffort treats effort=0 as falsy (clamped to 1-5 by parser, but formatter contract is broader)
+- ZONE_HEADER_COLOR and ZONE_BORDER_COLOR in ZoneStrip.tsx are identical — duplicate records
+
+**Stale memory correction:** Prior review log noted "getDeliverable() does not exist in sdlcParser.ts" — this was WRONG. getDeliverable(projectPath, deliverableId) exists at sdlcParser.ts line 225 and was correctly used in view.ts.
+
+**Patterns learned:**
+- useDeliverables.ts hook (src/tui/hooks/) is dead code — use useFileWatcher instead
+- DetailPanel does not clamp scrollOffset — SessionBrowser and ChronicleList do (inconsistency)
+- listSessions() in sessionStore accepts optional limit parameter (default 50)
+
+---
+
+## 2026-03-17 — D4: Terminal-First Mission Control — Round 4 post-fix verification (15-finding fix pass)
+
+**Deliverable:** D4
+**Scope:** Verification of 15 fixes across renderMarkdown.ts, Pager.tsx, DetailPanel.tsx, useKeyboard.ts, ZoneStrip.tsx, DeliverableCard.tsx, BoardApp.tsx
+
+**Fix verification (confirmed resolved):**
+1. marked.use() global singleton: RESOLVED — `new Marked()` per call in renderMarkdown.ts line 224. HIGH closed.
+2. `lines` not memoized in Pager: RESOLVED — `useMemo([content])` at line 43. HIGH closed.
+3. `rendered`/`lines` not memoized in DetailPanel: RESOLVED — both wrapped in useMemo at lines 106, 109. HIGH closed.
+4. useKeyboard collapsed useEffect stale closure: RESOLVED — deps now `[collapsed, selectedZone, getNavigableZones]` line 61. HIGH closed.
+5. ZONE_HEADER_COLOR / ZONE_BORDER_COLOR dead duplicate: RESOLVED — merged to single ZONE_COLOR map in ZoneStrip.tsx.
+6. Card divider width: RESOLVED — `width - 4` at ZoneStrip line 135.
+7. RARITY_INK_COLOR comment added: RESOLVED — explicit comment in DeliverableCard.tsx lines 13–15.
+8. Phase 5 removed from help: RESOLVED — HelpOverlay in BoardApp.tsx has no Phase 5 reference.
+9. Resize comment added in BoardApp: RESOLVED — comment at line 63.
+10. stripAnsi exported from renderMarkdown: RESOLVED — exported at line 5; Pager imports it line 3.
+11. DocType import in DetailPanel: RESOLVED — imported from useKeyboard.ts line 7.
+12. Path traversal guard in DetailPanel: RESOLVED — guard at lines 53–59. HIGH closed.
+13. Search DRY comment in Pager: RESOLVED — comment at lines 74–77.
+
+**Remaining open findings (2 HIGH, 2 MEDIUM, 1 LOW):**
+1. HIGH: DetailPanel.tsx lines 61–69 — async useEffect for fs.readFile still has no isCancelled flag. Stale content flash on rapid navigation. Pattern exists in-repo (useDeliverables.ts).
+2. HIGH: useKeyboard.ts line 163 — `Math.min(prev + 1, 10000)` not clamped to actual content length. Holding ↓ past end-of-document leaves offset at 10000; recovering with ↑ requires thousands of keypresses. Hook does not accept totalLines parameter.
+3. MEDIUM: Pager.tsx line 192 — `new Set(matchingLines)` allocated unconditionally every render, outside useMemo. Should be memoized on [matchingLines].
+4. MEDIUM: BoardApp.tsx lines 207–224 and 284–300 — proportional Active/Review width calculation duplicated verbatim between collapsed and full layout paths.
+5. LOW: DetailPanel.tsx line 37 — `shownType` typed as `string` rather than narrowed union; DocType is already imported.
+
+**Verdict:** Two HIGH findings require resolution before merge. All previously verified fixes are correctly applied with no regressions.
+
+---
+
+## 2026-03-17 — D4: Terminal-First Mission Control — Round 3 plan verification (post round-2 fixes)
+
+**Deliverable:** D4
+**Scope:** Targeted verification of 6 round-2 fixes plus new-issue sweep
+**Files reviewed:** d4_terminal_first_mission_control_plan.md, package.json, TacticalField.tsx, sessionStore.ts
+
+**Fix verification (all 6 confirmed):**
+1. listSessions/getSessionLog import disambiguation: VERIFIED — explicit in Overview, Phase 3, and Phase 6.
+2. marked@^16 as direct dependency: VERIFIED — plan correctly states it is currently only transitive (via mermaid) and requires adding it.
+3. ChronicleList uses resultPath (not completePath): VERIFIED — line 589 explicitly explains why resultPath is correct.
+4. TacticalField.tsx in Phase 4 files list: VERIFIED — in files list (line 318) and acceptance criteria (line 463).
+5. useFileWatcher accepts initialDeliverables: VERIFIED with caveat — see new MAJOR finding.
+6. StatusBar uses shared zone functions: VERIFIED — line 397 specifies aggregation via isDeckZone/isActiveZone/etc.
+
+**New findings:**
+- MAJOR: useFileWatcher signature shown twice with conflicting forms — line 488 has `= []` default (optional), line 526 has no default (required). Prose says "MUST be preserved." First block will be read first; agents will implement the weaker optional form. Phase 5 guidance should remove the first block or mark one as canonical.
+- MINOR: getDeliverable(projectPath, id) referenced in Phase 3 (line 275) — **RESOLVED IN IMPLEMENTATION**: getDeliverable() does exist in sdlcParser.ts at line 225 and was correctly used in view.ts. This finding was incorrect — the function was added/existed. Stale finding, do not carry forward.
+- MINOR: StatusBar onStats callback shape not verified against actual fileWatcher.ts — plan assumes byStatus per-status map, but does not direct agent to confirm the actual callback signature.
+
+**Patterns learned:**
+- When a plan shows the same function signature twice in the same section (as "initial draft" then "explicit definition"), agents will use whichever appears first. Plans must either show it once or explicitly mark one as superseding the other.
+- getDeliverable() does not exist in sdlcParser.ts — only parseDeliverables(projectPath) returning Deliverable[].
+
+---
+
+## 2026-03-17 — D4: Terminal-First Mission Control — Pre-execution plan review
+
+**Deliverable:** D4
+**Scope:** Pre-execution code quality review of plan and spec — DRY, testing, security, error handling, structure, TUI/web UI maintainability
+**Files reviewed:** d4_terminal_first_mission_control_plan.md, d4_terminal_first_mission_control_spec.md, src/cli.ts, src/server/services/fileWatcher.ts, src/server/services/sdlcParser.ts, src/server/services/sessionStore.ts, src/server/services/gitParser.ts, src/server/services/configLoader.ts, src/ui/components/warTable/TacticalField.tsx, src/ui/utils/rarity.ts, src/shared/types.ts
+
+**Key findings:**
+- MAJOR-1: complexityToRarity() inversion risk — plan says "port from rarity.ts" but does not call out that arch=mythic and moonshot=epic (the same inversion that shipped wrong in D3). Must be explicit.
+- MAJOR-2: Zone filter duplication explicitly endorsed in plan — filter predicates are business logic, not rendering concerns. A pure function in src/shared/ would avoid divergence without renderer coupling.
+- MAJOR-3: useFileWatcher passes `{ ...s, untracked: 0 }` hardcoded — TUI stats bar will always show untracked=0 without documentation that this is intentional.
+- MAJOR-4: mc view reads file path from service data without a path traversal guard — DELIVERABLE_FILE_RE allows `.` in name group, path.join resolves `..` segments. Plan should require path.startsWith(projectPath) check.
+- MAJOR-5: `q` handler calls process.exit(0) — bypasses React unmount lifecycle, useFileWatcher cleanup does not fire, chokidar orphaned. Should use useApp().exit() then await natural exit.
+- MINOR-1: Snapshot tests only — no behavioral assertions for zone routing. A filter bug placing `blocked` in Graveyard would be baked into the snapshot baseline.
+- MINOR-5: DetailPanel.tsx (components/) and DeliverableViewer.tsx (root) may be duplicate concepts — not resolved in plan.
+- MINOR-6: chalk relied on as transitive dep — should be a direct dep given how heavily theme.ts uses it.
+
+**Patterns learned:**
+- TacticalField.tsx uses vertical Flex layout (direction=column), not horizontal. Plan's claim of horizontal reference is wrong for layout direction — only zone grouping logic is accurate to cite.
+- getUntrackedCommits() is synchronous (execSync) — plan describes it as called from async one-shot commands. This is fine (sync in async context), but the TUI should not call it inside useEffect or Ink render — it will block the event loop.
+
+---
+
 ## 2026-03-17 — D3 ad hoc: POC Styling Alignment — Round 3 final pass
 
 **Deliverable:** D3 ad hoc (no new ID)

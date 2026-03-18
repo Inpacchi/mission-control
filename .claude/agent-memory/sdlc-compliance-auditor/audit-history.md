@@ -40,3 +40,34 @@ type: project
 - W4 (2026-03-16 independent): Anti-Rationalization tables added to frontend-developer, ui-ux-designer, debug-specialist — DONE
 - oberagent removed from all skills — DONE
 - Data pipeline integrity policies added (PRE-GATE, POST-GATE) — DONE
+
+---
+
+## 2026-03-17b Audit (Post-migration: 52568ed → 8f62ee1)
+
+**Score:** 8.4/10
+**Trigger:** Post-migration verification (cc-sdlc 52568ed → 8f62ee1) — skill renames, three-tier model, testing-paradigm.yaml
+**Follow-through rate from prior audit:** 40% acted on, 30% deferred = 70% accountability
+
+**Key findings:**
+- Migration uncommitted — 41 files in working tree, not committed (Warning W1 — commit immediately)
+- design.md (root) contains old skill names: sdlc-new, ad-hoc-planning, sdlc-planning, sdlc-execution (Warning W2 — functional risk for button feature)
+- Two SDLC-Lite plan files reference `ad-hoc-execution` old name (Warning W3 — inert but confusing); also duplicate plan file in wrong location
+- D1/D2/D3 still unarchived — 3rd+ cycle (Info I1 — persistent, low priority)
+- ops/sdlc/improvement-ideas/ directory does not exist (Info I2)
+- software-architect Knowledge Context hardcodes paths instead of self-looking up (Info I3 — persistent)
+- .DS_Store in manifest (Info I4 — persistent)
+- software-architect still no agent memory (Info I5 — persistent)
+
+**What was resolved by this migration:**
+- plugins/README.md "must be installed" for oberskills — RESOLVED (now Optional)
+- ops/sdlc/README.md "is required" language — RESOLVED
+- D3 catalog entry stuck at Draft — RESOLVED (now Complete)
+- testing.md discipline overwrite concern — VERIFIED OK (content intact and enhanced)
+- All old skill files deleted: ad-hoc-planning, ad-hoc-execution, ad-hoc-review, sdlc-planning, sdlc-execution, sdlc-new
+- All new skill files present: sdlc-plan, sdlc-execute, sdlc-lite-plan, sdlc-lite-execute, diff-review
+- testing-paradigm.yaml added and correctly mapped in agent-context-map.yaml
+- CLAUDE.md and CLAUDE-SDLC.md fully updated with three-tier model
+
+**Critical migration-specific note:**
+The migration had no git commit at time of audit. This is an unusual state — framework files were updated but not staged. The migration audit was conducted on the working tree state.

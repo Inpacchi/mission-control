@@ -71,8 +71,8 @@ mission-control/
 This project follows a lightweight SDLC framework. Reference material lives in `ops/sdlc/`.
 
 The SDLC defines what artifacts a deliverable requires; two skills define how CC produces them:
-- `sdlc-planning` — spec + plan (domain agents write and review)
-- `sdlc-execution` — implement + review + commit (domain agents execute and review)
+- `sdlc-plan` — spec + plan (domain agents write and review)
+- `sdlc-execute` — implement + review + commit (domain agents execute and review)
 
 ### Roles
 - **CD (Claude Director):** Human — sets direction, approves specs, makes product decisions
@@ -104,35 +104,34 @@ CC produces SDLC artifacts across two skills:
 | Complete | `dNN_name_COMPLETE.md` | `d1_auth_COMPLETE.md` |
 | Blocked | `dNN_name_BLOCKED.md` | `d1_auth_BLOCKED.md` |
 
-### When to Use Full Process vs. Ad Hoc
-- **Full process (deliverable ID + skill):** New features, architectural changes, new integrations, multi-package work
-- **Ad hoc OK:** Bug fixes, UI tweaks, config changes, corrections (<30 min)
-- **Before touching any file:** If your planned changes span more than one file, or introduce anything new (component, hook, store, route, type), stop. State the scope out loud and ask CD whether to track it.
+### When to Use Full Process vs. SDLC-Lite vs. Direct Dispatch
+- **Full SDLC (deliverable ID + skill):** New features, architectural changes, new integrations, new subsystems
+- **SDLC-Lite:** Complex enough to benefit from a reviewed plan, but doesn't need full tracking
+- **Direct dispatch:** CD steers in real-time — agents do the work, no plan file needed
+- **Before touching any file:** If you identify non-trivial complexity (cross-domain, non-obvious approach, new subsystems), surface the scope and ask CD which tier to use.
 
 ### Workflow Rules
 
-**STOP and invoke `sdlc-planning` when ANY of the following is true:**
+**STOP and invoke `sdlc-plan` when ANY of the following is true:**
 
-- You have finished exploring the codebase and find yourself forming a plan to change more than one file
-- The user asks to build, add, improve, or redesign any feature or page
-- The work would touch multiple files, multiple packages, or introduce new components, hooks, stores, routes, types, or events
-- You are about to spawn implementation agents
-- You are unsure whether something is ad hoc or substantial — default to planning, not implementation
+- The user asks to build a new feature, new integration, or new subsystem
+- The work introduces new architectural patterns
+- You are unsure whether something needs full tracking — default to asking, not implementing
 
-Note: these triggers fire on **your own intent to act**, not only on user keywords. If you explored code and concluded "I should implement X across files A, B, and C" — that is a planning trigger, regardless of what the user said.
+**STOP and invoke `sdlc-lite-plan` when:**
 
-**Invoke `sdlc-execution` only when:**
-- An approved plan exists at `docs/current_work/planning/dNN_name_plan.md`
+- The work is complex enough to benefit from agent review of a plan before execution
+- The work will likely span a context clear
+- Multiple interacting changes where getting the approach wrong is costly
+
+**Invoke `sdlc-execute` / `sdlc-lite-execute` only when:**
+- An approved plan exists at the expected path
 - The user explicitly says "execute the plan" or references a specific plan file
 
 **You MUST use domain agents (not do the work yourself) when:**
 - The task falls within a domain agent's expertise
 - You are writing specs, plans, or reviewing code — dispatch the relevant agents
 - The agent with domain expertise writes and reviews. You orchestrate.
-
-**Ad hoc work (no skill invocation required):**
-- Single-file bug fixes, config changes, dependency updates
-- Work completable in under 30 minutes that does not introduce new abstractions
 
 **When starting any session:** Check `docs/current_work/` for in-progress deliverables before accepting new work.
 
@@ -143,10 +142,10 @@ This is the exact sequence that bypasses SDLC tracking incorrectly:
 1. User mentions improvements to a page or feature
 2. Claude Code explores the codebase and reads relevant files
 3. Claude Code identifies 4-6 files that need to change, new components needed, store interactions required
-4. **Claude Code begins spawning implementation agents or writing code**
-5. User has to interrupt: "should we make a plan?"
+4. **Claude Code begins writing code itself instead of dispatching agents**
+5. User has to interrupt: "should we make a plan?" or "use the agents"
 
-Step 4 is wrong. After step 3, the correct action is to surface the scope assessment and ask whether to plan or proceed ad hoc. The user should never be in the position of catching a missed planning gate.
+Step 4 is wrong. After step 3, the correct action is to surface the scope assessment and ask which tier to use — or if the user is already steering, state scope and start dispatching agents.
 
 ### Compliance Auditing
 Run `"Let's run an SDLC compliance audit"` periodically (~every 2-4 weeks or at each version bump). See `ops/sdlc/process/compliance_audit.md`.

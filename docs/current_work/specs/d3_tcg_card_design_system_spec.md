@@ -1,3 +1,10 @@
+---
+type: feature
+complexity: complex
+effort: 4
+flavor: "Every deliverable deserves a card worth collecting."
+---
+
 # D3: TCG Card Design System + War Table Layout — Specification
 
 **Status:** Draft

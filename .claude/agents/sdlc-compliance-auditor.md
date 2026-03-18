@@ -48,6 +48,7 @@ Before starting substantive work, consult `ops/sdlc/knowledge/agent-context-map.
 - Average artifact completeness per deliverable
 - Chronicle freshness (how long completed work sits in `current_work/` before archiving)
 - Spec approval coverage (deliverables that went through proper CD approval)
+- **Changelog freshness** — compare `ops/sdlc/process/sdlc_changelog.md` against recent commits that modified SDLC process files (skills, agents, process docs, CLAUDE-SDLC.md). If process changes exist in git that have no corresponding changelog entry, flag as a warning. The changelog captures the *why* behind process evolution — git log only captures the *what*.
 
 ### 6. Knowledge Layer Health
 
@@ -176,7 +177,7 @@ The centralized agent-to-knowledge mapping at `ops/sdlc/knowledge/agent-context-
 - Do all file paths listed in the map resolve to actual files?
 - Are there knowledge YAML files in `ops/sdlc/knowledge/` that exist but are NOT referenced by any agent mapping? (potential gap)
 - Are there agents in the planning/execution skills' agent tables that would clearly benefit from a knowledge mapping but are listed as unmapped?
-- Is the map referenced by the skills that should consult it? (`sdlc-execution`, `sdlc-planning`)
+- Is the map referenced by the skills that should consult it? (`sdlc-execute`, `sdlc-plan`)
 
 #### 6f. Playbook Freshness
 
@@ -405,7 +406,7 @@ This agent has a defined interface — what triggers it, what it reads, and what
 
 **Reads (incoming knowledge)**:
 - `docs/_index.md` — deliverable catalog
-- `docs/current_work/**/*` — active specs, plans, results, ad hoc plans
+- `docs/current_work/**/*` — active specs, plans, results, SDLC-Lite plans
 - `docs/chronicle/**/*` — archived deliverables
 - `ops/sdlc/disciplines/*.md` — discipline parking lots
 - `ops/sdlc/knowledge/**/*.yaml` — structured knowledge stores

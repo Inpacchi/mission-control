@@ -4,6 +4,35 @@ description: Code patterns that have appeared as findings in more than one revie
 type: project
 ---
 
+## Setter called inside another setter's functional updater
+**Pattern:** `setState1(prev => { setState2(derivedValue); return next; })` — calling one React state setter from inside another state setter's updater function. React's contract requires updater functions to be pure and free of side effects. In Strict Mode, React calls updaters twice to detect violations; the double invocation means the inner `setState2` fires twice, setting state a non-deterministic number of times. In concurrent mode, updaters may be called at unexpected times.
+**First seen:** Notepad.tsx — `setCol(mergeCol)` inside `setLines(prev => ...)` at the backspace/merge-line branch; `setCol` inside `setCursor(prev => ...)` at arrow key navigation.
+**Mitigation:** Compute all derived values before calling any setter. Call all affected setters as separate, top-level statements. React 18+ batches multiple setState calls in event handlers automatically, so separate calls do not cause extra renders.
+
+## marked.use() global singleton mutation in renderMarkdown
+**Pattern:** `marked.use({ renderer })` patches the module-level `marked` singleton, not a local instance. Calling it inside a function that is invoked on every render (e.g., `renderMarkdownToAnsi` called in a component body) mutates global state repeatedly. In any context where the function is called more than once — repeated renders, concurrent renders, or a future multi-pane view — the renderer is non-deterministic.
+**First seen:** D4 polish pass — `renderMarkdownToAnsi` called in `DetailPanel` component body on every render including scroll events. Previously flagged LOW in view.ts one-shot context; now HIGH because DetailPanel renders repeatedly.
+**Mitigation:** Use `new marked.Marked({ renderer })` for an instance-scoped renderer, or move the renderer configuration to module level (single call at import time, not per invocation).
+
+## Unmemoized computed arrays invalidating dependent useMemo
+**Pattern:** An expensive array (e.g., `content.split('\n')`) is computed inline in a component body without `useMemo`, producing a new reference on every render. A `useMemo` hook that lists this array as a dependency is invalidated on every render, defeating its purpose and causing the expensive computation inside the memo to run on every keypress/state change.
+**First seen:** D4 polish pass — `Pager.tsx` `lines` array computed inline; `matchingLines` useMemo lists `lines` as a dependency, so search match scanning runs on every scroll keypress.
+**Mitigation:** Memoize the source array with `useMemo([content])` before listing it as a dependency of downstream memos.
+
+## complexityToRarity() inversion — arch vs. moonshot
+**Pattern:** Plans instructing agents to "port complexityToRarity() from rarity.ts" produce an inverted mapping because the counterintuitive assignment (`arch → mythic`, `moonshot → epic`) is not self-evident. An agent reading the complexity tier names literally will swap them.
+**First seen:** D3 post-execution review — mapping was shipped inverted. D4 plan review — same inversion risk flagged again.
+**Mitigation:** Any plan or spec that references porting `complexityToRarity()` must explicitly state: `arch → mythic`, `moonshot → epic`. Do not rely on agents reading the source file correctly without a callout.
+
+## TacticalField.tsx zone layout is vertical, not horizontal
+**Pattern:** Plans cite TacticalField.tsx as the reference for board layout. TacticalField uses `<Flex direction="column">` — zones are stacked vertically. The TUI board uses horizontal layout. Zone grouping logic is correctly sourced from TacticalField; layout direction is not.
+**First seen:** D4 plan review.
+**Mitigation:** When citing TacticalField.tsx as a layout reference, specify "zone grouping logic only, not layout direction."
+
+## getUntrackedCommits() is synchronous (execSync) — blocks event loop if called in async context
+**Pattern:** `gitParser.getUntrackedCommits()` uses `execSync` with a 10-second timeout. It is safe in one-shot CLI commands (synchronous context) but must not be called inside a React/Ink useEffect, render, or any Promise chain running on the Node.js event loop without a worker thread or child process boundary.
+**First seen:** D4 plan review — plan instructs calling it from one-shot commands (safe) but the pattern could be copied into useFileWatcher or BoardApp (unsafe).
+
 ## Broadcast shape vs. REST shape divergence
 **Pattern:** Server broadcasts `data: <array>` directly in WebSocket messages, but client-side hooks expect `data.<fieldName>: <array>` (the REST response envelope shape). This mismatch causes silent empty state.
 **First seen:** D2 review — `watcher:sdlc` update message broadcasts `data: Deliverable[]` but `useSdlcState` reads `data.deliverables`.
@@ -39,6 +68,26 @@ type: project
 **First seen:** D3 ad hoc round 3 — GoldBorderWrap references `goldPulse` (animates opacity) while setting backgroundSize indicating a gradient sweep was intended.
 **Mitigation:** When adding `animation: 'keyframeName ...'`, always read the keyframe definition in theme/index.ts globalCss to confirm the animated property matches the component's CSS context.
 
+## Duplicate function signature blocks with conflicting forms in same plan section
+**Pattern:** A plan shows the same function signature twice in the same section (once as a draft/initial block, once as a "final" or "explicit" clarification block), and the two differ on a detail (e.g., default parameter value). Implementing agents read whichever block appears first and stop. The second block's intent is ignored.
+**First seen:** D4 round 3 — useFileWatcher shown with `initialDeliverables: Deliverable[] = []` on line 488 then `initialDeliverables: Deliverable[]` (no default) on line 526. The no-default form is the correct one per prose, but the defaulted form appears first.
+**Mitigation:** Plans should show each function signature exactly once. If a revision supersedes an earlier draft, remove or explicitly strikethrough the earlier block. Never rely on a second block "overriding" a first block in a prose document.
+
+## Async useEffect missing cancellation — stale state flash
+**Pattern:** `useEffect` triggers an async operation (fs.readFile, fetch) and sets state in the `.then()` callback without checking whether the component is still mounted or the dependency has changed. When the dependency changes before the async op completes, the old result lands in state and briefly displays wrong content.
+**First seen:** D4 post-execution — DetailPanel.tsx useEffect for file reading lacks isCancelled flag. useDeliverables.ts (same repo) correctly uses a cancelled flag — the pattern exists to copy.
+**Mitigation:** Always use an `isCancelled` flag inside async useEffects. Return a cleanup function that sets `cancelled = true`. Check `if (!cancelled)` before every setState call.
+
+## Unclamped scroll offset in detail views
+**Pattern:** A scroll offset state increments on key press without an upper bound. The consuming component uses `array.slice(offset, offset + pageSize)` — when offset exceeds array.length, slice returns [] and the view goes blank silently.
+**First seen:** D4 post-execution — DetailPanel.tsx passes scrollOffset from useKeyboard unchanged; SessionBrowser and ChronicleList in the same codebase both clamp correctly.
+**Mitigation:** Either clamp in the hook (`Math.min(offset, Math.max(0, totalLines - pageSize))`) or clamp in the component before the slice call.
+
 ## Plan I/O assumptions not verified against actual service implementation
 **Pattern:** Plans describe a feature as "piggybacking" on existing I/O but the actual service code does not perform that I/O. Implementing agents then silently add a new I/O pass or stall.
 **First seen:** D3 plan review — plan claimed frontmatter parsing would piggyback on existing file reads in `scanDirectory()`, but `scanDirectory()` only stats files, never reads content.
+
+## Ink useInput handler must be stable — inline arrow functions cause listener churn per render
+**Pattern:** `useInput(handler, options)` in Ink lists `handler` (called `inputHandler` internally) as a `useEffect` dependency (confirmed in `node_modules/ink/build/hooks/use-input.js` line 121). Passing an inline arrow function recreated on every render causes the internal event emitter listener to be removed and re-added on every render. In a keyboard-driven editor where every keypress produces a state update and therefore a render, this means listener teardown/re-attach on every keystroke.
+**First seen:** Notepad.tsx post-fix re-review (2026-03-18) — ref-based state reads correctly solved the stale closure read side, but the handler function itself was not stabilized with `useCallback` or a stable ref wrapper.
+**Mitigation:** Wrap the `useInput` callback in a stable ref pattern: create `handlerRef = useRef(fn)`, update it in an effect, and pass a stable outer function `useCallback(() => handlerRef.current(...args), [])` to `useInput`. This gives Ink a stable reference while the inner handler always reads current values.

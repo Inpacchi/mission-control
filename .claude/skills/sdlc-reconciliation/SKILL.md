@@ -45,4 +45,4 @@ After reconciliation is complete, check `docs/current_work/ad-hoc/completed/` fo
 ## Integration
 - **Depends on:** `ops/sdlc/process/ad_hoc_reconciliation.md` (process definition), `docs/_index.md` (catalog + next ID)
 - **Fed by:** `sdlc-status` (user sees untracked work and decides to reconcile)
-- **Feeds into:** `sdlc-planning` (if reconciliation surfaces work needing a deliverable), `sdlc-archive` (if reconciled deliverables are complete)
+- **Feeds into:** `sdlc-plan` (if reconciliation surfaces work needing a deliverable), `sdlc-archive` (if reconciled deliverables are complete)

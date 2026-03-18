@@ -40,3 +40,5 @@ src/**/*.d.ts.map
 *.tsbuildinfo
 
 .claude/screenshots/
+
+.mc/notes.md

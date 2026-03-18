@@ -7,12 +7,14 @@
     "rootDir": "src",
     "jsx": "react-jsx",
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "noEmit": false
   },
   "include": [
     "src/cli.ts",
     "src/server/**/*",
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "src/tui/**/*"
   ],
   "exclude": [
     "src/ui/**/*",

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Box, Flex } from '@chakra-ui/react';
 import type { Deliverable } from '@shared/types';
+import { isDeckZone, isActiveZone, isReviewZone, isGraveyardZone } from '@shared/zones';
 import { useDashboardStore } from '../../stores/dashboardStore';
 import { STATUS_ACCENT } from '../../utils/rarity';
 import { MiniCard } from '../cards/MiniCard';
@@ -19,29 +20,22 @@ export function TacticalField({ deliverables }: TacticalFieldProps) {
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
   const deckCards = useMemo(
-    () => deliverables.filter((d) => d.status === 'idea'),
+    () => deliverables.filter((d) => isDeckZone(d.status)),
     [deliverables]
   );
 
   const activeCards = useMemo(
-    () =>
-      deliverables.filter(
-        (d) =>
-          d.status === 'spec' ||
-          d.status === 'plan' ||
-          d.status === 'in-progress' ||
-          d.status === 'blocked'
-      ),
+    () => deliverables.filter((d) => isActiveZone(d.status)),
     [deliverables]
   );
 
   const reviewCards = useMemo(
-    () => deliverables.filter((d) => d.status === 'review'),
+    () => deliverables.filter((d) => isReviewZone(d.status)),
     [deliverables]
   );
 
   const graveyardCards = useMemo(
-    () => deliverables.filter((d) => d.status === 'complete'),
+    () => deliverables.filter((d) => isGraveyardZone(d.status)),
     [deliverables]
   );
 

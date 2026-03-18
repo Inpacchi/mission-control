@@ -1,3 +1,10 @@
+---
+type: architecture
+complexity: moonshot
+effort: 5
+flavor: "The first pane of glass through which all campaigns are waged."
+---
+
 # D1: Mission Control MVP — Specification
 
 **Status:** Complete

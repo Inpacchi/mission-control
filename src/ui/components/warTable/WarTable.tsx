@@ -118,7 +118,26 @@ export function WarTable({
       w="100vw"
       bg="bg.canvas"
       overflow="hidden"
+      position="relative"
     >
+      {/* Nebula background — four overlapping radial gradient ellipses */}
+      <Box
+        position="absolute"
+        inset={0}
+        background="radial-gradient(ellipse 70% 50% at 20% 30%, rgba(167,139,250,0.15) 0%, transparent 60%), radial-gradient(ellipse 60% 60% at 80% 20%, rgba(96,165,250,0.12) 0%, transparent 55%), radial-gradient(ellipse 80% 40% at 50% 80%, rgba(52,211,153,0.08) 0%, transparent 50%), radial-gradient(ellipse 50% 50% at 90% 70%, rgba(245,158,11,0.1) 0%, transparent 55%)"
+        pointerEvents="none"
+        zIndex={0}
+      />
+      {/* Grid overlay — subtle purple grid lines with a radial mask */}
+      <Box
+        position="absolute"
+        inset={0}
+        background="linear-gradient(rgba(167,139,250,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(167,139,250,0.03) 1px, transparent 1px)"
+        backgroundSize="60px 60px"
+        style={{ maskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 70%)' }}
+        pointerEvents="none"
+        zIndex={1}
+      />
       {/* Reconnection banner */}
       {wsReconnecting && (
         <Flex

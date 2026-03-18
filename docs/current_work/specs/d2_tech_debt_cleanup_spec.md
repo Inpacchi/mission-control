@@ -1,3 +1,10 @@
+---
+type: refactor
+complexity: moderate
+effort: 3
+flavor: "A clean foundation holds more weight than a decorated ruin."
+---
+
 # D2: Tech Debt Cleanup — Specification
 
 **Status:** Draft

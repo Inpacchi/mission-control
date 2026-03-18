@@ -46,6 +46,7 @@ mappings:
     - ops/sdlc/knowledge/testing/gotchas.yaml
     - ops/sdlc/knowledge/testing/tool-patterns.yaml
     - ops/sdlc/knowledge/testing/component-catalog.yaml
+    - ops/sdlc/knowledge/testing/testing-paradigm.yaml
     - ops/sdlc/knowledge/architecture/debugging-methodology.yaml
     - ops/sdlc/knowledge/architecture/typescript-patterns.yaml
     - ops/sdlc/knowledge/architecture/security-review-taxonomy.yaml
@@ -60,6 +61,7 @@ mappings:
     - ops/sdlc/knowledge/testing/component-catalog.yaml
     - ops/sdlc/knowledge/testing/timing-defaults.yaml
     - ops/sdlc/knowledge/testing/advanced-test-patterns.yaml
+    - ops/sdlc/knowledge/testing/testing-paradigm.yaml
     - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
 
   # ── Debugging ───────────────────────────────────────────────────────

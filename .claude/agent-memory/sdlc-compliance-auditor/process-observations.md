@@ -22,4 +22,12 @@ The cc-sdlc migration (bfd3a42 and the 5dcc5c4 migration) correctly updated skil
 
 ## Data pipeline integrity policies are in place
 
-Both sdlc-execution and ad-hoc-execution now contain Data Source Extraction in PRE-GATE and data audit in POST-GATE. This is the most significant process improvement from the 5dcc5c4 migration. Future audits should check whether these sections are being exercised on deliverables that have external data sources.
+Both sdlc-execute and sdlc-lite-execute contain Data Source Extraction in PRE-GATE and data audit in POST-GATE. This was introduced in the 5dcc5c4 migration and carried forward correctly through the 8f62ee1 migration. Future audits should check whether these sections are being exercised on deliverables that have external data sources.
+
+## Migrations arrive uncommitted — audit the working tree
+
+The 8f62ee1 migration was audited while the changes were still in the working tree (not committed). This is the correct moment to audit — the framework files are installed and the full change set is visible. Post-migration audits should always check `git status` first to understand whether they are auditing a committed state or an in-progress migration.
+
+## design.md (root) will need maintenance at each migration
+
+The project root `design.md` contains planned `.mc.json` action button command strings (skill names) that reference SDLC skill names. Because these strings will be used in a future feature implementation, they must be updated at each migration that renames skills. The stale skill names (sdlc-new, ad-hoc-planning, sdlc-planning, sdlc-execution) were not updated in the 8f62ee1 migration. Add `design.md` to the migration checklist for future migrations.

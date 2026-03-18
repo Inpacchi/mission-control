@@ -151,18 +151,18 @@ Buttons that start Claude Code sessions with pre-filled skill commands.
 **Global actions (always visible):**
 | Button | Command Dispatched |
 |--------|-------------------|
-| New Deliverable | `claude "/sdlc-new"` |
+| New Deliverable | `claude "/sdlc-plan"` |
 | SDLC Status | `claude "/sdlc-status"` |
 | Reconcile Ad Hoc | `claude "/sdlc-reconciliation"` |
 | Compliance Audit | `claude "Let's run an SDLC compliance audit"` |
-| Ad Hoc Plan | `claude "/ad-hoc-planning"` |
+| SDLC-Lite Plan | `claude "/sdlc-lite-plan"` |
 
 **Per-deliverable actions (on each kanban card):**
 | Deliverable State | Action | Command |
 |-------------------|--------|---------|
-| Idea | Start Planning | `claude "/sdlc-planning"` |
+| Idea | Start Planning | `claude "/sdlc-plan"` |
 | Spec exists | Review Spec | Opens inline preview |
-| Plan exists | Execute Plan | `claude "/sdlc-execution"` |
+| Plan exists | Execute Plan | `claude "/sdlc-execute"` |
 | In Progress | Resume Work | `claude "/sdlc-resume D{N}"` |
 | Any | Review Code | `claude "/commit-review"` |
 | Any | Create Tests | `claude "/create-test-suite"` |
@@ -501,8 +501,8 @@ The `.mc.json` in a project root can override default column definitions and act
     { "id": "blocked", "label": "Blocked", "match": { "isBlocked": true } }
   ],
   "actions": {
-    "idea": [{ "label": "Start Planning", "command": "/sdlc-planning" }],
-    "plan": [{ "label": "Execute Plan", "command": "/sdlc-execution" }],
+    "idea": [{ "label": "Start Planning", "command": "/sdlc-plan" }],
+    "plan": [{ "label": "Execute Plan", "command": "/sdlc-execute" }],
     "in-progress": [{ "label": "Resume", "command": "/sdlc-resume D{id}" }],
     "review": [{ "label": "Archive", "command": "/sdlc-archive" }]
   },

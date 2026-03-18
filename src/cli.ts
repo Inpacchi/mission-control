@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { execSync } from 'node:child_process';
 import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
+import { execSync } from 'node:child_process';
 import { startServer } from './server/index.js';
 
 function checkClaudeBinary(): boolean {
@@ -19,46 +21,146 @@ function checkClaudeBinary(): boolean {
   }
 }
 
+function showMigrationNotice() {
+  try {
+    const noticePath = path.join(os.homedir(), '.mc', 'tui-notice-shown');
+    if (!fs.existsSync(noticePath)) {
+      console.log('Tip: Web UI available via `mc --web`\n');
+      fs.mkdirSync(path.dirname(noticePath), { recursive: true });
+      fs.writeFileSync(noticePath, '1');
+    }
+  } catch {
+    // Silently swallow write errors
+  }
+}
+
+async function startWebServer(projectPath: string, opts: Record<string, string | boolean>) {
+  const port = parseInt(String(opts.port), 10);
+  const bind = String(opts.bind);
+  const shouldOpen = opts.open !== false;
+  const dev = opts.dev === true;
+
+  console.log('Mission Control v0.1.0');
+  console.log('─'.repeat(40));
+
+  checkClaudeBinary();
+
+  await startServer({ port, bind, projectPath, dev });
+
+  if (shouldOpen && !dev) {
+    try {
+      const openModule = await import('open');
+      await openModule.default(`http://${bind === '0.0.0.0' ? 'localhost' : bind}:${port}`);
+    } catch {
+      console.log(
+        `Open http://${bind === '0.0.0.0' ? 'localhost' : bind}:${port} in your browser`
+      );
+    }
+  }
+}
+
 const program = new Command();
 
 program
   .name('mc')
-  .description(
-    'Mission Control - Web UI for SDLC workflows and Claude Code interaction'
-  )
   .version('0.1.0')
-  .argument('[path]', 'Project directory to open', process.cwd())
-  .option('-p, --port <number>', 'Server port', '3002')
-  .option('-b, --bind <address>', 'Bind address', '127.0.0.1')
-  .option('--no-open', 'Do not open browser automatically')
-  .option('--dev', 'Run in development mode')
-  .action(async (projectDir: string, opts: Record<string, string | boolean>) => {
+  .argument('[path]', 'Project directory', process.cwd())
+  .option('--web', 'Start web server and open browser')
+  .option('--no-open', 'Do not open browser (with --web)')
+  .option('-p, --port <number>', 'Server port (with --web)', '3002')
+  .option('-b, --bind <address>', 'Bind address (with --web)', '127.0.0.1')
+  .option('--dev', 'Run in development mode');
+
+// Default action: board TUI or web server
+program.action(async (projectDir: string, opts: Record<string, string | boolean>) => {
+  const projectPath = path.resolve(String(projectDir));
+  if (opts.web) {
+    await startWebServer(projectPath, opts);
+  } else {
+    showMigrationNotice();
+    const { launchBoard } = await import('./tui/index.js');
+    await launchBoard(projectPath);
+  }
+});
+
+// Subcommands
+program
+  .command('board')
+  .description('Launch interactive board TUI')
+  .argument('[path]', 'Project directory', process.cwd())
+  .action(async (projectDir: string) => {
     const projectPath = path.resolve(String(projectDir));
-    const port = parseInt(String(opts.port), 10);
-    const bind = String(opts.bind);
-    const shouldOpen = opts.open !== false;
-    const dev = opts.dev === true;
+    const { launchBoard } = await import('./tui/index.js');
+    await launchBoard(projectPath);
+  });
 
-    console.log('Mission Control v0.1.0');
-    console.log('─'.repeat(40));
+program
+  .command('status')
+  .description('Print deliverable stats')
+  .argument('[path]', 'Project directory', process.cwd())
+  .action(async (projectDir: string) => {
+    const { runStatus } = await import('./tui/commands/status.js');
+    await runStatus(projectDir);
+  });
 
-    // Check for claude binary
-    checkClaudeBinary();
+program
+  .command('view')
+  .description('View deliverable document')
+  .argument('<id>', 'Deliverable ID (e.g., D1)')
+  .argument('[path]', 'Project directory', process.cwd())
+  .option('-s, --spec', 'View spec document')
+  .option('-p, --plan', 'View plan document')
+  .option('-r, --result', 'View result document')
+  .action(async (id: string, projectDir: string, opts: { spec?: boolean; plan?: boolean; result?: boolean }) => {
+    const { runView } = await import('./tui/commands/view.js');
+    const docType = opts.spec ? 'spec' : opts.plan ? 'plan' : opts.result ? 'result' : undefined;
+    await runView(id, projectDir, docType);
+  });
 
-    // Start server
-    await startServer({ port, bind, projectPath, dev });
+program
+  .command('sessions')
+  .description('Browse Claude Code conversations for this project')
+  .argument('[path]', 'Project directory', process.cwd())
+  .action(async (projectDir: string) => {
+    const { browseSessions } = await import('./tui/commands/sessions.js');
+    await browseSessions(projectDir);
+  });
 
-    // Open browser
-    if (shouldOpen && !dev) {
-      try {
-        const openModule = await import('open');
-        await openModule.default(`http://${bind === '0.0.0.0' ? 'localhost' : bind}:${port}`);
-      } catch {
-        console.log(
-          `Open http://${bind === '0.0.0.0' ? 'localhost' : bind}:${port} in your browser`
-        );
-      }
-    }
+program
+  .command('log')
+  .description('View a Claude Code conversation log')
+  .argument('[id]', 'Session ID')
+  .argument('[path]', 'Project directory', process.cwd())
+  .action(async (id: string | undefined, projectDir: string) => {
+    const { runLog } = await import('./tui/commands/log.js');
+    await runLog(id, projectDir);
+  });
+
+program
+  .command('chronicle')
+  .description('Browse archived deliverables')
+  .argument('[path]', 'Project directory', process.cwd())
+  .action(async (projectDir: string) => {
+    const { browseChronicle } = await import('./tui/commands/chronicle.js');
+    await browseChronicle(projectDir);
+  });
+
+program
+  .command('adhoc')
+  .description('Show untracked commits')
+  .argument('[path]', 'Project directory', process.cwd())
+  .action(async (projectDir: string) => {
+    const { runAdhoc } = await import('./tui/commands/adhoc.js');
+    await runAdhoc(projectDir);
+  });
+
+program
+  .command('files')
+  .description('Browse and edit project files')
+  .argument('[path]', 'Project directory', process.cwd())
+  .action(async (projectDir: string) => {
+    const { browseFiles } = await import('./tui/commands/files.js');
+    await browseFiles(projectDir);
   });
 
 program.parse();

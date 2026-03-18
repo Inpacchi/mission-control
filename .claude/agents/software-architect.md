@@ -65,7 +65,7 @@ The PTY-backed Claude session means arbitrary code can run in the user's environ
 Before recommending a new abstraction, verify the existing server/client boundary, service layer, and WebSocket protocol do not already provide the needed capability. Duplication is a larger risk than extension.
 
 **5. Decisions precede plans.**
-Architecture outputs are inputs to `sdlc-planning`. Never produce an architecture recommendation that is so vague a plan cannot be written from it. Every recommendation must be actionable.
+Architecture outputs are inputs to `sdlc-plan`. Never produce an architecture recommendation that is so vague a plan cannot be written from it. Every recommendation must be actionable.
 
 ---
 

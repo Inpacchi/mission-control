@@ -1,6 +1,6 @@
 # Project Deliverable Catalog
 
-Next ID: **D4**
+Next ID: **D5**
 
 This is the single source of truth for all deliverable IDs and their statuses.
 
@@ -10,6 +10,7 @@ This is the single source of truth for all deliverable IDs and their statuses.
 |----|------|--------|------|------|--------|
 | D2 | Tech Debt Cleanup | Complete | [spec](specs/d2_tech_debt_cleanup_spec.md) | [plan](planning/d2_tech_debt_cleanup_plan.md) | [result](results/d2_tech_debt_cleanup_result.md) |
 | D3 | TCG Card Design System | Complete | [spec](specs/d3_tcg_card_design_system_spec.md) | [plan](planning/d3_tcg_card_design_system_plan.md) | [result](results/d3_tcg_card_design_system_result.md) |
+| D4 | Terminal-First Mission Control | Complete | [spec](specs/d4_terminal_first_mission_control_spec.md) | [plan](planning/d4_terminal_first_mission_control_plan.md) | [result](results/d4_terminal_first_mission_control_result.md) |
 
 ## Completed Deliverables
 
