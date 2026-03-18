@@ -1,3 +1,12 @@
+// Card type categories
+export type DeliverableType = 'feature' | 'bugfix' | 'refactor' | 'research' | 'architecture';
+
+// Complexity tiers — 'arch' NOT 'architecture' to avoid collision with DeliverableType
+export type DeliverableComplexity = 'simple' | 'moderate' | 'complex' | 'arch' | 'moonshot';
+
+// Rarity derived from complexity
+export type RarityTier = 'common' | 'uncommon' | 'rare' | 'epic' | 'mythic';
+
 // Deliverable types
 export interface Deliverable {
   id: string; // e.g., "D1"
@@ -8,7 +17,12 @@ export interface Deliverable {
   planPath?: string;
   resultPath?: string;
   lastModified: string; // ISO date
+  createdAt: string; // ISO date — always present
   catalog?: CatalogEntry;
+  cardType?: DeliverableType;
+  complexity?: DeliverableComplexity;
+  effort?: number; // 1-5 scale
+  flavor?: string; // flavor text
 }
 
 export type DeliverableStatus =

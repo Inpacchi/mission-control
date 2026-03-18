@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intel Panel Layout Options</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+  /* ================================================================
+     DESIGN TOKENS
+     ================================================================ */
+  :root {
+    --bg-canvas: #0D1117;
+    --bg-surface: #151B25;
+    --bg-elevated: #1C2333;
+    --bg-hover: #242D3D;
+
+    --text-primary: #E8EDF4;
+    --text-secondary: #8B99B3;
+    --text-muted: #5A6578;
+
+    --border-default: #2A3444;
+    --border-subtle: #1E2736;
+
+    --col-idea: #A78BFA;
+    --col-spec: #60A5FA;
+    --col-plan: #34D399;
+    --col-progress: #F59E0B;
+    --col-review: #FB923C;
+    --col-complete: #22C55E;
+    --col-blocked: #EF4444;
+
+    --type-feature: #F59E0B;
+    --type-architecture: #60A5FA;
+
+    --doc-spec: #60A5FA;
+    --doc-plan: #34D399;
+    --doc-result: #22C55E;
+
+    --shadow-sm: 0 2px 4px rgba(6,15,28,0.6), 0 1px 2px rgba(6,15,28,0.7);
+    --shadow-md: 0 4px 12px rgba(6,15,28,0.6), 0 2px 4px rgba(6,15,28,0.7);
+    --shadow-lg: 0 12px 32px rgba(6,15,28,0.8), 0 4px 8px rgba(6,15,28,0.5);
+
+    --card-radius: 8px;
+    --card-border: 3px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 40px 32px 60px;
+  }
+
+  /* ================================================================
+     PAGE HEADER
+     ================================================================ */
+  .page-header {
+    margin-bottom: 36px;
+    text-align: center;
+  }
+
+  .page-header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+
+  .page-header p {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ================================================================
+     THREE-COLUMN LAYOUT
+     ================================================================ */
+  .options-row {
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+    justify-content: center;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  .option-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 350px;
+    flex-shrink: 0;
+  }
+
+  .option-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    padding-left: 2px;
+  }
+
+  /* The panel boundary — simulates Intel Panel chrome */
+  .intel-panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Panel header strip */
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    background: rgba(13,17,23,0.5);
+  }
+
+  .panel-header-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .panel-header-title .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--col-spec);
+    opacity: 0.8;
+  }
+
+  .panel-close {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    border: 1px solid var(--border-default);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-muted);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* ================================================================
+     SCROLLBAR
+     ================================================================ */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 2px; }
+
+  /* ================================================================
+     KEYFRAMES
+     ================================================================ */
+  @keyframes foil-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  @keyframes border-shimmer {
+    0%, 100% { background-position: 0% 0%; }
+    50% { background-position: 0% 100%; }
+  }
+
+  /* ================================================================
+     TCG CARD — FULL SIZE
+     ================================================================ */
+  .tcg-card {
+    background: var(--bg-elevated);
+    border-radius: var(--card-radius);
+    border-left: var(--card-border) solid var(--accent, var(--col-spec));
+    overflow: hidden;
+    position: relative;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Rare shimmer border replaces the left border */
+  .tcg-card.rarity-rare {
+    border-left-color: transparent;
+  }
+
+  .tcg-card.rarity-rare::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: var(--card-border);
+    background: linear-gradient(180deg, var(--accent, var(--col-spec)) 0%, #fff 50%, var(--accent, var(--col-spec)) 100%);
+    background-size: 100% 200%;
+    animation: border-shimmer 2.5s ease-in-out infinite;
+    border-radius: var(--card-radius) 0 0 var(--card-radius);
+    z-index: 2;
+  }
+
+  /* Subtle diagonal texture */
+  .tcg-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--card-radius);
+    background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.006) 2px, rgba(255,255,255,0.006) 4px);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ---- Card zones ---- */
+  .card-zone-identity {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 11px 13px 7px;
+    gap: 8px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .card-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* Gold foil ID for rare */
+  .card-id.gold-foil {
+    background: linear-gradient(135deg, #b8860b 0%, #ffd700 30%, #b8860b 50%, #ffe44d 80%, #b8860b 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: foil-shift 3s ease-in-out infinite;
+  }
+
+  .card-name {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text-primary);
+    flex: 1;
+  }
+
+  .card-name.large {
+    font-size: 16px;
+  }
+
+  .card-cost {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  .cost-row {
+    display: flex;
+    gap: 3px;
+  }
+
+  .cost-pip {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent, var(--col-spec));
+    opacity: 0.7;
+  }
+
+  .cost-pip.empty {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    opacity: 0.3;
+  }
+
+  .card-zone-type {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 13px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.025);
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    position: relative;
+    z-index: 2;
+  }
+
+  .type-gem {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    background: var(--type-color, var(--type-feature));
+    opacity: 0.85;
+    flex-shrink: 0;
+  }
+
+  .type-sep {
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.5;
+  }
+
+  .type-status {
+    color: var(--accent, var(--col-spec));
+    opacity: 0.9;
+  }
+
+  .card-zone-body {
+    padding: 10px 13px;
+    font-size: 11.5px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    position: relative;
+    z-index: 2;
+  }
+
+  .card-zone-body.large {
+    font-size: 12.5px;
+    padding: 12px 14px;
+  }
+
+  .card-zone-body .ability-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-style: italic;
+  }
+
+  .card-zone-artifacts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 7px 13px 10px;
+    border-top: 1px solid var(--border-subtle);
+    position: relative;
+    z-index: 2;
+  }
+
+  .artifact-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    color: var(--bg-canvas);
+  }
+
+  .artifact-spec { background: var(--doc-spec); }
+  .artifact-plan { background: var(--doc-plan); }
+  .artifact-result { background: var(--doc-result); }
+
+  .card-zone-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 13px;
+    border-top: 1px solid var(--border-subtle);
+    background: rgba(0,0,0,0.15);
+    position: relative;
+    z-index: 2;
+  }
+
+  .stat-pair {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .stat-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .stat-num.large {
+    font-size: 22px;
+  }
+
+  .stat-lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .stat-divider {
+    width: 1px;
+    height: 28px;
+    background: var(--border-default);
+  }
+
+  .rarity-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  .rarity-badge.rare {
+    background: rgba(255,215,0,0.1);
+    border: 1px solid rgba(255,215,0,0.25);
+    color: #ffd700;
+  }
+
+  /* ================================================================
+     DIVIDER
+     ================================================================ */
+  .panel-divider {
+    height: 1px;
+    background: var(--border-default);
+    flex-shrink: 0;
+  }
+
+  /* ================================================================
+     TABS
+     ================================================================ */
+  .tab-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(13,17,23,0.3);
+    flex-shrink: 0;
+  }
+
+  .tab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 9px 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 150ms ease;
+    white-space: nowrap;
+  }
+
+  .tab.active {
+    color: var(--tab-color, var(--col-spec));
+    border-bottom-color: var(--tab-color, var(--col-spec));
+  }
+
+  .tab-spec { --tab-color: var(--col-spec); }
+  .tab-plan { --tab-color: var(--col-plan); }
+  .tab-result { --tab-color: var(--col-result, var(--col-complete)); }
+
+  /* ================================================================
+     MARKDOWN CONTENT
+     ================================================================ */
+  .md-body {
+    padding: 16px 16px 20px;
+    font-size: 12px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .md-body h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-subtle);
+    letter-spacing: -0.01em;
+  }
+
+  .md-body h3 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 14px 0 5px;
+    letter-spacing: 0.01em;
+  }
+
+  .md-body p {
+    margin: 0 0 10px;
+  }
+
+  .md-body ul {
+    padding-left: 18px;
+    margin: 0 0 10px;
+  }
+
+  .md-body li {
+    margin-bottom: 3px;
+  }
+
+  .md-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--col-spec);
+  }
+
+  .md-body pre {
+    background: var(--bg-canvas);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 11px 13px;
+    margin: 8px 0 12px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  .md-body pre .kw { color: #c792ea; }
+  .md-body pre .fn { color: #82aaff; }
+  .md-body pre .str { color: #c3e88d; }
+  .md-body pre .cm { color: var(--text-muted); font-style: italic; }
+  .md-body pre .num { color: #f78c6c; }
+
+  .md-body blockquote {
+    border-left: 3px solid var(--col-plan);
+    padding: 7px 12px;
+    margin: 8px 0 12px;
+    background: rgba(52,211,153,0.04);
+    border-radius: 0 5px 5px 0;
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 11.5px;
+  }
+
+  /* ================================================================
+     OPTION A — CARD HEADER + MARKDOWN TABS
+     ================================================================ */
+  .option-a-card-wrap {
+    padding: 14px 14px 0;
+    flex-shrink: 0;
+  }
+
+  /* ================================================================
+     OPTION B — MARKDOWN ONLY (full height)
+     ================================================================ */
+  .option-b-panel {
+    /* nothing extra — md-body fills flex */
+  }
+
+  /* ================================================================
+     OPTION C — FULL CARD VIEW
+     ================================================================ */
+  .option-c-card-wrap {
+    padding: 16px 16px 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .view-docs-strip {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border-top: 1px solid var(--border-default);
+    background: rgba(13,17,23,0.4);
+    flex-shrink: 0;
+  }
+
+  .view-docs-tab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 8px 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .view-docs-tab:last-child { border-right: none; }
+
+  .view-docs-tab .tab-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+
+  .view-docs-tab .chevron {
+    margin-left: auto;
+    color: var(--text-muted);
+    opacity: 0.5;
+    font-size: 9px;
+  }
+
+  .view-docs-hint {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 6px 14px 8px;
+    text-align: center;
+    opacity: 0.6;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Intel Panel — Layout Options</h1>
+  <p>D07 "Git Integration" selected &mdash; three strategies for the right panel</p>
+</div>
+
+<div class="options-row">
+
+  <!-- ============================================================
+       OPTION A: TCG Card Header + Markdown Tabs below
+       ============================================================ -->
+  <div class="option-col">
+    <div class="option-label">Option A &mdash; Card Header + Markdown</div>
+
+    <div class="intel-panel">
+
+      <!-- Panel chrome header -->
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <span class="dot"></span>
+          Intel Panel
+        </div>
+        <div class="panel-close">&#x2715;</div>
+      </div>
+
+      <!-- TCG Card in header slot -->
+      <div class="option-a-card-wrap">
+        <div class="tcg-card rarity-rare" style="--accent: var(--col-spec);">
+          <!-- Zone 1: Identity -->
+          <div class="card-zone-identity">
+            <div class="card-id gold-foil">D07</div>
+            <div class="card-name">Git Integration</div>
+            <div class="card-cost">
+              <div class="cost-row">
+                <div class="cost-pip"></div>
+                <div class="cost-pip"></div>
+                <div class="cost-pip"></div>
+              </div>
+              <div class="cost-row">
+                <div class="cost-pip"></div>
+                <div class="cost-pip empty"></div>
+                <div class="cost-pip empty"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zone 2: Type bar -->
+          <div class="card-zone-type">
+            <div class="type-gem" style="--type-color: var(--type-architecture);"></div>
+            Architecture
+            <div class="type-sep"></div>
+            Feature
+            <div class="type-sep"></div>
+            <span class="type-status">In Progress</span>
+          </div>
+
+          <!-- Zone 3: Body -->
+          <div class="card-zone-body">
+            <span class="ability-name">Git Context</span> &mdash; Parses branch, commit, and diff data into structured deliverable metadata. Surfaces commit history alongside the kanban card for full traceability.
+          </div>
+
+          <!-- Zone 4: Artifacts -->
+          <div class="card-zone-artifacts">
+            <span class="artifact-badge artifact-spec">Spec</span>
+            <span class="artifact-badge artifact-plan">Plan</span>
+            <span class="artifact-badge" style="background:rgba(96,165,250,0.15); color:var(--col-spec); border:1px solid rgba(96,165,250,0.25); font-family:'JetBrains Mono',monospace; font-size:8.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding: 2px 8px; border-radius:9999px;">+2 commits</span>
+          </div>
+
+          <!-- Zone 5: Stats -->
+          <div class="card-zone-stats">
+            <div class="stat-pair">
+              <div class="stat-num">4</div>
+              <div class="stat-lbl">Files</div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-pair">
+              <div class="stat-num">3</div>
+              <div class="stat-lbl">Days</div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-pair">
+              <div class="stat-num">7</div>
+              <div class="stat-lbl">CP</div>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="rarity-badge rare">Rare</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div style="height: 14px; flex-shrink:0;"></div>
+      <div class="panel-divider"></div>
+
+      <!-- Markdown tabs -->
+      <div class="tab-row">
+        <div class="tab tab-spec active">Spec</div>
+        <div class="tab tab-plan">Plan</div>
+        <div class="tab tab-result">Result</div>
+      </div>
+
+      <!-- Markdown content -->
+      <div class="md-body" style="max-height: 320px;">
+        <h2>Specification</h2>
+        <p>Integrate git context into the deliverable tracking pipeline so that each kanban card surfaces its associated commits, branch, and change summary.</p>
+
+        <h3>Goals</h3>
+        <ul>
+          <li>Parse <code>git log</code> output linked to each deliverable ID</li>
+          <li>Expose branch name and last-commit date in the card stats zone</li>
+          <li>Keep file-watcher latency under <code>150ms</code></li>
+        </ul>
+
+        <h3>Implementation Notes</h3>
+        <pre><code><span class="cm">// gitParser.ts — entry point</span>
+<span class="kw">export async function</span> <span class="fn">getDeliverableCommits</span>(
+  projectPath: <span class="str">string</span>,
+  deliverableId: <span class="str">string</span>
+): Promise&lt;GitCommit[]&gt; {
+  <span class="kw">const</span> pattern = <span class="str">`(${deliverableId})`</span>
+  <span class="kw">return</span> <span class="fn">parseGitLog</span>(projectPath, pattern)
+}</code></pre>
+
+        <blockquote>Assumption: commit messages follow the convention <code>type(DNN): description</code>. Deliverables without matching commits surface an empty history without error.</blockquote>
+      </div>
+
+    </div><!-- .intel-panel -->
+  </div><!-- .option-col -->
+
+
+  <!-- ============================================================
+       OPTION B: Markdown Tabs Only
+       ============================================================ -->
+  <div class="option-col">
+    <div class="option-label">Option B &mdash; Markdown Only</div>
+
+    <div class="intel-panel option-b-panel">
+
+      <!-- Panel chrome header -->
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <span class="dot"></span>
+          Intel Panel
+        </div>
+        <div class="panel-close">&#x2715;</div>
+      </div>
+
+      <!-- Title row with deliverable name -->
+      <div style="padding: 14px 16px 10px; border-bottom: 1px solid var(--border-subtle); flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:var(--col-spec);">D07</span>
+          <span style="font-size:14px; font-weight:700; color:var(--text-primary);">Git Integration</span>
+          <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; padding:2px 8px; border-radius:9999px; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.25); color:var(--col-progress);">In Progress</span>
+        </div>
+        <div style="margin-top:6px; font-size:11px; color:var(--text-muted); font-family:'JetBrains Mono',monospace;">Architecture &nbsp;·&nbsp; Feature &nbsp;·&nbsp; 4 files &nbsp;·&nbsp; 3 days</div>
+      </div>
+
+      <!-- Markdown tabs -->
+      <div class="tab-row">
+        <div class="tab tab-spec active">Spec</div>
+        <div class="tab tab-plan">Plan</div>
+        <div class="tab tab-result">Result</div>
+      </div>
+
+      <!-- Full-height markdown content -->
+      <div class="md-body" style="max-height: 560px;">
+        <h2>Specification</h2>
+        <p>Integrate git context into the deliverable tracking pipeline so that each kanban card surfaces its associated commits, branch, and change summary.</p>
+
+        <h3>Goals</h3>
+        <ul>
+          <li>Parse <code>git log</code> output linked to each deliverable ID</li>
+          <li>Expose branch name and last-commit date in the card stats zone</li>
+          <li>Keep file-watcher latency under <code>150ms</code></li>
+          <li>Zero changes to existing <code>.mc.json</code> schema</li>
+        </ul>
+
+        <h3>Non-goals</h3>
+        <ul>
+          <li>No remote git operations (fetch, push, pull)</li>
+          <li>No diff rendering in the kanban view itself</li>
+        </ul>
+
+        <h3>Implementation Notes</h3>
+        <pre><code><span class="cm">// gitParser.ts — entry point</span>
+<span class="kw">export async function</span> <span class="fn">getDeliverableCommits</span>(
+  projectPath: <span class="str">string</span>,
+  deliverableId: <span class="str">string</span>
+): Promise&lt;GitCommit[]&gt; {
+  <span class="kw">const</span> pattern = <span class="str">`(${deliverableId})`</span>
+  <span class="kw">return</span> <span class="fn">parseGitLog</span>(projectPath, pattern)
+}</code></pre>
+
+        <blockquote>Assumption: commit messages follow the convention <code>type(DNN): description</code>. Deliverables without matching commits surface an empty history without error.</blockquote>
+
+        <h3>Acceptance Criteria</h3>
+        <ul>
+          <li>Card shows commit count badge when commits exist</li>
+          <li>Clicking badge opens commit list in Intel Panel</li>
+          <li>Watcher refresh triggers within 150ms of new commit</li>
+        </ul>
+      </div>
+
+    </div><!-- .intel-panel -->
+  </div><!-- .option-col -->
+
+
+  <!-- ============================================================
+       OPTION C: Full TCG Card View
+       ============================================================ -->
+  <div class="option-col">
+    <div class="option-label">Option C &mdash; Full Card View</div>
+
+    <div class="intel-panel" style="min-height: 680px;">
+
+      <!-- Panel chrome header -->
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <span class="dot"></span>
+          Intel Panel
+        </div>
+        <div class="panel-close">&#x2715;</div>
+      </div>
+
+      <!-- Large TCG Card filling most of the panel -->
+      <div class="option-c-card-wrap">
+        <div class="tcg-card rarity-rare" style="--accent: var(--col-spec); flex: 1;">
+
+          <!-- Zone 1: Identity (enlarged) -->
+          <div class="card-zone-identity" style="padding: 16px 16px 10px;">
+            <div class="card-id gold-foil" style="font-size:17px; padding-top:3px;">D07</div>
+            <div class="card-name large">Git Integration</div>
+            <div class="card-cost">
+              <div class="cost-row">
+                <div class="cost-pip" style="width:9px;height:9px;"></div>
+                <div class="cost-pip" style="width:9px;height:9px;"></div>
+                <div class="cost-pip" style="width:9px;height:9px;"></div>
+              </div>
+              <div class="cost-row">
+                <div class="cost-pip" style="width:9px;height:9px;"></div>
+                <div class="cost-pip empty" style="width:9px;height:9px;"></div>
+                <div class="cost-pip empty" style="width:9px;height:9px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Zone 2: Type bar (enlarged) -->
+          <div class="card-zone-type" style="font-size:10px; padding:6px 16px;">
+            <div class="type-gem" style="--type-color: var(--type-architecture); width:11px; height:11px;"></div>
+            Architecture
+            <div class="type-sep"></div>
+            Feature
+            <div class="type-sep"></div>
+            <span class="type-status">In Progress</span>
+            <div style="margin-left:auto;">
+              <span style="background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.25); color:#ffd700; font-size:8px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:1px 6px; border-radius:3px;">Rare</span>
+            </div>
+          </div>
+
+          <!-- Zone 3: Body (enlarged, more text) -->
+          <div class="card-zone-body large">
+            <p><span class="ability-name">Git Context</span> &mdash; Parses branch, commit history, and diff data into structured deliverable metadata. Surfaces commit counts, branch name, and last-commit timestamp alongside each kanban card for full SDLC traceability.</p>
+            <p style="margin-top:8px; color:var(--text-muted); font-size:11.5px;"><span class="ability-name">Reactive Watch</span> &mdash; File watcher reacts to new commits within <code>150ms</code>, keeping the card stats live without manual refresh.</p>
+          </div>
+
+          <!-- Zone 4: Artifacts (enlarged) -->
+          <div class="card-zone-artifacts" style="padding:9px 16px 11px; gap:6px;">
+            <span class="artifact-badge artifact-spec">Spec</span>
+            <span class="artifact-badge artifact-plan">Plan</span>
+            <span style="background:rgba(96,165,250,0.15); color:var(--col-spec); border:1px solid rgba(96,165,250,0.25); font-family:'JetBrains Mono',monospace; font-size:8.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding:2px 8px; border-radius:9999px;">2 commits</span>
+            <span style="background:rgba(245,158,11,0.1); color:var(--col-progress); border:1px solid rgba(245,158,11,0.2); font-family:'JetBrains Mono',monospace; font-size:8.5px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding:2px 8px; border-radius:9999px;">feat/git-integration</span>
+          </div>
+
+          <!-- Zone 5: Stats (enlarged) -->
+          <div class="card-zone-stats" style="padding:10px 16px;">
+            <div class="stat-pair">
+              <div class="stat-num large">4</div>
+              <div class="stat-lbl">Files</div>
+            </div>
+            <div class="stat-divider" style="height:36px;"></div>
+            <div class="stat-pair">
+              <div class="stat-num large">3</div>
+              <div class="stat-lbl">Days</div>
+            </div>
+            <div class="stat-divider" style="height:36px;"></div>
+            <div class="stat-pair">
+              <div class="stat-num large">2</div>
+              <div class="stat-lbl">Commits</div>
+            </div>
+            <div class="stat-divider" style="height:36px;"></div>
+            <div class="stat-pair">
+              <div class="stat-num large">7</div>
+              <div class="stat-lbl">CP</div>
+            </div>
+          </div>
+
+        </div><!-- .tcg-card -->
+
+        <!-- Spacer below card before docs strip -->
+        <div style="height:12px; flex-shrink:0;"></div>
+      </div><!-- .option-c-card-wrap -->
+
+      <!-- View Documents strip at bottom -->
+      <div class="view-docs-strip">
+        <div class="view-docs-tab">
+          <div class="tab-dot" style="background:var(--doc-spec);"></div>
+          Spec
+          <span class="chevron">&#x25BC;</span>
+        </div>
+        <div class="view-docs-tab">
+          <div class="tab-dot" style="background:var(--doc-plan);"></div>
+          Plan
+          <span class="chevron">&#x25BC;</span>
+        </div>
+        <div class="view-docs-tab" style="color:var(--text-muted); opacity:0.4;">
+          <div class="tab-dot" style="background:var(--text-muted);"></div>
+          Result
+          <span class="chevron">&#x25BC;</span>
+        </div>
+      </div>
+      <div class="view-docs-hint">Click any tab to expand document viewer</div>
+
+    </div><!-- .intel-panel -->
+  </div><!-- .option-col -->
+
+</div><!-- .options-row -->
+
+</body>
+</html>

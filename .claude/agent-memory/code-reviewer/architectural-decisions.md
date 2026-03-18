@@ -18,3 +18,9 @@ By CD decision, the WebSocket `watcher:sdlc` stats broadcast intentionally exclu
 
 ## WsMessage type uses `data: unknown` for the generic watcher:sdlc update variant
 The union type `{ channel: watcher:${string}; type: 'update'; data: unknown }` is intentionally broad. The sdlc-specific channel does not have a narrower typed variant in the union, which is why useSdlcState casts `msg.data as { deliverables?: Deliverable[] }` at the call site.
+
+## sdlcParser.ts — scanDirectory never reads file content
+`scanDirectory()` uses only `fs.readdir` + `fs.stat`. `buildDeliverable()` receives only `FileInfo[]` (id, name, type, filePath, mtime) — never raw file content. Any plan that assumes spec file content is in scope at `buildDeliverable()` is wrong. The D3 frontmatter parser requires a deliberate architectural decision about where and how to add `fs.readFile` before Phase 1 can proceed.
+
+## Dashboard.tsx onResizeStart uses document-level mousemove/mouseup
+The resize drag handler attaches to `document` not to the element. This causes stuck-drag when the cursor leaves the browser window (mouseup fires on OS, not document). Identified as a wrong reference pattern during D3 plan review — do not copy this pattern for ColumnResizer.

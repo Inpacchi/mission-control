@@ -110,6 +110,20 @@ const config = defineConfig({
         'border.default': { value: '#2A3750' },
         'border.strong': { value: '#3D5070' },
         'border.accent': { value: '#2F74D0' },
+
+        // Card type colors — namespace cardType.* avoids TypeScript keyword collision with 'type'
+        'cardType.feature': { value: '#F59E0B' },
+        'cardType.bugfix': { value: '#A78BFA' },
+        'cardType.refactor': { value: '#E879A8' },
+        'cardType.research': { value: '#34D399' },
+        'cardType.architecture': { value: '#60A5FA' },
+
+        // Rarity treatment gradients
+        // shimmer uses var(--card-accent) set at component level; all others use concrete hex
+        'rarity.foil.gradient': { value: 'linear-gradient(135deg, #2A3750 0%, #3D5070 50%, #2A3750 100%)' },
+        'rarity.shimmer.gradient': { value: 'linear-gradient(90deg, transparent 0%, var(--card-accent) 50%, transparent 100%)' },
+        'rarity.gold.gradient': { value: 'linear-gradient(135deg, #B8860B 0%, #FFD700 25%, #DAA520 50%, #FFD700 75%, #B8860B 100%)' },
+        'rarity.holo.gradient': { value: 'linear-gradient(135deg, #ff000040 0%, #00ff0040 25%, #0000ff40 50%, #ff00ff40 75%, #00ffff40 100%)' },
       },
       fonts: {
         heading: { value: "'Inter', 'SF Pro Display', system-ui, -apple-system, sans-serif" },
@@ -154,6 +168,12 @@ const config = defineConfig({
         'glow.violet': { value: '0 0 0 3px rgba(107,70,193,0.35)' },
         selected: { value: '0 0 0 4px rgba(47,116,208,0.5)' },
         panel: { value: '-8px 0 40px rgba(0,0,0,0.6), -2px 0 8px rgba(0,0,0,0.4)' },
+
+        // Card-specific shadows — deeper blacks tuned for dark card surfaces
+        'card.sm': { value: '0 2px 4px rgba(6,15,28,0.6), 0 1px 2px rgba(6,15,28,0.7)' },
+        'card.md': { value: '0 4px 12px rgba(6,15,28,0.6), 0 2px 4px rgba(6,15,28,0.7)' },
+        'card.lg': { value: '0 8px 24px rgba(6,15,28,0.7), 0 4px 8px rgba(6,15,28,0.5)' },
+        'card.glow.green': { value: '0 0 12px rgba(34,197,94,0.4), 0 0 4px rgba(34,197,94,0.2)' },
       },
     },
   },
@@ -201,6 +221,90 @@ const config = defineConfig({
     },
     '.kanban-column-body::-webkit-scrollbar-thumb:hover': {
       background: '#3D5070',
+    },
+
+    // Custom scrollbar for zone strip containers
+    '.zone-strip-body::-webkit-scrollbar': {
+      width: '4px',
+    },
+    '.zone-strip-body::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
+    '.zone-strip-body::-webkit-scrollbar-thumb': {
+      background: '#2A3750',
+      borderRadius: '2px',
+    },
+    '.zone-strip-body::-webkit-scrollbar-thumb:hover': {
+      background: '#3D5070',
+    },
+
+    // Card animation keyframes — transform and opacity only for GPU compositing
+    // foilShift: subtle background-position shimmer for foil cards
+    ['@keyframes foilShift' as any]: {
+      '0%':   { transform: 'translateX(0%)' },
+      '50%':  { transform: 'translateX(2%)' },
+      '100%': { transform: 'translateX(0%)' },
+    } as any,
+    // foilShiftBg: background-position animation for gradient text on rare/epic/mythic/uncommon IDs
+    ['@keyframes foilShiftBg' as any]: {
+      '0%':   { backgroundPosition: '0% 50%' },
+      '50%':  { backgroundPosition: '100% 50%' },
+      '100%': { backgroundPosition: '0% 50%' },
+    } as any,
+    // shimmerSweep: full-width highlight sweep for shimmer overlay
+    ['@keyframes shimmerSweep' as any]: {
+      '0%':   { transform: 'translateX(-100%)' },
+      '100%': { transform: 'translateX(100%)' },
+    } as any,
+    // borderShimmer: background-position animation for the rare left-border-stripe treatment
+    ['@keyframes borderShimmer' as any]: {
+      '0%':   { backgroundPosition: '0% 0%' },
+      '50%':  { backgroundPosition: '0% 100%' },
+      '100%': { backgroundPosition: '0% 0%' },
+    } as any,
+    // goldPulse: gentle opacity breath for gold rarity treatment
+    ['@keyframes goldPulse' as any]: {
+      '0%':   { opacity: '0.8' },
+      '50%':  { opacity: '1' },
+      '100%': { opacity: '0.8' },
+    } as any,
+    // holoPulse: gentle opacity breath for holo overlay
+    ['@keyframes holoPulse' as any]: {
+      '0%':   { opacity: '0.2' },
+      '50%':  { opacity: '0.3' },
+      '100%': { opacity: '0.2' },
+    } as any,
+    // spin: continuous rotation for loading indicators
+    ['@keyframes spin' as any]: {
+      from: { transform: 'rotate(0deg)' },
+      to:   { transform: 'rotate(360deg)' },
+    } as any,
+    // packRevealScale: entrance scale-up for new cards (PackRevealAnimation)
+    ['@keyframes packRevealScale' as any]: {
+      '0%':   { transform: 'scale(0)', opacity: '0' },
+      '60%':  { transform: 'scale(1.06)', opacity: '1' },
+      '100%': { transform: 'scale(1)', opacity: '1' },
+    } as any,
+    // packRevealShimmer: one-shot shimmer sweep for PackRevealAnimation overlay
+    ['@keyframes packRevealShimmer' as any]: {
+      '0%':   { transform: 'translateX(-120%)', opacity: '1' },
+      '100%': { transform: 'translateX(200%)', opacity: '0' },
+    } as any,
+    // drawCheck: SVG stroke draw for CompletionCelebration checkmark
+    ['@keyframes drawCheck' as any]: {
+      '0%':   { strokeDashoffset: '60' },
+      '100%': { strokeDashoffset: '0' },
+    } as any,
+    // burstParticle: explode outward + fade for celebration particles
+    // Each particle uses a CSS custom property (--tx, --ty) for direction
+    ['@keyframes burstParticle' as any]: {
+      '0%':   { transform: 'translate(-50%, -50%) translate(0px, 0px)', opacity: '1' },
+      '100%': { transform: 'translate(-50%, -50%) translate(var(--tx), var(--ty))', opacity: '0' },
+    } as any,
+    // xterm sizing — PTY terminals must fill their container
+    '.xterm, .xterm-viewport, .xterm-screen': {
+      height: '100% !important',
+      width: '100% !important',
     },
   },
 });

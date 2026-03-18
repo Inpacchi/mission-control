@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ChakraProvider, Flex } from '@chakra-ui/react';
 import { system } from './theme';
-import { Dashboard } from './components/layout/Dashboard';
+import { WarTable } from './components/warTable/WarTable';
 import { ProjectPicker } from './components/layout/ProjectPicker';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useDashboardStore, type ActiveProject } from './stores/dashboardStore';
@@ -117,15 +117,14 @@ export function App() {
     );
   }
 
-  // Active project -- show dashboard
+  // Active project -- show war table
   return (
     <ChakraProvider value={system}>
-      <Dashboard
+      <WarTable
         wsConnected={ws.connected}
         wsReconnecting={ws.reconnecting}
         wsSend={ws.send}
         wsSubscribe={ws.subscribe}
-        wsUnsubscribe={ws.unsubscribe}
         wsAddListener={ws.addListener}
         projects={projects}
         onSwitchProject={handleSelectProject}

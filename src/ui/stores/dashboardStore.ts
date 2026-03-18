@@ -13,6 +13,9 @@ export interface ActiveProject {
 
 export type SupplementaryPanel = 'chronicle' | 'adhoc' | 'sessions' | null;
 
+export type LayoutPreset = 'terminal' | 'balanced' | 'intel';
+export type ZoneViewMode = 'zones' | 'list';
+
 interface DashboardState {
   activeSessionId: string | null;
   sessions: Session[];
@@ -27,6 +30,12 @@ interface DashboardState {
   // Project state
   activeProject: ActiveProject | null;
   projectLoading: boolean;
+
+  // War Table column layout
+  columnWidths: { left: number; center: number; right: number };
+  activePreset: LayoutPreset;
+  zoneViewMode: ZoneViewMode;
+  intelCardId: string | null;
 
   // Actions
   setActiveSession: (id: string | null) => void;
@@ -46,6 +55,12 @@ interface DashboardState {
   // Project actions
   setActiveProject: (project: ActiveProject | null) => void;
   setProjectLoading: (loading: boolean) => void;
+
+  // War Table actions
+  setColumnWidths: (widths: { left: number; center: number; right: number }) => void;
+  setActivePreset: (preset: LayoutPreset) => void;
+  setZoneViewMode: (mode: ZoneViewMode) => void;
+  setIntelCard: (id: string | null) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -62,6 +77,12 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   // Project state
   activeProject: null,
   projectLoading: true,
+
+  // War Table column layout
+  columnWidths: { left: 30, center: 40, right: 30 },
+  activePreset: 'balanced',
+  zoneViewMode: 'zones',
+  intelCardId: null,
 
   setActiveSession: (id) => set({ activeSessionId: id }),
 
@@ -119,4 +140,11 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   // Project actions
   setActiveProject: (project) => set({ activeProject: project }),
   setProjectLoading: (loading) => set({ projectLoading: loading }),
+
+  // War Table actions
+  setColumnWidths: (widths) => set({ columnWidths: widths }),
+  setActivePreset: (preset) => set({ activePreset: preset }),
+  setZoneViewMode: (mode) => set({ zoneViewMode: mode }),
+  // setIntelCard is intentionally decoupled from setSelectedCard / previewOpen
+  setIntelCard: (id) => set({ intelCardId: id }),
 }));

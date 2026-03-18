@@ -1,7 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { Deliverable, DeliverableStatus, DeliverablePhase, CatalogEntry } from '../../shared/types.js';
+import matter from 'gray-matter';
+import type { Deliverable, DeliverableStatus, DeliverablePhase, DeliverableType, DeliverableComplexity, CatalogEntry } from '../../shared/types.js';
 import { parse as parseCatalog } from './catalogParser.js';
+
+const VALID_CARD_TYPES: DeliverableType[] = ['feature', 'bugfix', 'refactor', 'research', 'architecture'];
+const VALID_COMPLEXITIES: DeliverableComplexity[] = ['simple', 'moderate', 'complex', 'arch', 'moonshot'];
 
 const DELIVERABLE_FILE_RE = /^d(\d+[a-z]?)_(.+?)_(spec|plan|result|COMPLETE|BLOCKED)\.md$/i;
 
@@ -11,6 +15,7 @@ interface FileInfo {
   type: 'spec' | 'plan' | 'result' | 'complete' | 'blocked';
   filePath: string;
   mtime: Date;
+  content?: string;
 }
 
 async function scanDirectory(dirPath: string): Promise<FileInfo[]> {
@@ -50,7 +55,11 @@ async function scanDirectory(dirPath: string): Promise<FileInfo[]> {
 
     const filePath = path.join(dirPath, entry.name);
     const stat = await fs.stat(filePath);
-    results.push({ id, name, type, filePath, mtime: stat.mtime });
+    let content: string | undefined;
+    if (type === 'spec') {
+      content = await fs.readFile(filePath, 'utf-8');
+    }
+    results.push({ id, name, type, filePath, mtime: stat.mtime, content });
   }
 
   return results;
@@ -68,6 +77,28 @@ function deriveStatus(files: FileInfo[]): { status: DeliverableStatus; phase: De
   return { status: 'idea', phase: 'idea' };
 }
 
+function parseFrontmatter(content: string): {
+  cardType?: DeliverableType;
+  complexity?: DeliverableComplexity;
+  effort?: number;
+  flavor?: string;
+} {
+  try {
+    const { data } = matter(content);
+    const cardType = VALID_CARD_TYPES.includes(data.type) ? (data.type as DeliverableType) : undefined;
+    const complexity = VALID_COMPLEXITIES.includes(data.complexity) ? (data.complexity as DeliverableComplexity) : undefined;
+    let effort: number | undefined;
+    if (typeof data.effort === 'number') {
+      effort = Math.min(5, Math.max(1, data.effort));
+    }
+    const flavor = typeof data.flavor === 'string' ? data.flavor : undefined;
+    return { cardType, complexity, effort, flavor };
+  } catch (err) {
+    console.warn(`[sdlcParser] Failed to parse frontmatter: ${err instanceof Error ? err.message : String(err)}`);
+    return {};
+  }
+}
+
 function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?: CatalogEntry): Deliverable {
   const { status, phase } = deriveStatus(files);
   const specFile = files.find((f) => f.type === 'spec');
@@ -79,6 +110,14 @@ function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?:
     ? new Date(Math.max(...files.map((f) => f.mtime.getTime()))).toISOString()
     : new Date().toISOString();
 
+  // Derive createdAt from the earliest artifact mtime
+  const createdAt = files.length > 0
+    ? new Date(Math.min(...files.map((f) => f.mtime.getTime()))).toISOString()
+    : new Date().toISOString();
+
+  // Parse frontmatter from spec file if available
+  const frontmatter = specFile?.content ? parseFrontmatter(specFile.content) : {};
+
   return {
     id,
     name: catalog?.name || name,
@@ -88,7 +127,9 @@ function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?:
     planPath: planFile?.filePath,
     resultPath: resultFile?.filePath,
     lastModified,
+    createdAt,
     catalog,
+    ...frontmatter,
   };
 }
 
@@ -135,16 +176,18 @@ export async function parseDeliverables(projectPath: string): Promise<Deliverabl
         status: 'idea',
         phase: 'idea',
         lastModified: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         catalog: entry,
       });
     }
   }
 
-  // Sort by ID
+  // Sort by ID — numeric part first, then full string for sub-deliverable suffixes (D3a vs D3b)
   return Array.from(deliverables.values()).sort((a, b) => {
     const numA = parseInt(a.id.replace(/[Dd]/g, ''), 10) || 0;
     const numB = parseInt(b.id.replace(/[Dd]/g, ''), 10) || 0;
-    return numA - numB;
+    if (numA !== numB) return numA - numB;
+    return a.id.localeCompare(b.id);
   });
 }
 
@@ -174,7 +217,8 @@ export async function parseChronicle(projectPath: string): Promise<Deliverable[]
   return deliverables.sort((a, b) => {
     const numA = parseInt(a.id.replace(/[Dd]/g, ''), 10) || 0;
     const numB = parseInt(b.id.replace(/[Dd]/g, ''), 10) || 0;
-    return numA - numB;
+    if (numA !== numB) return numA - numB;
+    return a.id.localeCompare(b.id);
   });
 }
 
