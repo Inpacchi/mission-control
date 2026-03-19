@@ -10,11 +10,40 @@ import { BottomBar } from './components/HelpBar.js';
 import { DetailPanel } from './components/DetailPanel.js';
 import { useKeyboard } from './hooks/useKeyboard.js';
 import { useFileWatcher } from './hooks/useFileWatcher.js';
+import { ChronicleList } from './ChronicleList.js';
+import { SessionBrowser } from './SessionBrowser.js';
+import { AdhocBrowser } from './AdhocBrowser.js';
+import { FileBrowser } from './FileBrowser.js';
+import type { ViewMode } from './hooks/useKeyboard.js';
+
+/** Shared layout wrapper for sub-views: child + BottomBar */
+function ViewLayout({ children, height, width, zones, viewMode, searchMode }: {
+  children: React.ReactNode;
+  height: number;
+  width: number;
+  zones: Zone[];
+  viewMode: ViewMode;
+  searchMode?: boolean;
+}): React.ReactElement {
+  return (
+    <Box flexDirection="column" height={height}>
+      <Box flexDirection="column" flexGrow={1}>
+        {children}
+      </Box>
+      <BottomBar zones={zones} width={width} viewMode={viewMode} searchMode={searchMode} />
+    </Box>
+  );
+}
+
+interface Zone {
+  name: string;
+  cards: Deliverable[];
+  type: 'deck' | 'active' | 'review' | 'graveyard';
+}
 
 interface BoardAppProps {
   projectPath: string;
   initialDeliverables: Deliverable[];
-  onAction?: (action: string) => void;
 }
 
 function HelpOverlay({ width }: { width: number }): React.ReactElement {
@@ -23,21 +52,44 @@ function HelpOverlay({ width }: { width: number }): React.ReactElement {
     '  Mission Control — Keyboard Reference',
     '  ─────────────────────────────────────',
     '',
+    '',
     '  Board:',
-    '  ←  /  →     Navigate between zones',
-    '  ↑  /  ↓     Navigate between cards',
+    '  ←→          Navigate between zones',
+    '  ↑↓          Navigate between cards',
     '  Enter        View card detail',
-    '  f            Browse files',
-    '  s            Browse sessions',
+    '  n            Open project notes in $EDITOR',
     '  c            Browse chronicle',
+    '  s            Browse sessions',
     '  a            Show adhoc commits',
+    '  f            Browse files',
     '  ?            Toggle this help overlay',
     '  q            Quit Mission Control',
     '',
+    '',
     '  Detail Panel:',
-    '  ↑  /  ↓     Scroll content',
-    '  1 / 2 / 3   Switch to Spec / Plan / Result',
-    '  Esc / q      Back to board',
+    '  ↑↓           Scroll content',
+    '  u / d        Scroll half page up / down',
+    '  pgup / pgdn  Scroll full page up / down',
+    '  1 / 2 / 3   Switch to spec / plan / result',
+    '  /            Search in document',
+    '  n / p        Next / previous match',
+    '  Esc          Clear search (or back to board)',
+    '  b            Back to board',
+    '',
+    '',
+    '  Sub-views (chronicle / sessions / adhoc / files):',
+    '  b / Esc      Back to board',
+    '  /            Search / filter',
+    '  n / p        Next / previous match',
+    '  Enter        Open selected item',
+    '',
+    '',
+    '  Chronicle detail:',
+    '  1 / 2 / 3   Switch to spec / plan / result',
+    '',
+    '',
+    '  Session detail:',
+    '  ↑↓ / j/k     Scroll  /: search  n/p: matches',
     '',
   ];
 
@@ -46,7 +98,7 @@ function HelpOverlay({ width }: { width: number }): React.ReactElement {
       flexDirection="column"
       borderStyle="double"
       borderColor="yellow"
-      width={Math.min(width, 50)}
+      width={Math.min(width, 60)}
     >
       {lines.map((line, i) => (
         <Text key={i}>{line}</Text>
@@ -55,7 +107,7 @@ function HelpOverlay({ width }: { width: number }): React.ReactElement {
   );
 }
 
-export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAppProps): React.ReactElement {
+export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): React.ReactElement {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const { deliverables } = useFileWatcher(projectPath, initialDeliverables);
@@ -120,6 +172,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
   const collapsed = isCollapsed;
 
   // Open project notes in $EDITOR (falls back to vi)
+  // Toggles alternate screen so the editor renders correctly over the TUI
   const openEditor = useCallback(() => {
     const notesPath = path.join(projectPath, '.mc', 'notes.md');
     fs.mkdirSync(path.dirname(notesPath), { recursive: true });
@@ -127,23 +180,40 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
       fs.writeFileSync(notesPath, '', 'utf-8');
     }
     const editor = process.env.EDITOR || 'vi';
+    process.stdout.write('\x1b[?1049l'); // leave alternate screen
     spawnSync(editor, [notesPath], { stdio: 'inherit' });
+    process.stdout.write('\x1b[?1049h'); // re-enter alternate screen
   }, [projectPath]);
 
-  const { selectedZone, selectedCard, showHelp, viewMode, expandedCardId, detailScrollOffset, detailMaxScrollRef, activeDocType, pendingAction } = useKeyboard({
+  const {
+    viewMode,
+    board: {
+      selectedZone,
+      selectedCard,
+      showHelp,
+      expandedCardId,
+      detailScrollOffset,
+      detailMaxScrollRef,
+      activeDocType,
+      detailSearchMode,
+      detailSearchQuery,
+      detailActiveSearch,
+      detailCurrentMatchIndex,
+      detailMatchLinesRef,
+    },
+    chronicle,
+    sessions,
+    adhoc,
+    files,
+  } = useKeyboard({
     zones,
     viewMode: 'board',
+    projectPath,
     onExit: exit,
     onOpenEditor: openEditor,
     collapsed,
+    terminalHeight: height,
   });
-
-  useEffect(() => {
-    if (pendingAction && onAction) {
-      onAction(pendingAction);
-      exit();
-    }
-  }, [pendingAction, onAction, exit]);
 
   // Too narrow to render
   if (isTooNarrow) {
@@ -165,23 +235,150 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
     );
   }
 
+  // ── View router ─────────────────────────────────────────────────────────────
+
   // Detail panel view
   if (viewMode === 'detail' && expandedCardId !== null) {
     const expandedDeliverable = deliverables.find((d) => d.id === expandedCardId);
     if (expandedDeliverable) {
       return (
-        <DetailPanel
-          deliverable={expandedDeliverable}
-          projectPath={projectPath}
-          width={width}
-          height={height}
-          scrollOffset={detailScrollOffset}
-          maxScrollRef={detailMaxScrollRef}
-          activeDocType={activeDocType}
-        />
+        <ViewLayout height={height} width={width} zones={zones} viewMode={viewMode}>
+          <DetailPanel
+            deliverable={expandedDeliverable}
+            projectPath={projectPath}
+            width={width}
+            height={height - 2}
+            scrollOffset={detailScrollOffset}
+            maxScrollRef={detailMaxScrollRef}
+            activeDocType={activeDocType}
+            detailSearchMode={detailSearchMode}
+            detailSearchQuery={detailSearchQuery}
+            detailActiveSearch={detailActiveSearch}
+            detailCurrentMatchIndex={detailCurrentMatchIndex}
+            detailMatchLinesRef={detailMatchLinesRef}
+          />
+        </ViewLayout>
       );
     }
   }
+
+  // Chronicle view
+  if (viewMode === 'chronicle' || viewMode === 'chronicle-detail') {
+    return (
+      <ViewLayout height={height} width={width} zones={zones} viewMode={viewMode} searchMode={chronicle.searchMode}>
+        <ChronicleList
+          entries={chronicle.entries}
+          filteredEntries={chronicle.filteredEntries}
+          loading={chronicle.loading}
+          selectedIndex={chronicle.selectedIndex}
+          listScrollOffset={chronicle.scrollOffset}
+          searchQuery={chronicle.searchQuery}
+          searchMode={chronicle.searchMode}
+          viewMode={viewMode}
+          selectedFilePath={chronicle.selectedFilePath}
+          activeDocType={chronicle.activeDocType}
+          detailScrollOffset={chronicle.detailScrollOffset}
+          projectPath={projectPath}
+          detailMaxScrollRef={chronicle.detailMaxScrollRef}
+          detailSearchMode={chronicle.detailSearchMode}
+          detailSearchQuery={chronicle.detailSearchQuery}
+          detailActiveSearch={chronicle.detailActiveSearch}
+          detailCurrentMatchIndex={chronicle.detailCurrentMatchIndex}
+          detailMatchLinesRef={chronicle.detailMatchLinesRef}
+          height={height - 2}
+        />
+      </ViewLayout>
+    );
+  }
+
+  // Session views
+  if (viewMode === 'sessions' || viewMode === 'session-search' || viewMode === 'session-detail') {
+    return (
+      <ViewLayout height={height} width={width} zones={zones} viewMode={viewMode} searchMode={sessions.searchMode}>
+        <SessionBrowser
+          sessions={sessions.sessions}
+          filteredSessions={sessions.filteredSessions}
+          loading={sessions.loading}
+          selectedIndex={sessions.selectedIndex}
+          listScrollOffset={sessions.listScrollOffset}
+          searchQuery={sessions.searchQuery}
+          searchMode={sessions.searchMode}
+          viewMode={viewMode}
+          sessionContent={sessions.sessionContent}
+          detailScrollOffset={sessions.detailScrollOffset}
+          detailTitle={sessions.detailTitle}
+          pagerSearchQuery={sessions.pagerSearchQuery}
+          pagerSearchMode={sessions.pagerSearchMode}
+          pagerActiveSearch={sessions.pagerActiveSearch}
+          pagerCurrentMatchIndex={sessions.pagerCurrentMatchIndex}
+          pagerMatchingLines={sessions.pagerMatchingLines}
+          height={height - 2}
+        />
+      </ViewLayout>
+    );
+  }
+
+  // Adhoc views
+  if (
+    viewMode === 'adhoc' ||
+    viewMode === 'adhoc-search' ||
+    viewMode === 'adhoc-detail' ||
+    viewMode === 'adhoc-detail-search'
+  ) {
+    return (
+      <ViewLayout height={height} width={width} zones={zones} viewMode={viewMode} searchMode={adhoc.listSearchMode}>
+        <AdhocBrowser
+          commits={adhoc.commits}
+          filteredCommits={adhoc.filteredCommits}
+          loading={adhoc.loading}
+          selectedIndex={adhoc.selectedIndex}
+          listScrollOffset={adhoc.listScrollOffset}
+          listSearchQuery={adhoc.listSearchQuery}
+          listSearchMode={adhoc.listSearchMode}
+          viewMode={viewMode}
+          selectedCommit={adhoc.selectedCommit}
+          detailContent={adhoc.detailContent}
+          detailLoading={adhoc.detailLoading}
+          detailScrollOffset={adhoc.detailScrollOffset}
+          detailSearchQuery={adhoc.detailSearchQuery}
+          activeDetailSearch={adhoc.activeDetailSearch}
+          currentMatchIndex={adhoc.currentMatchIndex}
+          detailSearchMode={adhoc.detailSearchMode}
+          matchingLines={adhoc.matchingLines}
+          height={height - 2}
+        />
+      </ViewLayout>
+    );
+  }
+
+  // File views
+  if (
+    viewMode === 'files' ||
+    viewMode === 'file-search' ||
+    viewMode === 'file-grep-input' ||
+    viewMode === 'file-grep-results'
+  ) {
+    return (
+      <ViewLayout height={height} width={width} zones={zones} viewMode={viewMode}>
+        <FileBrowser
+          projectPath={projectPath}
+          viewMode={viewMode}
+          allFiles={files.allFiles}
+          collapsed={files.collapsed}
+          selectedIndex={files.selectedIndex}
+          visibleEntries={files.visibleEntries}
+          searchQuery={files.searchQuery}
+          grepQuery={files.grepQuery}
+          grepResults={files.grepResults}
+          grepSelectedIndex={files.grepSelectedIndex}
+          grepRunning={files.grepRunning}
+          height={height - 2}
+        />
+      </ViewLayout>
+    );
+  }
+
+  // ── Board view ───────────────────────────────────────────────────────────────
 
   // Bottom bar: 2 rows (shortcuts + zone counts)
   const BOTTOM_BARS_HEIGHT = 2;
@@ -193,7 +390,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
       return (
         <Box flexDirection="column" height={height}>
           <HelpOverlay width={width} />
-          <BottomBar zones={zones} width={width} />
+          <BottomBar zones={zones} width={width} viewMode={viewMode} />
         </Box>
       );
     }
@@ -215,7 +412,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
             />
           ))}
         </Box>
-        <BottomBar zones={zones} width={width} />
+        <BottomBar zones={zones} width={width} viewMode={viewMode} />
       </Box>
     );
   }
@@ -226,7 +423,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
       return (
         <Box flexDirection="column" height={height}>
           <HelpOverlay width={width} />
-          <BottomBar zones={zones} width={width} />
+          <BottomBar zones={zones} width={width} viewMode={viewMode} />
         </Box>
       );
     }
@@ -289,7 +486,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
             <Text dimColor>{`G[${graveyardCards.length}]`}</Text>
           </Box>
         </Box>
-        <BottomBar zones={zones} width={width} />
+        <BottomBar zones={zones} width={width} viewMode={viewMode} />
       </Box>
     );
   }
@@ -299,7 +496,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
     return (
       <Box flexDirection="column" height={height}>
         <HelpOverlay width={width} />
-        <BottomBar zones={zones} width={width} />
+        <BottomBar zones={zones} width={width} viewMode={viewMode} />
       </Box>
     );
   }
@@ -376,7 +573,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
         />
       </Box>
 
-      <BottomBar zones={zones} width={width} />
+      <BottomBar zones={zones} width={width} viewMode={viewMode} />
     </Box>
   );
 }

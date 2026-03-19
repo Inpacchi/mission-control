@@ -4,6 +4,16 @@ description: Code patterns that have appeared as findings in more than one revie
 type: project
 ---
 
+## Side-effect callback called inside a functional updater
+**Pattern:** A hook calls an optional `onXxx` callback inside a functional updater: `setState(prev => { onXxx(next); return next; })`. Functional updaters must be pure. React may call them more than once (Strict Mode double-invocation, concurrent mode). The callback fires a non-deterministic number of times per state update.
+**First seen:** `useSearchInput.ts` — `options.onQueryChange?.(next)` called inside `setQuery((q) => ...)` for both backspace and printable character branches.
+**Mitigation:** Compute `next` before calling `setState`. Call the side-effect callback and `setState(next)` as separate top-level statements.
+
+## Shared utility hook — optional callback dependency not listed in useEffect deps
+**Pattern:** A hook takes an `options` object with a callback (e.g., `onLoad`) and uses it inside a `useEffect`. If the callback is not in the dependency array, callers that pass unstabilized callbacks get stale-closure behavior. If the callback is in the dependency array, callers that pass inline arrow functions trigger the effect on every render.
+**First seen:** `useFileContent.ts` — `options.onLoad` used at line 54, but neither `options` nor `options.onLoad` appears in the `[filePath, projectPath]` dep array (eslint-disable comment suppresses the warning). Current callers happen to use `useCallback([], [])` so it doesn't bite, but the hook is fragile.
+**Mitigation:** Either document that the callback must be stable (memoized), or accept it as a separate stable-ref parameter rather than an options bag.
+
 ## Setter called inside another setter's functional updater
 **Pattern:** `setState1(prev => { setState2(derivedValue); return next; })` — calling one React state setter from inside another state setter's updater function. React's contract requires updater functions to be pure and free of side effects. In Strict Mode, React calls updaters twice to detect violations; the double invocation means the inner `setState2` fires twice, setting state a non-deterministic number of times. In concurrent mode, updaters may be called at unexpected times.
 **First seen:** Notepad.tsx — `setCol(mergeCol)` inside `setLines(prev => ...)` at the backspace/merge-line branch; `setCol` inside `setCursor(prev => ...)` at arrow key navigation.
@@ -73,6 +83,11 @@ type: project
 **First seen:** D4 round 3 — useFileWatcher shown with `initialDeliverables: Deliverable[] = []` on line 488 then `initialDeliverables: Deliverable[]` (no default) on line 526. The no-default form is the correct one per prose, but the defaulted form appears first.
 **Mitigation:** Plans should show each function signature exactly once. If a revision supersedes an earlier draft, remove or explicitly strikethrough the earlier block. Never rely on a second block "overriding" a first block in a prose document.
 
+## unmountedRef vs. per-load-ID — wrong guard for rapid same-mount navigation
+**Pattern:** A hook uses `unmountedRef` as the only async cancellation guard in an `openDetail`-style callback. This correctly discards results after unmount, but does NOT guard against the user navigating from item A to item B before A's async result arrives. Both callbacks check `unmountedRef.current === false` and both call `setDetailContent`, so A's stale result overwrites B's state. The per-load-ID pattern (increment a ref counter on each load, compare in the callback) protects against both unmount and rapid navigation.
+**First seen:** Round 3 review (2026-03-18) — `useAdhocView.ts` `openDetail` at lines 161-185 uses only `unmountedRef`. Contrast with `useSessionView.ts` `sessionLoadIdRef` (correct) and `useFileView.ts` `grepLoadIdRef` (correct).
+**Mitigation:** Replace `unmountedRef` in `openDetail` with a per-load ID ref. Increment ref on each `openDetail` call; capture the value; check `if (myLoadId !== loadIdRef.current) return;` as the first statement of the callback.
+
 ## Async useEffect missing cancellation — stale state flash
 **Pattern:** `useEffect` triggers an async operation (fs.readFile, fetch) and sets state in the `.then()` callback without checking whether the component is still mounted or the dependency has changed. When the dependency changes before the async op completes, the old result lands in state and briefly displays wrong content.
 **First seen:** D4 post-execution — DetailPanel.tsx useEffect for file reading lacks isCancelled flag. useDeliverables.ts (same repo) correctly uses a cancelled flag — the pattern exists to copy.
@@ -87,10 +102,30 @@ type: project
 **Pattern:** Plans describe a feature as "piggybacking" on existing I/O but the actual service code does not perform that I/O. Implementing agents then silently add a new I/O pass or stall.
 **First seen:** D3 plan review — plan claimed frontmatter parsing would piggyback on existing file reads in `scanDirectory()`, but `scanDirectory()` only stats files, never reads content.
 
+## Sub-view wrapper pattern in BoardApp.tsx
+**Pattern:** Each sub-view routed from BoardApp uses an identical three-layer wrapper: `<Box column height={height}><Box column flexGrow={1}><SubView height={height-2}/></Box><BottomBar/></Box>`. As of the BottomBar consolidation pass, this appears 5 times (detail, chronicle, sessions, adhoc, files).
+**First seen:** BottomBar consolidation review (2026-03-18) — BoardApp.tsx lines 215–360.
+**Mitigation:** Extract a `SubViewShell` component that accepts `children` and the three BottomBar props, eliminating the repeated structure.
+
+## `useDimensions`-worthy pattern in presentational TUI components
+**Pattern:** Every presentational sub-view component imports `useStdout` and resolves `height` and `width` via `const height = heightProp ?? stdout?.rows ?? 24` and `const width = stdout?.columns ?? 80`. Appears in 5 files (ChronicleList, SessionBrowser, AdhocBrowser, PagerView, FileBrowser).
+**First seen:** BottomBar consolidation review (2026-03-18).
+**Mitigation:** Extract `useDimensions(heightProp?: number): { width: number; height: number }` hook. BoardApp's resize-listener pattern is different in kind and stays separate.
+
+## `renderLine` search-highlight logic duplicated across pager-like components
+**Pattern:** The active-match (yellow bg) / other-match (gray bg) / default rendering branch appears in Pager.tsx, PagerView.tsx, AdhocBrowser.tsx, and DetailPanel.tsx. DetailPanel's variant uses `matchingLines.includes(absoluteIndex)` (O(n)) instead of `matchSet.has()` (O(1)) — a correctness divergence that is only visible from the duplication.
+**First seen:** BottomBar consolidation review (2026-03-18).
+**Mitigation:** Extract a shared `renderHighlightedLine(line, absoluteIndex, { activeMatchLine, matchSet, activeSearch })` utility or `useSearchHighlight` hook.
+
 ## Shell injection via $EDITOR / $VISUAL interpolation
 **Pattern:** `execSync(\`${editor} "${filePath}"\`, { stdio: 'inherit' })` where `editor = process.env.VISUAL || process.env.EDITOR`. The editor variable is attacker-influenced (shell profile, environment). Filenames with backticks, `$()`, or semicolons can escape double-quoting. The safe form is `spawnSync(editor, [filePath], { stdio: 'inherit' })` — array arguments bypass the shell entirely.
 **First seen:** D4 post-execution — FileBrowser.tsx lines 266 and 409, Pager.tsx line 132. BoardApp.tsx line 130 correctly uses spawnSync array form; the three execSync sites do not.
 **Mitigation:** Never interpolate `$EDITOR`/`$VISUAL` into a shell string. Always use `spawnSync(editor, [arg1, arg2, ...], { stdio: 'inherit' })`. For `+linenum` vim-style flags: `spawnSync(editor, [\`+${line}\`, filePath])`.
+
+## Dead props stranded in interface after footer/component extraction refactor
+**Pattern:** A refactor moves rendered output (e.g., an inline footer) out of a presentational component into a parent. Props that fed the removed output are underscore-prefixed in the destructuring (`_detailSearchQuery`) to suppress lint warnings, but are NOT removed from the component interface or from the call sites that pass them. The interface now documents props that accomplish nothing, callers continue threading values that are silently discarded, and TypeScript cannot warn when the prop is later omitted because a default is already present.
+**First seen:** BottomBar/footer consolidation pass (2026-03-18) — ChronicleList (`activeDocType`, `projectPath`), AdhocBrowser (`detailSearchQuery`, `detailSearchMode`), DetailPanel (`detailSearchMode`, `detailSearchQuery`), PagerView (`searchQuery`, `searchMode`). All four had props that previously fed an inline footer, which was removed; the props were underscore-prefixed but not deleted from the interfaces.
+**Mitigation:** When removing a feature from a presentational component, do a complete prop purge: (1) remove from the interface, (2) remove from the destructuring signature, (3) remove from every call site that passes the value. The underscore convention is a temporary marker, not a final state.
 
 ## Incomplete stripAnsi regex misses cursor-movement and OSC sequences
 **Pattern:** `stripAnsi` in `src/tui/renderMarkdown.ts` matches only SGR sequences (`/\x1b\[[0-9;]*m/g`). Cursor-movement CSI sequences (`ESC[A/B/C/D/H/K` etc.) and OSC window title sequences (`ESC]...\x07`) are not stripped. Real Claude Code session logs contain these sequences. When the result is used for plain-text sentinel matching (e.g., `── User ──` / `── Assistant ──`), stray escape bytes adjacent to the header text prevent the match and cause turns to silently not split.
@@ -101,3 +136,13 @@ type: project
 **Pattern:** `useInput(handler, options)` in Ink lists `handler` (called `inputHandler` internally) as a `useEffect` dependency (confirmed in `node_modules/ink/build/hooks/use-input.js` line 121). Passing an inline arrow function recreated on every render causes the internal event emitter listener to be removed and re-added on every render. In a keyboard-driven editor where every keypress produces a state update and therefore a render, this means listener teardown/re-attach on every keystroke.
 **First seen:** Notepad.tsx post-fix re-review (2026-03-18) — ref-based state reads correctly solved the stale closure read side, but the handler function itself was not stabilized with `useCallback` or a stable ref wrapper. Confirmed unmitigated in D4 in FileBrowser, SessionBrowser, Pager, useKeyboard.
 **Mitigation:** Wrap the `useInput` callback in a stable ref pattern: create `handlerRef = useRef(fn)`, update it in an effect, and pass a stable outer function `useCallback(() => handlerRef.current(...args), [])` to `useInput`. This gives Ink a stable reference while the inner handler always reads current values.
+
+## Unfixed security findings not carried forward during code moves
+**Pattern:** A component has a flagged but unresolved security finding (e.g., execSync shell injection). A refactoring pass moves the code from the component into a hook. The implementation agent copies the logic faithfully — including the unfixed vulnerability — because the prior finding was against the component file and the agent does not cross-reference the open security log. The finding is re-reported at the new location.
+**First seen:** Unified TUI architecture execution (2026-03-18) — `execSync($EDITOR ...)` shell injection was flagged in FileBrowser.tsx lines 266/409 multiple times across reviews. The unified TUI refactor moved this code to `useFileView.ts` lines 308/413 without applying the fix. Same pattern for the `projectPath` grep injection at FileBrowser.tsx line 187 → useFileView.ts line 211.
+**Mitigation:** When reviewing a refactoring execution, always grep for all previously flagged security patterns (execSync, exec, shell string interpolation) across the entire changed file set, even if the review focus is on the new architecture. Security findings do not automatically close when code is moved.
+
+## Standalone-to-presentational conversion breaks one-shot command consumers
+**Pattern:** A plan converts a component (e.g., `Pager.tsx`) from a standalone Ink app to a presentational component (removing `useInput`/`useApp`). The plan correctly wires it into the unified app's view routing. But one-shot CLI commands (e.g., `mc log`, `mc view`) that previously used the component as a standalone Ink app via `launchTuiScreen(React.createElement(Pager, {...}))` are now broken: no keyboard navigation, no quit handler. The one-shot commands are not embedded views, so they are invisible to the plan's "converted views" audit.
+**First seen:** Unified TUI plan re-review (2026-03-18) — `log.ts` and `view.ts` both render `Pager` via `launchTuiScreen`. Phase 2 strips Pager's `useInput`; Phase 4 retains `mc log` and `mc view` as one-shot commands without noting the broken dependency.
+**Mitigation:** When converting any component from standalone to presentational, enumerate ALL `import` sites of that component across the entire codebase (not just the primary integration), verify each consumer's use pattern, and add explicit guidance for each consumer that relied on the standalone interface.

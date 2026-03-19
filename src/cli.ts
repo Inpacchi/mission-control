@@ -118,15 +118,6 @@ program
   });
 
 program
-  .command('sessions')
-  .description('Browse Claude Code conversations for this project')
-  .argument('[path]', 'Project directory', process.cwd())
-  .action(async (projectDir: string) => {
-    const { browseSessions } = await import('./tui/commands/sessions.js');
-    await browseSessions(projectDir);
-  });
-
-program
   .command('log')
   .description('View a Claude Code conversation log')
   .argument('[id]', 'Session ID')
@@ -134,33 +125,6 @@ program
   .action(async (id: string | undefined, projectDir: string) => {
     const { runLog } = await import('./tui/commands/log.js');
     await runLog(id, projectDir);
-  });
-
-program
-  .command('chronicle')
-  .description('Browse archived deliverables')
-  .argument('[path]', 'Project directory', process.cwd())
-  .action(async (projectDir: string) => {
-    const { browseChronicle } = await import('./tui/commands/chronicle.js');
-    await browseChronicle(projectDir);
-  });
-
-program
-  .command('adhoc')
-  .description('Show untracked commits')
-  .argument('[path]', 'Project directory', process.cwd())
-  .action(async (projectDir: string) => {
-    const { runAdhoc } = await import('./tui/commands/adhoc.js');
-    await runAdhoc(projectDir);
-  });
-
-program
-  .command('files')
-  .description('Browse and edit project files')
-  .argument('[path]', 'Project directory', process.cwd())
-  .action(async (projectDir: string) => {
-    const { browseFiles } = await import('./tui/commands/files.js');
-    await browseFiles(projectDir);
   });
 
 program.parse();

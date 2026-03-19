@@ -1,11 +1,11 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import React from 'react';
-import { render } from 'ink';
 import { getDeliverable } from '../../server/services/sdlcParser.js';
 import { isTTY } from '../formatters.js';
 import { renderMarkdownToAnsi } from '../renderMarkdown.js';
 import { Pager } from '../Pager.js';
+import { launchTuiScreen } from '../launchScreen.js';
 
 export async function runView(id: string, projectDir: string, docType?: 'spec' | 'plan' | 'result'): Promise<void> {
   const projectPath = path.resolve(projectDir);
@@ -72,26 +72,7 @@ export async function runView(id: string, projectDir: string, docType?: 'spec' |
   const title = `${deliverable.id} — ${deliverable.name} (${label})`;
 
   // Enter alternate screen buffer
-  process.stdout.write('\x1b[?1049h');
-
-  const restoreScreen = () => {
-    process.stdout.write('\x1b[?1049l');
-    process.stdout.write('\x1b[?25h');
-  };
-
-  process.once('SIGTERM', () => {
-    restoreScreen();
-    process.exit(0);
-  });
-
-  try {
-    const { waitUntilExit } = render(
-      React.createElement(Pager, { title, content: rendered, filePath: resolvedFile }),
-      { exitOnCtrlC: true }
-    );
-    await waitUntilExit();
-  } finally {
-    restoreScreen();
-    console.clear();
-  }
+  await launchTuiScreen(
+    React.createElement(Pager, { title, content: rendered, filePath: resolvedFile }),
+  );
 }

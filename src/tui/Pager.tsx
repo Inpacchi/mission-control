@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
+import { useSearchInput } from './hooks/useSearchInput.js';
 import { execSync } from 'node:child_process';
 import { stripAnsi } from './renderMarkdown.js';
 
@@ -20,9 +21,11 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
   const [scrollOffset, setScrollOffset] = useState(0);
   const [showHint, setShowHint] = useState(true);
   const [mode, setMode] = useState<Mode>('normal');
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+
+  const searchInput = useSearchInput();
+  const searchQuery = searchInput.query;
   const [dimensions, setDimensions] = useState({
     width: stdout?.columns ?? 80,
     height: stdout?.rows ?? 24,
@@ -97,18 +100,14 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
         }
         return;
       }
-      if (key.escape) {
-        setSearchQuery('');
-        setMode('normal');
+      // Delegate Escape / Backspace / printable chars to the search hook
+      const consumed = searchInput.handleKey(input, key);
+      if (consumed) {
+        if (key.escape) {
+          // Query cleared by hook — also exit search mode
+          setMode('normal');
+        }
         return;
-      }
-      if (key.backspace || key.delete) {
-        setSearchQuery((q) => q.slice(0, -1));
-        return;
-      }
-      // Accumulate typed characters
-      if (input && !key.ctrl && !key.meta) {
-        setSearchQuery((q) => q + input);
       }
       return;
     }
@@ -141,7 +140,7 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
     // Enter search mode
     if (input === '/') {
       setShowHint(false);
-      setSearchQuery('');
+      searchInput.reset();
       setMode('search');
       return;
     }
@@ -149,7 +148,7 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
     // Clear search
     if (key.escape) {
       setActiveSearch('');
-      setSearchQuery('');
+      searchInput.reset();
       setCurrentMatchIndex(0);
       return;
     }
@@ -257,13 +256,13 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
               ? '  / to search'
               : '';
             if (mode === 'search') {
-              right = ' [Enter] Search [Esc] Cancel ';
+              right = ' Enter: confirm  Esc: cancel ';
             } else {
-              const parts = ['[↑↓] Line', '[u/d] Half', '[PgUp/Dn] Page', '[/] Find'];
-              if (activeSearch) parts.push('[p/n] Prev/Next');
-              if (filePath) parts.push('[e] Edit');
-              if (onBack) parts.push('[b] Back');
-              parts.push('[q] Quit');
+              const parts = ['↑↓: scroll', 'u/d: half', 'PgUp/Dn: page', '/: search'];
+              if (activeSearch) parts.push('n/p: next/prev');
+              if (filePath) parts.push('e: edit');
+              if (onBack) parts.push('b: back');
+              parts.push('q: quit');
               right = ' ' + parts.join('  ') + ' ';
             }
             const gap = Math.max(1, dimensions.width - left.length - right.length - hintText.length);

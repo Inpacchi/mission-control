@@ -1,9 +1,9 @@
 import path from 'node:path';
 import React from 'react';
-import { render } from 'ink';
 import { listClaudeSessions, getClaudeSessionLog } from '../../server/services/claudeSessions.js';
 import { isTTY, setupChalk } from '../formatters.js';
 import { Pager } from '../Pager.js';
+import { launchTuiScreen } from '../launchScreen.js';
 
 export async function runLog(sessionId: string | undefined, projectDir: string): Promise<void> {
   setupChalk();
@@ -33,25 +33,8 @@ export async function runLog(sessionId: string | undefined, projectDir: string):
   }
 
   // TTY: launch pager
-  process.stdout.write('\x1b[?1049h');
-
-  const restoreScreen = () => {
-    process.stdout.write('\x1b[?1049l');
-    process.stdout.write('\x1b[?25h');
-  };
-
-  process.once('SIGTERM', () => {
-    restoreScreen();
-    process.exit(0);
-  });
-
-  try {
-    const { waitUntilExit } = render(
-      React.createElement(Pager, { title: `Session Log: ${targetId.slice(0, 8)}…`, content: log, titleColor: 'cyan' }),
-      { exitOnCtrlC: true }
-    );
-    await waitUntilExit();
-  } finally {
-    restoreScreen();
-  }
+  await launchTuiScreen(
+    React.createElement(Pager, { title: `Session Log: ${targetId.slice(0, 8)}…`, content: log, titleColor: 'cyan' }),
+    { skipClear: true },
+  );
 }

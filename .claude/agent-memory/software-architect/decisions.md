@@ -22,6 +22,20 @@
 
 **Agent assignments:** Phases 1-2 backend-developer (build config, CLI), Phases 3-7 frontend-developer (TUI components, Ink).
 
+## 2026-03-18: Unified Single-App TUI Architecture (SDLC-Lite)
+
+**Decision:** Refactor TUI from multi-Ink-instance architecture (board exits, launches standalone screen, re-launches board) into a single unified Ink app where all views are embedded components.
+
+**Approach:** Per-view keyboard handler functions composed under a single `useInput` in `useKeyboard.ts`. Each handler follows the `handleKey() -> boolean` pattern established by `useSearchInput`. ViewMode expanded to cover all views and sub-views. Standalone screens converted to presentational components (no `useInput`/`useApp`). Data loading triggered lazily on viewMode transitions.
+
+**Trade-off accepted:** More files (per-view handler modules) and one level of indirection in keyboard dispatch. Developers debugging keyboard behavior must trace from useKeyboard's dispatcher into the per-view handler. Accepted because the monolithic alternative would push useKeyboard past 700 lines.
+
+**Rejected alternative:** Monolithic useKeyboard expansion -- putting all keyboard logic for all views directly in one `useInput` callback. Rejected because the file would become too large to reason about (700+ lines), even though it would be simpler to trace.
+
+**Key constraints:** Single `useInput` owner (Ink requirement). All hooks called unconditionally (React rules). Session detail must become embedded (Pager currently launches a third Ink instance). Lazy data loading to avoid upfront cost.
+
+**Handoff:** frontend-developer. 4-phase plan at `docs/current_work/sdlc-lite/unified_tui_app_plan.md`.
+
 ## 2026-03-17: D4 Plan Revision -- Review Findings Incorporated
 
 **Decision:** Revised plan based on 21 review findings (4 critical, 17 major). Same 7-phase structure, same agent assignments.

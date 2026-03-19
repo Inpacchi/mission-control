@@ -1,14 +1,37 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Box, Text, useApp, useInput, useStdout } from 'ink';
-import { execFile } from 'node:child_process';
+/**
+ * AdhocBrowser — presentational component.
+ *
+ * Pure rendering only. No useInput, no useApp, no exit() calls.
+ * All state is managed by useAdhocView and passed as props.
+ * Visual output is identical to the previous standalone version.
+ */
+import React, { useMemo } from 'react';
+import { Box, Text, useStdout } from 'ink';
 import chalk from 'chalk';
 import type { UntrackedCommit } from '../shared/types.js';
+import type { ViewMode } from './hooks/useKeyboard.js';
 import { formatDate } from './formatters.js';
+import { stripAnsi } from './renderMarkdown.js';
 
 interface AdhocBrowserProps {
   commits: UntrackedCommit[];
-  projectPath: string;
-  fromBoard?: boolean;
+  filteredCommits: UntrackedCommit[];
+  loading: boolean;
+  selectedIndex: number;
+  listScrollOffset: number;
+  listSearchQuery: string;
+  listSearchMode: boolean;
+  viewMode: ViewMode; // 'adhoc' | 'adhoc-search' | 'adhoc-detail' | 'adhoc-detail-search'
+  selectedCommit: UntrackedCommit | null;
+  detailContent: string | null;
+  detailLoading: boolean;
+  detailScrollOffset: number;
+  detailSearchQuery: string;
+  activeDetailSearch: string;
+  currentMatchIndex: number;
+  detailSearchMode: boolean;
+  matchingLines: number[];
+  height?: number;
 }
 
 const SUMMARY_RE = /\d+ files? changed/;
@@ -17,7 +40,6 @@ function renderStatLine(line: string): string {
   if (SUMMARY_RE.test(line)) {
     return chalk.bold(line);
   }
-  // File-change lines contain a pipe character separating the name from the bar
   if (line.includes('|')) {
     const pipeIdx = line.indexOf('|');
     const filePart = line.slice(0, pipeIdx);
@@ -29,121 +51,70 @@ function renderStatLine(line: string): string {
 
 export function AdhocBrowser({
   commits,
-  projectPath,
-  fromBoard = false,
+  filteredCommits,
+  loading,
+  selectedIndex,
+  listScrollOffset,
+  listSearchQuery,
+  listSearchMode,
+  viewMode,
+  selectedCommit,
+  detailContent,
+  detailLoading,
+  detailScrollOffset,
+  detailSearchQuery: _detailSearchQuery,
+  activeDetailSearch,
+  currentMatchIndex,
+  detailSearchMode: _detailSearchMode,
+  matchingLines,
+  height: heightProp,
 }: AdhocBrowserProps): React.ReactElement {
-  const { exit } = useApp();
   const { stdout } = useStdout();
   const width = stdout?.columns ?? 80;
-  const height = stdout?.rows ?? 24;
-
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [scrollOffset, setScrollOffset] = useState(0);
-  const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailContent, setDetailContent] = useState<string | null>(null);
-  const [selectedCommit, setSelectedCommit] = useState<UntrackedCommit | null>(null);
+  const height = heightProp ?? stdout?.rows ?? 24;
 
   const detailLines = useMemo(
     () => (detailContent ? detailContent.split('\n') : []),
-    [detailContent]
+    [detailContent],
   );
 
-  const unmounted = useRef(false);
-  useEffect(() => {
-    return () => {
-      unmounted.current = true;
-    };
-  }, []);
-
-  const openDetail = useCallback(
-    (commit: UntrackedCommit) => {
-      setSelectedCommit(commit);
-      setViewMode('detail');
-      setScrollOffset(0);
-      setDetailContent(null);
-      setDetailLoading(true);
-
-      execFile(
-        'git',
-        ['show', '--stat', commit.hash],
-        { cwd: projectPath },
-        (err, stdout) => {
-          if (unmounted.current) return;
-          if (err) {
-            setDetailContent(`(error: ${err.message})`);
-          } else {
-            setDetailContent(stdout);
-          }
-          setDetailLoading(false);
-        }
-      );
-    },
-    [projectPath]
-  );
-
-  useInput((input, key) => {
-    if (viewMode === 'list') {
-      if (input === 'q') {
-        console.clear();
-        if (fromBoard) {
-          process.exit(0);
-        }
-        exit();
-        return;
-      }
-      if (input === 'b' || key.escape) {
-        exit();
-        return;
-      }
-      if (key.upArrow) {
-        setSelectedIndex((i) => Math.max(0, i - 1));
-        return;
-      }
-      if (key.downArrow) {
-        setSelectedIndex((i) => Math.min(commits.length - 1, i + 1));
-        return;
-      }
-      if (key.return && commits[selectedIndex]) {
-        openDetail(commits[selectedIndex]);
-        return;
-      }
-    }
-
-    if (viewMode === 'detail') {
-      if (input === 'q' || key.escape) {
-        setViewMode('list');
-        setDetailContent(null);
-        setSelectedCommit(null);
-        return;
-      }
-      if (key.upArrow) {
-        setScrollOffset((o) => Math.max(0, o - 1));
-        return;
-      }
-      if (key.downArrow) {
-        const contentHeight = Math.max(1, height - 5);
-        const maxScroll = Math.max(0, detailLines.length - contentHeight);
-        setScrollOffset((o) => Math.min(o + 1, maxScroll));
-        return;
-      }
-    }
-  });
-
-  // ── Detail view ─────────────────────────────────────────────────────────────
-  if (viewMode === 'detail') {
+  // ── Detail view ──────────────────────────────────────────────────────────────
+  if (viewMode === 'adhoc-detail' || viewMode === 'adhoc-detail-search') {
     const headerHeight = 4;
-    const footerHeight = 1;
-    const contentHeight = Math.max(1, height - headerHeight - footerHeight);
+    const contentHeight = Math.max(1, height - headerHeight);
 
     const statLines = detailLines;
     const maxScroll = Math.max(0, statLines.length - contentHeight);
-    const clampedOffset = Math.min(scrollOffset, maxScroll);
+    const clampedOffset = Math.min(detailScrollOffset, maxScroll);
     const visibleLines = statLines.slice(clampedOffset, clampedOffset + contentHeight);
 
-    const commit = selectedCommit!;
+    if (!selectedCommit) {
+      return <Box><Text dimColor>Loading…</Text></Box>;
+    }
+    const commit = selectedCommit;
     const shortHash = commit.hash.slice(0, 7);
     const dateStr = formatDate(commit.date);
+
+    const activeMatchLine = matchingLines.length > 0 ? matchingLines[currentMatchIndex] : -1;
+    const matchSet = new Set(matchingLines);
+
+    const renderDetailLine = (line: string, absoluteIndex: number): React.ReactElement => {
+      if (activeDetailSearch && absoluteIndex === activeMatchLine) {
+        return (
+          <Text key={absoluteIndex} backgroundColor="yellow" color="black" bold>
+            {stripAnsi(line) || ' '}
+          </Text>
+        );
+      }
+      if (activeDetailSearch && matchSet.has(absoluteIndex)) {
+        return (
+          <Text key={absoluteIndex} backgroundColor="gray" color="white">
+            {stripAnsi(line) || ' '}
+          </Text>
+        );
+      }
+      return <Text key={absoluteIndex}>{renderStatLine(line) || ' '}</Text>;
+    };
 
     return (
       <Box flexDirection="column" height={height}>
@@ -163,87 +134,96 @@ export function AdhocBrowser({
           {detailLoading ? (
             <Text dimColor>Loading commit details…</Text>
           ) : (
-            visibleLines.map((line, i) => (
-              <Text key={i}>{renderStatLine(line)}</Text>
-            ))
+            visibleLines.map((line, i) => renderDetailLine(line, clampedOffset + i))
           )}
         </Box>
 
-        {/* Footer */}
-        <Box paddingX={1}>
-          <Text dimColor>
-            {'↑↓: scroll  Esc/q: back'}
-            {!detailLoading && statLines.length > 0
-              ? `  ${clampedOffset + 1}-${Math.min(clampedOffset + contentHeight, statLines.length)}/${statLines.length} lines`
-              : ''}
-          </Text>
-        </Box>
+      </Box>
+    );
+  }
+
+  // ── List loading state ───────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <Box flexDirection="column" height={height}>
+        <Text dimColor>Loading untracked commits…</Text>
       </Box>
     );
   }
 
   // ── List view ────────────────────────────────────────────────────────────────
-  const headerHeight = 3;
-  const footerHeight = 1;
-  const listHeight = Math.max(1, height - headerHeight - footerHeight);
+  const listViewportHeight = Math.max(1, height - 3);
+  const listHeight = listViewportHeight;
+  const visibleCommits = filteredCommits.slice(listScrollOffset, listScrollOffset + listHeight);
+  const isSearchActive = listSearchQuery.length > 0;
 
-  const listStart = Math.max(0, selectedIndex - listHeight + 1);
-  const visibleCommits = commits.slice(listStart, listStart + listHeight);
-
-  // Column widths: hash (7) + 2 spaces + date (10) + 2 spaces + message (rest)
   const HASH_W = 7;
   const DATE_W = 10;
   const FIXED_W = HASH_W + 2 + DATE_W + 2;
-  const messageAvail = Math.max(10, width - FIXED_W - 3); // -3 for paddingX
+  const messageAvail = Math.max(10, width - FIXED_W - 3);
 
   return (
     <Box flexDirection="column" height={height}>
       {/* Header */}
       <Box flexDirection="column" paddingX={1}>
-        <Text bold color="yellow">
-          Untracked Commits{'  '}
-          <Text dimColor>({commits.length} found)</Text>
-        </Text>
+        <Box>
+          <Text bold color="yellow">
+            Untracked Commits{'  '}
+          </Text>
+          {listSearchMode ? (
+            <Text>
+              <Text color="yellow">/</Text>{listSearchQuery}<Text color="yellow">▎</Text>
+              {'  '}
+              <Text dimColor>({filteredCommits.length}/{commits.length})</Text>
+            </Text>
+          ) : isSearchActive ? (
+            <Text>
+              <Text dimColor>filter: </Text><Text color="yellow">{listSearchQuery}</Text>
+              {'  '}
+              <Text dimColor>({filteredCommits.length}/{commits.length})</Text>
+            </Text>
+          ) : (
+            <Text dimColor>({commits.length} found)</Text>
+          )}
+        </Box>
         <Text dimColor>{'─'.repeat(Math.max(0, width - 3))}</Text>
       </Box>
 
       {/* Commit list */}
       <Box flexDirection="column" flexGrow={1} paddingX={1}>
-        {visibleCommits.map((commit, i) => {
-          const absoluteIndex = listStart + i;
-          const isSelected = absoluteIndex === selectedIndex;
-          const shortHash = commit.hash.slice(0, 7);
-          const dateStr = formatDate(commit.date);
-          const msg =
-            commit.message.length > messageAvail
-              ? commit.message.slice(0, Math.max(1, messageAvail - 1)) + '…'
-              : commit.message;
+        {filteredCommits.length === 0 && isSearchActive ? (
+          <Text dimColor>No commits match "{listSearchQuery}"</Text>
+        ) : (
+          visibleCommits.map((commit, i) => {
+            const absoluteIndex = listScrollOffset + i;
+            const isSelected = absoluteIndex === selectedIndex;
+            const shortHash = commit.hash.slice(0, 7);
+            const dateStr = formatDate(commit.date);
+            const msg =
+              commit.message.length > messageAvail
+                ? commit.message.slice(0, Math.max(1, messageAvail - 1)) + '…'
+                : commit.message;
 
-          if (isSelected) {
+            if (isSelected) {
+              return (
+                <Text key={commit.hash} bold inverse>
+                  {` ${shortHash}  ${dateStr}  ${msg}`}
+                </Text>
+              );
+            }
             return (
-              <Text key={commit.hash} bold inverse>
-                {` ${shortHash}  ${dateStr}  ${msg}`}
-              </Text>
+              <Box key={commit.hash}>
+                <Text dimColor>{shortHash}</Text>
+                <Text>{'  '}</Text>
+                <Text dimColor>{dateStr}</Text>
+                <Text>{'  '}</Text>
+                <Text>{msg}</Text>
+              </Box>
             );
-          }
-          return (
-            <Box key={commit.hash}>
-              <Text dimColor>{shortHash}</Text>
-              <Text>{'  '}</Text>
-              <Text dimColor>{dateStr}</Text>
-              <Text>{'  '}</Text>
-              <Text>{msg}</Text>
-            </Box>
-          );
-        })}
+          })
+        )}
       </Box>
 
-      {/* Footer */}
-      <Box paddingX={1}>
-        <Text dimColor>
-          {'↑↓: navigate  Enter: view'}{fromBoard ? '  b: back  q: quit' : '  Esc/q: quit'}
-        </Text>
-      </Box>
     </Box>
   );
 }

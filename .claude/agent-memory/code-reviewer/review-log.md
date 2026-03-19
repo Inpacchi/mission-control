@@ -4,6 +4,138 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-18 — Code Reuse Review (BottomBar / footer consolidation) — CONFIRMED REVIEW
+
+**Deliverable:** Ad hoc — BottomBar refactor pass (removed inline footers, centralized in BoardApp)
+**Scope:** `BoardApp.tsx`, `HelpBar.tsx`, `ChronicleList.tsx`, `SessionBrowser.tsx`, `AdhocBrowser.tsx`, `FileBrowser.tsx`, `DetailPanel.tsx`, `PagerView.tsx`, `Pager.tsx`
+
+**Confirmed findings (no CRITICAL/HIGH):**
+- MEDIUM M1: Dead props still in interfaces + call sites after footer removal — `_`-prefix in destructuring but not removed from interface. Affects: ChronicleList (`activeDocType`, `projectPath`), AdhocBrowser (`detailSearchQuery`, `detailSearchMode`), DetailPanel (`detailSearchMode`, `detailSearchQuery`), PagerView (`searchQuery`, `searchMode`). BoardApp still threads all of them.
+- MEDIUM M2: Inner `<Box flexDirection="column" flexGrow={1}>` wrapper in the 5 sub-view router branches is redundant — sub-views receive explicit `height` prop and are fixed-height. Wrapper carries no observable effect.
+- MEDIUM M3: `listHeight` re-alias of `listViewportHeight` is a no-op alias (dead code) in SessionBrowser, AdhocBrowser, ChronicleList.
+- MEDIUM M4: `renderLine` and `matchSet` inline (non-memoized) in PagerView — O(n) Set construction per render/scroll.
+- MEDIUM M5: `matchingLines.includes()` O(n) scan per visible line in DetailPanel renderLine callback — should use a pre-built Set (as done in PagerView and AdhocBrowser).
+- LOW L1: `HelpBar` stub export in HelpBar.tsx — not imported anywhere, pure dead code.
+- LOW L2: `content` / `renderedLines` identity aliases in ChronicleList.tsx lines 64–65 — artifact of prior refactor.
+- CARRY-FORWARD: `execSync` shell injection in `Pager.tsx` line 133 still unresolved.
+
+**Efficiency re-review addendum (same session, separate pass):**
+- Prior log says "no CRITICAL/HIGH." Efficiency pass upgrades two of those findings:
+  - `getShortcuts(viewMode)` called on every render (including scroll keypresses) with no memoization → upgraded to HIGH (hot-path alloc on every keypress).
+  - `DetailPanel.renderLine` uses `matchingLines.includes()` O(n) scan per visible line → confirmed HIGH (O(viewport × matches) per render, inconsistent with PagerView/AdhocBrowser which use Set).
+  - `new Set(matchingLines)` in `PagerView` rebuilt on every scroll render → confirmed MEDIUM M3, should be `useMemo([matchingLines])`.
+  - `useStdout()` height fallback dead in 5 sub-views (height prop always provided by BoardApp) → MEDIUM M2 (dead code, misleading optional type).
+  - `useStdout()` entirely eliminable from `HelpBar.tsx` if `width` made required → MEDIUM M4.
+- `getShortcuts` has no `default` branch — new ViewMode addition causes runtime throw → LOW L (type-safety gap).
+
+**No CRITICAL findings. H1 (getShortcuts memoization) and H3 (includes→Set in DetailPanel) should be resolved before efficiency is considered closed.**
+
+---
+
+## 2026-03-18 — Round 4 Final Code Review
+
+**Deliverable:** Post-fix round 4 (verify detailLoadIdRef fix in useAdhocView)
+**Scope:** `useAdhocView.ts`, `useKeyboard.ts`, `useSessionView.ts`, `useFileView.ts`, `useChronicleView.ts`
+
+**Fix verified:** `useAdhocView.ts` lines 92–93, 176, 182–183 — `detailLoadIdRef` added correctly. Both `unmountedRef` and per-load-ID checks present in the `execFile` callback, in correct order. Previously reported MEDIUM finding resolved.
+
+**New findings:**
+- MEDIUM: `useFileView.ts` lines 223–239 — `execFile('grep', ...)` callback discards `_err`. grep exits 1 for zero matches (normal) and non-zero for genuine errors (bad regex, missing binary). Both produce `stdout = ''` and empty results. User sees an empty results view with no indication that the search itself failed. Silent failure from a real error is indistinguishable from a legitimate empty search.
+
+**No CRITICAL or HIGH findings. Code is not blocked from merge by this review.**
+
+---
+
+## 2026-03-18 — Round 3 Final Code Review
+
+**Deliverable:** Post-fix round 3 (verify 2 medium fixes)
+**Scope:** `useKeyboard.ts`, `useFileView.ts`, `BoardApp.tsx`, `useSessionView.ts`, `useChronicleView.ts`, `useAdhocView.ts`, `src/tui/index.ts`
+
+**Fix 1 verified:** `useKeyboard.ts` line 320 — `terminalHeight` is now the primary source for board-detail paging; `process.stdout.rows` only reached as fallback when `terminalHeight` is undefined. BoardApp always passes `terminalHeight: height` so the fallback is unreachable in practice. Fix correct.
+
+**Fix 2 verified:** `useFileView.ts` line 224 — `grepLoadIdRef` cancellation guard now present as the first statement of the execFile callback. Fix correct.
+
+**New findings:**
+- MEDIUM: `useAdhocView.ts` `openDetail` uses only `unmountedRef` for cancellation — no per-load ID. Rapid A→B navigation before A's `git show` resolves produces commit/content mismatch in the detail view. Same pattern that was fixed in `useSessionView` (sessionLoadIdRef) and `useFileView` (grepLoadIdRef) but missed here.
+- LOW: `useSessionView.ts` line 336 — `process.stdout.columns` used to compute separator width inside a `handleKey` callback. Not reactive to terminal resize during the session. Minor cosmetic impact only.
+
+**Patterns learned:** `unmountedRef` pattern (useAdhocView) vs. per-load-ID pattern (useSessionView, useFileView) are both present in this codebase. Per-load-ID is strictly more correct for views where the user can reopen different items without unmounting. Any hook with an `openDetail`-style function should use a load ID ref, not just unmountedRef.
+
+---
+
+## 2026-03-18 — Post-Fix Round 2 Code Review (11 fixes verified)
+
+**Deliverable:** Post-execution re-review
+**Scope:** `useFileView.ts`, `useSessionView.ts`, `SessionBrowser.tsx`, `BoardApp.tsx`, `useKeyboard.ts`, `ChronicleList.tsx`, `AdhocBrowser.tsx`, `useChronicleView.ts`, `useAdhocView.ts`
+
+**All 11 fixes verified correct.** Two new MEDIUM findings surfaced:
+- MEDIUM: `useKeyboard.ts` line 320 still uses `process.stdout.rows` in board-detail paging path — fix #11 missed this one site. `terminalHeight` is in scope but unused here. No behavioral bug (process.stdout.rows is kernel-synchronous), but architecturally inconsistent.
+- MEDIUM: `useFileView.ts` `execFile` grep callback (line 221) has no unmount guard, unlike the parallel pattern in `useAdhocView.ts`. Minor state leak if user navigates away before grep completes.
+- LOW: `Pager.tsx` line 133 — pre-existing `execSync($EDITOR ...)` shell injection still unfixed (out of scope this round).
+
+**TypeScript:** Clean (`tsc --noEmit` exits 0).
+**Patterns learned:** Fix sets that say "per-view hooks" may miss inline logic in the orchestrating hook (`useKeyboard`) that performs the same calculation. Always grep for `process.stdout.rows` in the full changed file set, not just the named per-view files.
+
+---
+
+## 2026-03-18 — Unified TUI App Architecture Plan Re-Review (round 2)
+
+**Deliverable:** SDLC-Lite plan `docs/current_work/sdlc-lite/unified_tui_app_plan.md`
+**Scope:** Re-review after 15-finding revision. Files read: `useKeyboard.ts`, `BoardApp.tsx`, `src/tui/index.ts`, `src/tui/SessionBrowser.tsx`, `src/cli.ts`, `src/tui/commands/log.ts`, `src/tui/commands/view.ts`, `src/tui/components/HelpBar.tsx`.
+
+**Status of prior findings:** All 15 prior findings appear addressed in the revised plan. Cancellation guards, `execSync` acknowledgment, `renderMarkdownToAnsi` loading state, `n`-key routing, and `launchScreen.ts` retention are all specified.
+
+**Remaining findings:**
+- HIGH: `mc log` and `mc view` will break silently. Both call `launchTuiScreen(React.createElement(Pager, {...}))`. Phase 2 removes `useInput`/`useApp` from Pager, leaving these one-shot commands with no keyboard navigation or quit handler. Plan has no guidance for this gap.
+- HIGH: `BoardApp.openEditor` uses `spawnSync` which blocks inside the unified Ink renderer — will corrupt TTY. Plan addresses FileBrowser/Pager `execSync` but omits this path.
+- MEDIUM: `launchScreen.ts` not in formal file list (only in prose). File list is the agent's scope-completeness check.
+- MEDIUM: `onOpenEditor` prop fate not specified — plan removes `onAction` but is silent on `onOpenEditor`.
+- MEDIUM: Phase 4 CLI prose does not explicitly say "remove these four `program.command()` blocks" — agent may delete files but forget to update `src/cli.ts`.
+- MEDIUM: Stable-ref wrapper for unified `useInput` dispatcher not specified — known recurring pattern for this codebase.
+- LOW: `exitOnCtrlC: true` omitted from `launchBoard` snippet without explanation.
+
+**Patterns learned:**
+- When a plan converts a component from standalone to presentational, ALL consumers of that component's standalone interface must be audited — not just the primary integration point. `log.ts` and `view.ts` were invisible to the plan because they are one-shot commands, not embedded views.
+- The "retained commands" section of a CLI cleanup plan needs to explicitly verify that retained commands still have a working dependency chain after the conversion.
+
+## 2026-03-18 — Unified TUI App Architecture Plan Review (round 1)
+
+**Deliverable:** SDLC-Lite plan `docs/current_work/sdlc-lite/unified_tui_app_plan.md`
+**Scope:** Plan review (no code written yet). Files referenced: `useKeyboard.ts`, `SessionBrowser.tsx`, `AdhocBrowser.tsx`, `BoardApp.tsx`, `src/tui/index.ts`, `src/cli.ts`, `adhoc.ts` command, `launchScreen.ts`, `gitParser.ts`, `useListNavigation.ts`.
+
+**Key findings:**
+- HIGH: `useKeyboard` will grow a hook call per embedded view (4x `useListNavigation` + 4x `useSearchInput`), all unconditional. Index-reset-on-reentry not addressed — plan's data caching note does not cover selection position.
+- HIGH: `execFile` for `git show` cancel guard (`unmounted` ref) must be explicitly preserved when moved to `useKeyboard`. Plan says "call moves" without specifying cancellation. Architectural concern: data fetching in `useKeyboard` vs. sibling data hooks.
+- HIGH: `renderMarkdownToAnsi` on session log is synchronous and potentially expensive — plan does not address deferring this when inlining the Pager as a view. Must be explicitly async/memoized.
+- MEDIUM: `useEffect([viewMode])` pattern will re-fetch on every re-entry, contradicting caching intent — loaded-flag guard needed.
+- MEDIUM: `getUntrackedCommits` uses `execSync` (10s timeout) — plan moves call into `useEffect` without noting it must become async or use `execFile`.
+- MEDIUM: `n` key conflict: board-mode `n` = notes, sub-view `n` = next match. Not addressed in plan; affects HelpOverlay update.
+- MEDIUM: `launchScreen.ts` not in formal file list; only mentioned in Phase 4 prose as "check before deleting." It is used by `log.ts` and must be retained.
+- LOW: Non-TTY pipe output for `mc adhoc` has no stated replacement — plan says "can move or be dropped" without deciding.
+
+**Patterns learned:**
+- Plans that move async/callback-based code into React hooks must explicitly specify the cancellation pattern (unmounted ref). Agents will not add it unless told.
+- `getUntrackedCommits` is a known `execSync` blocker — any plan moving it into a `useEffect` must specify async wrapping.
+
+## 2026-03-18 — TUI DRY Refactoring Review
+
+**Deliverable:** none (DRY refactoring pass)
+**Scope:** `src/tui/hooks/useFileContent.ts`, `src/tui/hooks/useSearchInput.ts`, `src/tui/hooks/useListNavigation.ts`, `src/tui/launchScreen.ts`, `src/tui/components/DetailPanel.tsx`, `ChronicleList.tsx`, `SessionBrowser.tsx`, `FileBrowser.tsx`, `AdhocBrowser.tsx`, `Pager.tsx`, `src/tui/commands/{chronicle,files,sessions,adhoc,log,view}.ts`
+
+**Key findings:**
+- CRITICAL (pre-existing, unresolved): Shell injection in `FileBrowser.tsx` lines 282 + 421 and `Pager.tsx` line 133 — `execSync(${editor} ...)` pattern.
+- HIGH (new): `useSearchInput.handleKey` calls `onQueryChange` inside functional updater — impure side effect. No current caller passes `onQueryChange` but the hook is a shared utility.
+- HIGH (new): `useListNavigation` clamp effect lists `selectedIndex` in deps. Zero-count gap: when itemCount drops to 0, selectedIndex is not reset to 0.
+- HIGH (new): `openSessionInPager` in `SessionBrowser.tsx` manages its own screen lifecycle outside `launchTuiScreen`, skipping SIGTERM handler.
+- MEDIUM (missed DRY): Path traversal guard duplicated verbatim between `useFileContent.ts` and `view.ts`. Should be a shared utility function.
+- MEDIUM (pre-existing): `ChronicleList.tsx` downArrow handler reads `renderedLines` from closure inside functional updater. Same impure-updater class as prior findings.
+- MEDIUM: `useFileContent` `options.onLoad` not in deps array — stale closure risk for callers that pass unstabilized callbacks. Current `ChronicleList` caller correctly uses `useCallback`.
+- MEDIUM: `useListNavigation` exposes raw `setSelectedIndex` setter — couples callers to internal state.
+
+**Patterns learned:**
+- `launchTuiScreen` SIGTERM handler accumulates on each call in a `while(true)` board loop — each iteration adds a once-handler that may close the wrong iteration's screen.
+- `projectPath` is not sanitized before shell interpolation in FileBrowser grep `exec` call (line 187). `sanitizeGrepQuery` only escapes the query string.
+
 ## 2026-03-18 — TUI Polish fix-round verification (Round 2)
 
 **Deliverable:** none (fix verification pass)
@@ -22,6 +154,21 @@ type: project
 **Pre-existing unfixed (expected):**
 - HIGH: Shell injection in `Pager.tsx` line 134 — still present.
 - MEDIUM: Incomplete `stripAnsi` in `renderMarkdown.ts` — still present.
+
+## 2026-03-18 — TUI DRY Refactoring Round 3 (fix verification)
+
+**Deliverable:** none (single fix verification)
+**Scope:** Same as round 2; specific focus on `useListNavigation.ts` zero-count clamp fix.
+
+**Fix verified — correct:**
+- HIGH (round 2): `useListNavigation` clamp effect zero-count gap — fixed. `if (itemCount === 0) return 0` branch added at line 22. Functional updater pattern preserved. No regression introduced.
+
+**New finding (not previously surfaced):**
+- MEDIUM: `FileBrowser.tsx` line 187 — `projectPath` is shell-interpolated without sanitization in `exec()` call. `sanitizeGrepQuery()` escapes the user query but not the project path. Safe remedy is `execFile`/`spawnSync` with array arguments (same fix as the pre-existing editor-open sites).
+
+**Still open (pre-existing, unresolved):**
+- HIGH: `useSearchInput.handleKey` — `onQueryChange` called inside functional updater (impure side effect). Reported round 2, still unresolved.
+- CRITICAL: Shell injection via `execSync(\`${editor} ...\`)` in FileBrowser and Pager.
 
 ## 2026-03-18 — TUI Polish changes post-merge review
 
@@ -62,6 +209,28 @@ type: project
 
 ---
 
+## 2026-03-18 — TUI DRY extraction code quality Round 2 (post-fix verification)
+
+**Deliverable:** none (fix verification pass)
+**Scope:** Same 16 files as round 1: all `src/tui/hooks/`, `launchScreen.ts`, `DetailPanel.tsx`, `ChronicleList.tsx`, `SessionBrowser.tsx`, `FileBrowser.tsx`, `AdhocBrowser.tsx`, `Pager.tsx`, `commands/{chronicle,files,sessions,adhoc,log,view}.ts`
+
+**Fix verification:**
+- Fix 1 (`useListNavigation` dep array `[itemCount]` + functional updater): Structurally correct. Residual: `&& itemCount > 0` guard in updater leaves `selectedIndex` stale when list empties to 0. Callers guard `entries[selectedIndex]` so no crash currently.
+- Fix 2 (`ChronicleList` same-path check on Enter): Correct.
+
+**New findings:**
+1. MEDIUM (correctness): `useListNavigation` zero-count gap — `&& itemCount > 0` prevents reset to 0 when list empties. Hook's contract (selectedIndex in [0, itemCount-1]) is violated at itemCount=0. Latent: callers currently guard. Fix: remove `&& itemCount > 0`.
+2. MEDIUM (correctness): `FileBrowser.tsx` line 187 — `projectPath` interpolated into grep `exec` shell string without sanitization. `sanitizeGrepQuery` only escapes the user query. A project path with shell metacharacters (quotes, ampersands, parens) causes injection.
+3. MEDIUM (correctness): `FileBrowser.tsx` line 311 — `setTimeout(() => setSelectedIndex(idx), 0)` where `idx` is an index into `allFiles`, not the post-collapse `visibleEntries`. Fragile timing dependency.
+4. LOW: `SessionBrowser.tsx` lines 2+5 — duplicate `'ink'` import declarations; `render` should be merged into line 2.
+
+**Pre-existing unresolved HIGHs (still present):**
+- `useSearchInput` side-effect in functional updater (lines 31, 39)
+- `openSessionInPager` missing SIGTERM handler
+- `execSync($editor ...)` shell injection at FileBrowser lines 282+421 and Pager line 133
+
+---
+
 ## 2026-03-18 — TUI DRY extraction SDLC-Lite plan review (no deliverable ID)
 
 **Deliverable:** none (SDLC-Lite plan)
@@ -79,6 +248,36 @@ type: project
 **Patterns learned:**
 - `useSearchInput` `active` field ambiguity: when a hook returns a field that the caller already controls, question whether the field belongs in the hook at all.
 - Plan "choose A or B" language is always a finding — agents pick one and the choice has downstream consequences.
+
+## 2026-03-18 — Unified TUI Architecture — post-execution code review
+
+**Deliverable:** SDLC-Lite — unified TUI architecture (execution review)
+**Scope:** 13 implementation files post-refactor. Files reviewed: `useKeyboard.ts`, `useChronicleView.ts`, `useSessionView.ts`, `useAdhocView.ts`, `useFileView.ts`, `BoardApp.tsx`, `index.ts`, `ChronicleList.tsx`, `SessionBrowser.tsx`, `AdhocBrowser.tsx`, `FileBrowser.tsx`, `PagerView.tsx`, `HelpBar.tsx`. Also read: `cli.ts`, `renderMarkdown.ts`, `useSearchInput.ts`, `useListNavigation.ts`, `commands/log.ts`, `commands/view.ts`.
+
+**Status of plan-stage findings:**
+- `mc log` / `mc view` Pager dependency: RESOLVED. Pager.tsx retained; commands use launchTuiScreen correctly.
+- `BoardApp.openEditor` spawnSync: RESOLVED. Uses spawnSync with array args (correct form).
+- Stable-ref wrapper for useInput: NOT FIXED. The useInput call in useKeyboard.ts line 342 still uses an inline arrow function.
+- execSync $EDITOR in FileBrowser: PARTIALLY RESOLVED. BoardApp.tsx uses spawnSync correctly. useFileView.ts lines 308 and 413 were NOT fixed.
+
+**Key findings:**
+- CRITICAL: `execSync(\`${editor} ...\`)` shell injection still present in `useFileView.ts` lines 308 and 413. Previously flagged in FileBrowser.tsx; moved to hook but fix not applied.
+- CRITICAL: `exec()` shell injection for grep in `useFileView.ts` lines 211–216 — `projectPath` interpolated unquoted/unescaped into shell string. Previously flagged at FileBrowser.tsx line 187; still unresolved after move to hook.
+- HIGH: `useInput` inline handler in `useKeyboard.ts` line 342 — listener churn per render. Recurring pattern, not fixed.
+- HIGH: `buildSessionContent` promise has no cancellation guard in `useSessionView.ts` lines 316–321 — stale content can overwrite state after back-navigation.
+- HIGH: `setMode()` not in `handleKey` useCallback deps in `useSessionView.ts` — searchMode/viewMode updates not atomic.
+- MEDIUM: `scanAll()` blocks event loop synchronously in `useFileView` useEffect line 135 — no async deferral.
+- MEDIUM: `ChronicleList` duplicates useFileContent+useMarkdownLines calls already made by `useChronicleView` — double file-read per chronicle-detail navigation.
+- MEDIUM: Viewport heights computed from `process.stdout.rows` at hook init across all per-view hooks — stale after terminal resize.
+- MEDIUM: Non-null assertion on `selectedCommit` in AdhocBrowser.tsx line 90 — missing null guard.
+- MEDIUM: Unused `useListNavigation` import in SessionBrowser.tsx line 13.
+- MEDIUM: `stripAnsi` SGR-only regex — pre-existing unfixed gap.
+- MEDIUM: `useSearchInput` side-effect in functional updater — pre-existing unfixed gap.
+
+**Patterns confirmed:**
+- Shell injection via execSync/$EDITOR is a persistent unfixed finding. Code was moved (FileBrowser → useFileView) but the fix was not applied during the move. Moving code does not carry forward unfixed security findings.
+
+---
 
 ## 2026-03-17 — Notepad.tsx new component review (no deliverable ID)
 

@@ -11,6 +11,12 @@ interface MarkdownPanelProps {
   scrollOffset: number;
   /** Optional ref to write the max scroll value for clamping */
   maxScrollRef?: React.RefObject<number>;
+  /**
+   * Optional custom line renderer. Receives the ANSI-styled line string and its
+   * absolute index within the full lines array. When omitted, lines are rendered
+   * as plain <Text> nodes with ANSI passthrough.
+   */
+  renderLine?: (line: string, absoluteIndex: number) => React.ReactElement;
 }
 
 /**
@@ -22,6 +28,7 @@ export function MarkdownPanel({
   height,
   scrollOffset,
   maxScrollRef,
+  renderLine,
 }: MarkdownPanelProps): React.ReactElement {
   const lines = useMemo(() => {
     const rendered = renderMarkdownToAnsi(content);
@@ -35,9 +42,15 @@ export function MarkdownPanel({
 
   return (
     <Box flexDirection="column" flexGrow={1} paddingX={1} overflow="hidden">
-      {visibleLines.map((line, i) => (
-        <Text key={`${clampedOffset}-${i}`} wrap="truncate">{line || ' '}</Text>
-      ))}
+      {visibleLines.map((line, i) => {
+        const absoluteIndex = clampedOffset + i;
+        if (renderLine) {
+          return renderLine(line, absoluteIndex);
+        }
+        return (
+          <Text key={`${clampedOffset}-${i}`} wrap="truncate">{line || ' '}</Text>
+        );
+      })}
     </Box>
   );
 }
