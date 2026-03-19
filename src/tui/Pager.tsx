@@ -18,6 +18,7 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
   const { stdout } = useStdout();
 
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [showHint, setShowHint] = useState(true);
   const [mode, setMode] = useState<Mode>('normal');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
@@ -139,6 +140,7 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
 
     // Enter search mode
     if (input === '/') {
+      setShowHint(false);
       setSearchQuery('');
       setMode('search');
       return;
@@ -251,6 +253,9 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
               ? ` /${searchQuery}▎`
               : ` ${statusText}  ${lineInfo}`;
             let right: string;
+            const hintText = mode === 'normal' && showHint && dimensions.width >= 80
+              ? '  / to search'
+              : '';
             if (mode === 'search') {
               right = ' [Enter] Search [Esc] Cancel ';
             } else {
@@ -261,8 +266,12 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
               parts.push('[q] Quit');
               right = ' ' + parts.join('  ') + ' ';
             }
-            const gap = Math.max(1, dimensions.width - left.length - right.length);
-            return left + ' '.repeat(gap) + right;
+            const gap = Math.max(1, dimensions.width - left.length - right.length - hintText.length);
+            const gapStr = ' '.repeat(gap);
+            if (hintText) {
+              return <>{left}{gapStr}<Text dimColor>{hintText}</Text>{right}</>;
+            }
+            return left + gapStr + right;
           })()}
         </Text>
       </Box>

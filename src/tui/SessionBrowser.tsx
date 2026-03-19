@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import { render } from 'ink';
+import chalk from 'chalk';
 import { listClaudeSessions, getClaudeSessionLog } from '../server/services/claudeSessions.js';
 import type { ClaudeSession } from '../server/services/claudeSessions.js';
 import { Pager } from './Pager.js';
+import { formatDate } from './formatters.js';
+import { renderMarkdownToAnsi, stripAnsi } from './renderMarkdown.js';
 
 interface SessionBrowserProps {
   projectPath: string;
@@ -12,15 +15,6 @@ interface SessionBrowserProps {
 
 type Mode = 'list' | 'search';
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
-}
 
 export function SessionBrowser({ projectPath, fromBoard = false }: SessionBrowserProps): React.ReactElement {
   const { exit } = useApp();
@@ -52,7 +46,7 @@ export function SessionBrowser({ projectPath, fromBoard = false }: SessionBrowse
       (s) =>
         s.title.toLowerCase().includes(query) ||
         s.firstPrompt.toLowerCase().includes(query) ||
-        formatDate(s.timestamp).includes(query)
+        formatDate(s.timestamp, true).includes(query)
     );
   }, [sessions, searchQuery]);
 
@@ -197,7 +191,7 @@ export function SessionBrowser({ projectPath, fromBoard = false }: SessionBrowse
           visibleSessions.map((session, i) => {
             const absoluteIndex = listStart + i;
             const isSelected = absoluteIndex === selectedIndex;
-            const dateStr = formatDate(session.timestamp);
+            const dateStr = formatDate(session.timestamp, true);
             const msgCount = `${session.messageCount}msg`;
             const branch = session.gitBranch ? `[${session.gitBranch}]` : '';
             const title = session.title.length > width - 40
@@ -248,12 +242,83 @@ async function openSessionInPager(projectPath: string, session: ClaudeSession): 
     process.exit(1);
   }
 
-  const title = `Session: ${session.title}  (${formatDate(session.timestamp)})`;
+  const title = `Session: ${session.title}  (${formatDate(session.timestamp, true)})`;
+
+  // Render markdown in assistant turns before mounting the Pager.
+  // For large sessions the screen will be blank during this synchronous rendering pass.
+  const width = process.stdout.columns ?? 80;
+  const separator = chalk.dim('─'.repeat(Math.max(0, width - 2)));
+
+  // Strip ANSI from the raw log so we can split on plain-text sentinel strings
+  const plain = stripAnsi(log);
+
+  // Split into segments. The first segment (before any header) is discarded if empty.
+  // Each subsequent segment belongs to the role whose header preceded it.
+  const USER_SENTINEL = '── User ──';
+  const ASSISTANT_SENTINEL = '── Assistant ──';
+
+  // Build an ordered list of { role, body } turns by walking the plain text
+  type Turn = { role: 'user' | 'assistant'; body: string };
+  const turns: Turn[] = [];
+
+  let remaining = plain;
+  while (remaining.length > 0) {
+    const userIdx = remaining.indexOf(USER_SENTINEL);
+    const assistantIdx = remaining.indexOf(ASSISTANT_SENTINEL);
+
+    if (userIdx === -1 && assistantIdx === -1) break;
+
+    let role: 'user' | 'assistant';
+    let headerEnd: number;
+
+    if (assistantIdx === -1 || (userIdx !== -1 && userIdx < assistantIdx)) {
+      role = 'user';
+      headerEnd = userIdx + USER_SENTINEL.length;
+    } else {
+      role = 'assistant';
+      headerEnd = assistantIdx + ASSISTANT_SENTINEL.length;
+    }
+
+    remaining = remaining.slice(headerEnd);
+
+    const nextUser = remaining.indexOf(USER_SENTINEL);
+    const nextAssistant = remaining.indexOf(ASSISTANT_SENTINEL);
+    let bodyEnd: number;
+
+    if (nextUser === -1 && nextAssistant === -1) {
+      bodyEnd = remaining.length;
+    } else if (nextUser === -1) {
+      bodyEnd = nextAssistant;
+    } else if (nextAssistant === -1) {
+      bodyEnd = nextUser;
+    } else {
+      bodyEnd = Math.min(nextUser, nextAssistant);
+    }
+
+    turns.push({ role, body: remaining.slice(0, bodyEnd) });
+    remaining = remaining.slice(bodyEnd);
+  }
+
+  const parts: string[] = [];
+  for (const turn of turns) {
+    if (parts.length > 0) {
+      parts.push(separator);
+    }
+    if (turn.role === 'user') {
+      parts.push(chalk.bold.yellow('── User ──'));
+      parts.push(turn.body);
+    } else {
+      parts.push(chalk.bold.cyan('── Assistant ──'));
+      parts.push(renderMarkdownToAnsi(turn.body));
+    }
+  }
+
+  const content = parts.length > 0 ? parts.join('\n') : log;
 
   // Already in alternate screen from the browser
   try {
     const { waitUntilExit } = render(
-      React.createElement(Pager, { title, content: log, titleColor: 'cyan' }),
+      React.createElement(Pager, { title, content, titleColor: 'cyan' }),
       { exitOnCtrlC: true }
     );
     await waitUntilExit();

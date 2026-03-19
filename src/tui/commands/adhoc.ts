@@ -4,7 +4,7 @@ import { render } from 'ink';
 import chalk from 'chalk';
 import { getUntrackedCommits } from '../../server/services/gitParser.js';
 import { isTTY, setupChalk } from '../formatters.js';
-import { Pager } from '../Pager.js';
+import { AdhocBrowser } from '../AdhocBrowser.js';
 
 export async function runAdhoc(projectDir: string, fromBoard = false): Promise<void> {
   setupChalk();
@@ -17,22 +17,19 @@ export async function runAdhoc(projectDir: string, fromBoard = false): Promise<v
     process.exit(0);
   }
 
-  const header = chalk.bold(`Untracked commits (last 30 days): ${commits.length}`);
-  const separator = chalk.dim('─'.repeat(60));
-  const lines = commits.map((commit) => {
-    const shortHash = chalk.dim(commit.hash.substring(0, 7));
-    const date = chalk.dim(commit.date.substring(0, 10));
-    return `${shortHash}  ${date}  ${commit.message}`;
-  });
-
-  const content = [header, separator, ...lines].join('\n');
-
   if (!isTTY()) {
-    process.stdout.write(content + '\n');
+    const header = chalk.bold(`Untracked commits (last 30 days): ${commits.length}`);
+    const separator = chalk.dim('─'.repeat(60));
+    const lines = commits.map((commit) => {
+      const shortHash = chalk.dim(commit.hash.substring(0, 7));
+      const date = chalk.dim(commit.date.substring(0, 10));
+      return `${shortHash}  ${date}  ${commit.message}`;
+    });
+    process.stdout.write([header, separator, ...lines].join('\n') + '\n');
     process.exit(0);
   }
 
-  // TTY: launch full-screen pager
+  // TTY: launch full-screen browser
   process.stdout.write('\x1b[?1049h');
 
   const restoreScreen = () => {
@@ -47,11 +44,10 @@ export async function runAdhoc(projectDir: string, fromBoard = false): Promise<v
 
   try {
     const { waitUntilExit } = render(
-      React.createElement(Pager, {
-        title: 'Untracked Commits',
-        content,
-        titleColor: 'yellow',
-        ...(fromBoard ? { onBack: () => {} } : {}),
+      React.createElement(AdhocBrowser, {
+        commits,
+        projectPath,
+        fromBoard,
       }),
       { exitOnCtrlC: true }
     );

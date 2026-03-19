@@ -6,6 +6,7 @@ import { parseChronicle } from '../server/services/sdlcParser.js';
 import type { Deliverable } from '../shared/types.js';
 import { complexityToRarity } from './theme.js';
 import { MarkdownPanel, useMarkdownLines } from './components/MarkdownPanel.js';
+import { formatDate } from './formatters.js';
 
 interface ChronicleListProps {
   projectPath: string;
@@ -20,13 +21,6 @@ const RARITY_INK_COLOR: Record<string, string> = {
   mythic: 'yellow',
 };
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
 
 export function ChronicleList({ projectPath, fromBoard = false }: ChronicleListProps): React.ReactElement {
   const { exit } = useApp();

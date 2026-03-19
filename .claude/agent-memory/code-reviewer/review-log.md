@@ -4,6 +4,82 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-18 — TUI Polish fix-round verification (Round 2)
+
+**Deliverable:** none (fix verification pass)
+**Scope:** `src/tui/formatters.ts`, `SessionBrowser.tsx`, `ChronicleList.tsx`, `Pager.tsx`, `AdhocBrowser.tsx`, `src/tui/commands/adhoc.ts`
+
+**Fix verification results — all 4 prior fixes correctly implemented:**
+- H2 (unmount guard): `unmounted` ref + cleanup + `if (unmounted.current) return` in `openDetail` callback — correct.
+- M1 (formatDate NaN guard): `isNaN(d.getTime())` guard returns `''` — correct.
+- M3 (impure updater): `detailContent` read from closure, `lines`/`maxScroll` computed as local vars before `setScrollOffset` — correct.
+- fromBoard keybinding: `'b' || key.escape` both call `exit()` in list mode — correct.
+
+**New findings:**
+1. MEDIUM (correctness): `ChronicleList.tsx` lines 119–124 — `setScrollOffset` functional updater reads `renderedLines` from closure. Same impure-updater class as M3 fix in AdhocBrowser but not covered by the fix round. M3 fix pattern should be applied here.
+2. LOW (performance): `AdhocBrowser.tsx` — `detailContent.split('\n')` computed twice on every `downArrow`: once in the handler (line 121) and once in the render path (line 135). Should be memoized.
+
+**Pre-existing unfixed (expected):**
+- HIGH: Shell injection in `Pager.tsx` line 134 — still present.
+- MEDIUM: Incomplete `stripAnsi` in `renderMarkdown.ts` — still present.
+
+## 2026-03-18 — TUI Polish changes post-merge review
+
+**Deliverable:** none (direct dispatch / polish pass)
+**Scope:** `src/tui/formatters.ts`, `SessionBrowser.tsx`, `ChronicleList.tsx`, `Pager.tsx`, `AdhocBrowser.tsx`, `src/tui/commands/adhoc.ts`
+
+**Key findings:**
+1. HIGH (security, pre-existing): `execSync(\`${editor} "${filePath}"\`)` shell injection in Pager.tsx line 134 — still unresolved. Natural window to fix was missed.
+2. HIGH (correctness): `execFile` callback in AdhocBrowser.tsx `openDetail` has no cancellation guard — setState fires on unmounted component when user exits during git show.
+3. MEDIUM (correctness): `stripAnsi` in renderMarkdown.ts only strips SGR sequences — cursor-movement/OSC codes survive. Session log sentinel matching in SessionBrowser.tsx will silently fail on real Claude Code logs containing cursor sequences.
+4. MEDIUM (correctness): `formatDate` in tui/formatters.ts returns "NaN-NaN-NaN" for invalid input — no `isNaN` guard unlike the UI sibling.
+5. MEDIUM (performance): `detailContent.split('\n')` inside `setScrollOffset` updater in AdhocBrowser.tsx is an impure functional updater.
+6. MEDIUM (arch): AdhocBrowser.tsx uses unstabilized inline `useInput` handler (same recurring pattern as all other TUI components).
+7. MEDIUM (DRY): Two `formatDate` functions — `tui/formatters.ts` (YYYY-MM-DD) and `ui/utils/formatters.ts` (MMM DD HH:mm) — no cross-reference comment.
+8. LOW: `console.clear()` fires on standalone exit in both AdhocBrowser and SessionBrowser.
+
+**Patterns confirmed:**
+- Async unmount cancellation missing from new component (H2) — same pattern as DetailPanel.tsx flagged in prior D4 review.
+- `useInput` unstabilized handler — new instance in AdhocBrowser; pre-existing elsewhere.
+- Incomplete `stripAnsi` is a new finding not previously documented.
+
+## 2026-03-18 — TUI DRY extraction plan RE-REVIEW (round 2, post-14-findings incorporation)
+
+**Deliverable:** none (SDLC-Lite plan)
+**Scope:** Re-review of `docs/current_work/sdlc-lite/tui-dry-extraction_plan.md` after 14 prior findings were incorporated.
+**Files reviewed:** plan + `DetailPanel.tsx`, `view.ts`, `ChronicleList.tsx`, `FileBrowser.tsx`
+
+**Key findings:**
+1. HIGH (security): ChronicleList absolute-path bypass in file loading is a known behavioral difference from DetailPanel. Plan does not call this out — implementing agent may re-introduce the bypass as a "compatibility" accommodation when wiring useFileContent.
+2. HIGH (correctness): Phase 4 omits explicit instruction to remove/replace `detailLoading` and `detailError` state vars with the hook's `loading` and `error` returns. Orphaned state will silently break the loading indicator.
+3. MEDIUM: `handleKey` return value description contradicts itself — "continue evaluating remaining handlers" vs. "do not pass further down." Agent will implement wrong branching logic.
+4. MEDIUM: `useListNavigation` signature lists `scrollOffset` unconditionally but FileBrowser does not use it. No explicit instruction saying "FileBrowser does not destructure scrollOffset."
+5. MEDIUM: Plan modifies FileBrowser.tsx but does not flag two existing HIGH shell injection sites (execSync + $EDITOR interpolation). Natural window to fix them.
+
+**Patterns confirmed:**
+- ChronicleList uses `path.join` + absolute-path conditional where DetailPanel uses `path.resolve`. Security consolidation plans must explicitly name behavioral differences, not assume the agent will infer them.
+- State variable cleanup (removing detailLoading, detailError) must always be explicitly named in Phase guidance — agents remove effects but may leave the state declarations.
+
+---
+
+## 2026-03-18 — TUI DRY extraction SDLC-Lite plan review (no deliverable ID)
+
+**Deliverable:** none (SDLC-Lite plan)
+**Scope:** Plan review for `docs/current_work/sdlc-lite/tui-dry-extraction_plan.md` — 5 extractions: formatters, launchScreen, useSearchInput, useListNavigation, useFileContent
+**Files reviewed:** plan + all 12 source files in scope
+
+**Key findings:**
+1. MAJOR: `log.ts` / `skipClear` design decision left ambiguous — plan says "choose whatever" between two options. Must be resolved before dispatch.
+2. MAJOR: `useFileContent` hook spec does not mention `isCancelled` stale-state cancellation — exactly the pattern in recurring-patterns.md. Phase 4 ChronicleList refactor adds a race window.
+3. MAJOR: `active: boolean` in `useSearchInput` return type is contradictory with "hook does not own mode state" — agent will interpret it two incompatible ways.
+4. MAJOR: Path traversal guard has a `resolved !== projectPath` escape clause present in both implementations; plan consolidates without prompting review of whether it is intentional.
+5. MINOR: `SessionBrowser.tsx` line 55 uses local `formatDate` (datetime form) as search corpus — must become `formatDateTime`, not `formatDate`, after extraction. Plan does not call this out.
+6. MINOR: `openSessionInPager` in `SessionBrowser.tsx` contains a second independent `render()` + screen lifecycle not covered by `launchTuiScreen` scope.
+
+**Patterns learned:**
+- `useSearchInput` `active` field ambiguity: when a hook returns a field that the caller already controls, question whether the field belongs in the hook at all.
+- Plan "choose A or B" language is always a finding — agents pick one and the choice has downstream consequences.
+
 ## 2026-03-17 — Notepad.tsx new component review (no deliverable ID)
 
 **Deliverable:** none (ad hoc new component)
@@ -575,3 +651,34 @@ type: project
 **Patterns learned:**
 - Server broadcasts `data: array` but client expects `data.deliverables: array` — a recurring shape-mismatch risk when broadcast payload and REST payload diverge.
 - Two separate slug functions in different services for the same concept is a recurring DRY risk in this codebase.
+
+---
+
+## 2026-03-18 — D4 Terminal-First TUI post-execution review (commits 9aa85882..f8f475c5)
+
+**Deliverable:** D4
+**Scope:** New TUI subsystem — FileBrowser, SessionBrowser, Pager, BoardApp updates, board loop, command files, claudeSessions service, HelpBar, useKeyboard
+**Files reviewed:** src/server/services/claudeSessions.ts, src/tui/FileBrowser.tsx, src/tui/SessionBrowser.tsx, src/tui/Pager.tsx, src/tui/BoardApp.tsx, src/tui/index.ts, src/tui/components/HelpBar.tsx, src/tui/hooks/useKeyboard.ts, src/tui/commands/adhoc.ts, src/tui/commands/files.tsx, src/tui/commands/sessions.tsx, src/tui/commands/chronicle.tsx, src/tui/commands/log.ts, src/tui/commands/view.ts
+
+**Key findings:**
+1. CRITICAL: `execSync(\`${editor} "${path}"\`)` in FileBrowser.tsx (lines 266, 409) and Pager.tsx (line 132) — shell injection via `$EDITOR`/`$VISUAL`. BoardApp.tsx correctly uses `spawnSync(editor, [path])` array form — use that as the fix template.
+2. HIGH: `projectSlug` in claudeSessions.ts uses `replace(/\//g, '-')` — no-op on Windows (backslash paths), silently returns empty session list.
+3. HIGH: `process.once('SIGTERM', ...)` added on every board loop iteration — MaxListenersExceeded after ~10 cycles.
+4. HIGH: SessionBrowser calls `render()` in a 50ms `setTimeout` after `exit()` — race condition producing corrupted terminal output.
+5. HIGH: `useInput` receives unstable inline handlers in FileBrowser, SessionBrowser, Pager, useKeyboard — listener churn per keystroke. Confirmed recurring pattern.
+6. HIGH: `detailScrollOffset` clamped to hardcoded 10000 in useKeyboard.ts — detail panel goes blank after scrolling past end of short files.
+7. MEDIUM: Verbatim launch pattern (altscreen+SIGTERM+render+finally) duplicated across 6 command files + index.ts — extract to shared utility; also fixes H3.
+8. MEDIUM: `projectPath` shell-interpolated in grep command without sanitization (only query is sanitized).
+9. MEDIUM: collapsed-state persistence fires on initial load write; `allFiles.length` dep causes spurious writes.
+10. MEDIUM: `parseSessionSummary` reads every JSONL line despite claim of early-exit streaming.
+11. MEDIUM: `stateFilePath` uses last-60-chars suffix — hash collision for projects with identical path suffix.
+12. MEDIUM: `openSessionInPager` calls `process.exit(1)` on read error — hard-exits board loop.
+
+**Patterns learned:**
+- `$EDITOR` / `$VISUAL` must always be the executable in `spawnSync(editor, [args])`. `execSync(\`${editor} ...\`)` is always a shell injection vector.
+- `process.once('SIGTERM', ...)` in a loop accumulates listeners — register once at process startup or remove after render exits.
+- `claudeSessions.ts` `projectSlug` (reads Claude Code's native `~/.claude/projects/` convention) is intentionally different from `generateSlug` (MC's own storage). This is NOT the same bug as the D2 parallel-slug issue — it serves a different purpose. The distinction should be documented in the function.
+- SessionBrowser's `render()` in a setTimeout is the only component that bypasses the board loop contract. All other subcommands correctly signal via `onAction`. This pattern must not be replicated.
+
+**Stale memory note:**
+- Notepad.tsx findings in review-log (2026-03-17) are fully resolved — Notepad.tsx was deleted in this commit range.

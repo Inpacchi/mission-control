@@ -87,7 +87,17 @@ type: project
 **Pattern:** Plans describe a feature as "piggybacking" on existing I/O but the actual service code does not perform that I/O. Implementing agents then silently add a new I/O pass or stall.
 **First seen:** D3 plan review — plan claimed frontmatter parsing would piggyback on existing file reads in `scanDirectory()`, but `scanDirectory()` only stats files, never reads content.
 
+## Shell injection via $EDITOR / $VISUAL interpolation
+**Pattern:** `execSync(\`${editor} "${filePath}"\`, { stdio: 'inherit' })` where `editor = process.env.VISUAL || process.env.EDITOR`. The editor variable is attacker-influenced (shell profile, environment). Filenames with backticks, `$()`, or semicolons can escape double-quoting. The safe form is `spawnSync(editor, [filePath], { stdio: 'inherit' })` — array arguments bypass the shell entirely.
+**First seen:** D4 post-execution — FileBrowser.tsx lines 266 and 409, Pager.tsx line 132. BoardApp.tsx line 130 correctly uses spawnSync array form; the three execSync sites do not.
+**Mitigation:** Never interpolate `$EDITOR`/`$VISUAL` into a shell string. Always use `spawnSync(editor, [arg1, arg2, ...], { stdio: 'inherit' })`. For `+linenum` vim-style flags: `spawnSync(editor, [\`+${line}\`, filePath])`.
+
+## Incomplete stripAnsi regex misses cursor-movement and OSC sequences
+**Pattern:** `stripAnsi` in `src/tui/renderMarkdown.ts` matches only SGR sequences (`/\x1b\[[0-9;]*m/g`). Cursor-movement CSI sequences (`ESC[A/B/C/D/H/K` etc.) and OSC window title sequences (`ESC]...\x07`) are not stripped. Real Claude Code session logs contain these sequences. When the result is used for plain-text sentinel matching (e.g., `── User ──` / `── Assistant ──`), stray escape bytes adjacent to the header text prevent the match and cause turns to silently not split.
+**First seen:** TUI polish pass review (2026-03-18) — `SessionBrowser.tsx` calls `stripAnsi(log)` then splits on sentinel strings. Complete regex: `/\x1b(?:[@-Z\\-_]|\[[0-9;]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\))/g`
+**Mitigation:** Replace the narrow regex in `renderMarkdown.ts:stripAnsi` with the complete CSI/OSC form above. Alternatively, import the `strip-ansi` npm package which covers all cases.
+
 ## Ink useInput handler must be stable — inline arrow functions cause listener churn per render
 **Pattern:** `useInput(handler, options)` in Ink lists `handler` (called `inputHandler` internally) as a `useEffect` dependency (confirmed in `node_modules/ink/build/hooks/use-input.js` line 121). Passing an inline arrow function recreated on every render causes the internal event emitter listener to be removed and re-added on every render. In a keyboard-driven editor where every keypress produces a state update and therefore a render, this means listener teardown/re-attach on every keystroke.
-**First seen:** Notepad.tsx post-fix re-review (2026-03-18) — ref-based state reads correctly solved the stale closure read side, but the handler function itself was not stabilized with `useCallback` or a stable ref wrapper.
+**First seen:** Notepad.tsx post-fix re-review (2026-03-18) — ref-based state reads correctly solved the stale closure read side, but the handler function itself was not stabilized with `useCallback` or a stable ref wrapper. Confirmed unmitigated in D4 in FileBrowser, SessionBrowser, Pager, useKeyboard.
 **Mitigation:** Wrap the `useInput` callback in a stable ref pattern: create `handlerRef = useRef(fn)`, update it in an effect, and pass a stable outer function `useCallback(() => handlerRef.current(...args), [])` to `useInput`. This gives Ink a stable reference while the inner handler always reads current values.
