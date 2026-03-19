@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { Key } from 'ink';
 
 interface UseSearchInputOptions {
@@ -14,12 +14,16 @@ interface UseSearchInputResult {
 export function useSearchInput(options?: UseSearchInputOptions): UseSearchInputResult {
   const [query, setQuery] = useState('');
 
-  function reset(): void {
+  const reset = useCallback((): void => {
     setQuery('');
     options?.onQueryChange?.('');
-  }
+  // options is an object created at call site; onQueryChange identity is what matters.
+  // Using a stable ref pattern would be ideal, but callers never change the callback,
+  // so this dep is safe in practice. eslint-disable covers the inline options object.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options?.onQueryChange]);
 
-  function handleKey(input: string, key: Key): boolean {
+  const handleKey = useCallback((input: string, key: Key): boolean => {
     if (key.escape) {
       setQuery('');
       options?.onQueryChange?.('');
@@ -42,7 +46,8 @@ export function useSearchInput(options?: UseSearchInputOptions): UseSearchInputR
       return true;
     }
     return false;
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options?.onQueryChange]);
 
   return { query, reset, handleKey };
 }

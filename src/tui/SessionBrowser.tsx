@@ -8,7 +8,7 @@
  * Session detail is rendered inline via PagerView (viewMode === 'session-detail')
  * instead of launching a separate Ink instance.
  */
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Box, Text, useStdout } from 'ink';
 import type { ClaudeSession } from '../server/services/claudeSessions.js';
 import type { ViewMode } from './hooks/useKeyboard.js';
@@ -28,11 +28,9 @@ interface SessionBrowserProps {
   sessionContent: string | null;
   detailScrollOffset: number;
   detailTitle: string;
-  pagerSearchQuery: string;
-  pagerSearchMode: boolean;
-  pagerActiveSearch: string;
-  pagerCurrentMatchIndex: number;
-  pagerMatchingLines: number[];
+  detailActiveSearch: string;
+  detailCurrentMatchIndex: number;
+  detailMatchingLines: number[];
   height?: number;
 }
 
@@ -48,11 +46,9 @@ export function SessionBrowser({
   sessionContent,
   detailScrollOffset,
   detailTitle,
-  pagerSearchQuery,
-  pagerSearchMode,
-  pagerActiveSearch,
-  pagerCurrentMatchIndex,
-  pagerMatchingLines,
+  detailActiveSearch,
+  detailCurrentMatchIndex,
+  detailMatchingLines,
   height: heightProp,
 }: SessionBrowserProps): React.ReactElement {
   const { stdout } = useStdout();
@@ -74,11 +70,9 @@ export function SessionBrowser({
         title={detailTitle}
         content={sessionContent}
         scrollOffset={detailScrollOffset}
-        searchQuery={pagerSearchQuery}
-        searchMode={pagerSearchMode}
-        activeSearch={pagerActiveSearch}
-        currentMatchIndex={pagerCurrentMatchIndex}
-        matchingLines={pagerMatchingLines}
+        activeSearch={detailActiveSearch}
+        currentMatchIndex={detailCurrentMatchIndex}
+        matchingLines={detailMatchingLines}
         titleColor="cyan"
         height={height}
       />
@@ -108,8 +102,7 @@ export function SessionBrowser({
 
   // ── List view ────────────────────────────────────────────────────────────────
   const listViewportHeight = Math.max(1, height - 3);
-  const listHeight = listViewportHeight;
-  const visibleSessions = filteredSessions.slice(listScrollOffset, listScrollOffset + listHeight);
+  const visibleSessions = filteredSessions.slice(listScrollOffset, listScrollOffset + listViewportHeight);
   const isSearchActive = searchQuery.length > 0;
 
   return (

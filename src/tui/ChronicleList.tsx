@@ -8,18 +8,10 @@
 import React from 'react';
 import { Box, Text, useStdout } from 'ink';
 import type { Deliverable } from '../shared/types.js';
-import type { DocType, DetailSearchMode, ViewMode } from './hooks/useKeyboard.js';
-import { complexityToRarity } from './theme.js';
+import type { DocType, ViewMode } from './hooks/useKeyboard.js';
+import { complexityToRarity, RARITY_INK_COLOR } from './theme.js';
 import { DetailPanel } from './components/DetailPanel.js';
 import { formatDate } from './formatters.js';
-
-const RARITY_INK_COLOR: Record<string, string> = {
-  common: 'white',
-  uncommon: 'green',
-  rare: 'cyan',
-  epic: 'yellow',
-  mythic: 'yellow',
-};
 
 
 interface ChronicleListProps {
@@ -31,17 +23,14 @@ interface ChronicleListProps {
   searchQuery: string;
   searchMode: boolean;
   viewMode: ViewMode; // 'chronicle' | 'chronicle-detail'
-  selectedFilePath: string | undefined;
   activeDocType: DocType;
   detailScrollOffset: number;
   projectPath: string;
   detailMaxScrollRef?: React.RefObject<number>;
   // Detail search
-  detailSearchMode?: DetailSearchMode;
-  detailSearchQuery?: string;
   detailActiveSearch?: string;
   detailCurrentMatchIndex?: number;
-  detailMatchLinesRef?: React.RefObject<number[]>;
+  detailMatchingLines?: number[];
   height?: number;
 }
 
@@ -54,16 +43,13 @@ export function ChronicleList({
   searchQuery,
   searchMode,
   viewMode,
-  selectedFilePath: _selectedFilePath,
   activeDocType,
   detailScrollOffset,
   projectPath,
   detailMaxScrollRef,
-  detailSearchMode,
-  detailSearchQuery,
   detailActiveSearch,
   detailCurrentMatchIndex,
-  detailMatchLinesRef,
+  detailMatchingLines,
   height: heightProp,
 }: ChronicleListProps): React.ReactElement {
   const { stdout } = useStdout();
@@ -94,7 +80,7 @@ export function ChronicleList({
 
   // Detail view — delegated to shared DetailPanel
   if (viewMode === 'chronicle-detail') {
-    const entry = entries[selectedIndex];
+    const entry = filteredEntries[selectedIndex];
     if (!entry) {
       return (
         <Box flexDirection="column" height={height} paddingX={1}>
@@ -111,19 +97,16 @@ export function ChronicleList({
         scrollOffset={detailScrollOffset}
         maxScrollRef={detailMaxScrollRef}
         activeDocType={activeDocType}
-        detailSearchMode={detailSearchMode}
-        detailSearchQuery={detailSearchQuery}
         detailActiveSearch={detailActiveSearch}
         detailCurrentMatchIndex={detailCurrentMatchIndex}
-        detailMatchLinesRef={detailMatchLinesRef}
+        detailMatchingLines={detailMatchingLines}
       />
     );
   }
 
   // List view
-  const listHeight = listViewportHeight;
   const displayEntries = filteredEntries;
-  const visibleEntries = displayEntries.slice(listScrollOffset, listScrollOffset + listHeight);
+  const visibleEntries = displayEntries.slice(listScrollOffset, listScrollOffset + listViewportHeight);
   const isSearchActive = searchQuery.length > 0;
 
   return (

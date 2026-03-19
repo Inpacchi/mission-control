@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -20,6 +20,10 @@ export function useFileContent(
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Keep onLoad in a ref so the effect doesn't need to re-run when the callback identity changes
+  const onLoadRef = useRef(options?.onLoad);
+  onLoadRef.current = options?.onLoad;
 
   useEffect(() => {
     // Reset state on every path change before any async work
@@ -51,7 +55,7 @@ export function useFileContent(
         if (!cancelled) {
           setContent(text);
           setLoading(false);
-          options?.onLoad?.(text);
+          onLoadRef.current?.(text);
         }
       })
       .catch((err: unknown) => {
@@ -66,7 +70,7 @@ export function useFileContent(
     return () => {
       cancelled = true;
     };
-  }, [filePath, projectPath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filePath, projectPath]);
 
   return { content, loading, error };
 }

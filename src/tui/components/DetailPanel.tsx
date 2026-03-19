@@ -1,20 +1,12 @@
 import React, { useMemo, useCallback } from 'react';
 import { Box, Text, useStdout } from 'ink';
 import type { Deliverable } from '../../shared/types.js';
-import { type DocType, type DetailSearchMode } from '../hooks/useKeyboard.js';
+import { type DocType } from '../hooks/useKeyboard.js';
 import { MarkdownPanel, useMarkdownLines } from './MarkdownPanel.js';
 import { useFileContent } from '../hooks/useFileContent.js';
 import { stripAnsi } from '../renderMarkdown.js';
-import { complexityToRarity } from '../theme.js';
+import { complexityToRarity, RARITY_INK_COLOR } from '../theme.js';
 import { formatDate } from '../formatters.js';
-
-const RARITY_INK_COLOR: Record<string, string> = {
-  common: 'white',
-  uncommon: 'green',
-  rare: 'cyan',
-  epic: 'yellow',
-  mythic: 'yellow',
-};
 
 interface DetailPanelProps {
   deliverable: Deliverable;
@@ -25,11 +17,12 @@ interface DetailPanelProps {
   maxScrollRef?: React.RefObject<number>;
   activeDocType?: DocType;
   // Search props from useKeyboard
-  detailSearchMode?: DetailSearchMode;
-  detailSearchQuery?: string;
   detailActiveSearch?: string;
   detailCurrentMatchIndex?: number;
+  /** Ref-based write-back (board view: useKeyboard owns n/p navigation) */
   detailMatchLinesRef?: React.RefObject<number[]>;
+  /** Array-based matching lines (chronicle view: useDetailSearch owns n/p navigation) */
+  detailMatchingLines?: number[];
 }
 
 export function DetailPanel({
@@ -40,11 +33,10 @@ export function DetailPanel({
   scrollOffset,
   maxScrollRef,
   activeDocType = 'auto',
-  detailSearchMode: _detailSearchMode = 'normal',
-  detailSearchQuery: _detailSearchQuery = '',
   detailActiveSearch = '',
   detailCurrentMatchIndex = 0,
   detailMatchLinesRef,
+  detailMatchingLines: detailMatchingLinesProp,
 }: DetailPanelProps): React.ReactElement {
   const { stdout } = useStdout();
   const width = _width || stdout?.columns || 80;
@@ -70,14 +62,20 @@ export function DetailPanel({
   const lines = useMarkdownLines(content);
 
   // Compute matching line indices whenever the active search or lines change.
-  const matchingLines = useMemo<number[]>(() => {
+  // When detailMatchingLinesProp is provided (chronicle view), use it directly —
+  // useDetailSearch already owns the computation. Otherwise compute here and
+  // write back to the ref so useKeyboard can use them for board n/p navigation.
+  const computedMatchingLines = useMemo<number[]>(() => {
+    if (detailMatchingLinesProp !== undefined) return detailMatchingLinesProp;
     if (!detailActiveSearch) return [];
     const query = detailActiveSearch.toLowerCase();
     return lines.reduce<number[]>((acc, line, i) => {
       if (stripAnsi(line).toLowerCase().includes(query)) acc.push(i);
       return acc;
     }, []);
-  }, [lines, detailActiveSearch]);
+  }, [lines, detailActiveSearch, detailMatchingLinesProp]);
+
+  const matchingLines = computedMatchingLines;
 
   // Write matching line indices back to the ref so useKeyboard can use them for n/p navigation.
   if (detailMatchLinesRef) {
@@ -202,9 +200,9 @@ export function DetailPanel({
         <Text dimColor>{'─'.repeat(Math.max(0, width - 2))}</Text>
       </Box>
 
-      {/* Content */}
+      {/* Content — pass pre-computed lines to avoid double-rendering markdown */}
       <MarkdownPanel
-        content={content}
+        lines={lines}
         height={contentHeight}
         scrollOffset={clampedOffset}
         renderLine={renderLine}

@@ -38,7 +38,6 @@ interface Zone {
 
 interface UseKeyboardOptions {
   zones: Zone[];
-  viewMode: ViewMode;
   projectPath: string;
   onExit: () => void;
   onOpenEditor?: () => void;
@@ -57,8 +56,6 @@ export interface BoardViewState {
   detailMaxScrollRef: React.RefObject<number>;
   activeDocType: DocType;
   // Search state
-  detailSearchMode: DetailSearchMode;
-  detailSearchQuery: string;
   detailActiveSearch: string;
   detailCurrentMatchIndex: number;
   detailMatchLinesRef: React.RefObject<number[]>;
@@ -75,7 +72,6 @@ interface UseKeyboardResult {
 
 export function useKeyboard({
   zones,
-  viewMode: initialViewMode,
   projectPath,
   onExit,
   onOpenEditor,
@@ -84,7 +80,7 @@ export function useKeyboard({
 }: UseKeyboardOptions): UseKeyboardResult {
   const [selectedZone, setSelectedZone] = useState<number>(1); // Default to Active Zone
   const [selectedCard, setSelectedCard] = useState<number>(0);
-  const [currentViewMode, setCurrentViewMode] = useState<ViewMode>(initialViewMode);
+  const [currentViewMode, setCurrentViewMode] = useState<ViewMode>('board');
   const [showHelp, setShowHelp] = useState<boolean>(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [activeDocType, setActiveDocType] = useState<DocType>('auto');
@@ -317,6 +313,7 @@ export function useKeyboard({
         return;
       }
 
+      // height - 4: DetailPanel header (3 lines: title, metadata, separator) + BottomBar (1)
       const contentHeight = Math.max(1, (terminalHeight ?? process.stdout.rows ?? 24) - 4);
 
       if (key.pageUp) {
@@ -374,8 +371,6 @@ export function useKeyboard({
     detailScrollOffset,
     detailMaxScrollRef,
     activeDocType,
-    detailSearchMode,
-    detailSearchQuery: searchInput.query,
     detailActiveSearch,
     detailCurrentMatchIndex,
     detailMatchLinesRef,

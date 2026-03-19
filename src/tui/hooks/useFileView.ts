@@ -93,18 +93,6 @@ export interface FileViewState {
   visibleEntries: FileNode[];
 }
 
-const DEFAULT_STATE: FileViewState = {
-  allFiles: [],
-  collapsed: new Set(),
-  selectedIndex: 0,
-  searchQuery: '',
-  grepQuery: '',
-  grepResults: [],
-  grepSelectedIndex: 0,
-  grepRunning: false,
-  visibleEntries: [],
-};
-
 interface UseFileViewResult {
   state: FileViewState;
   handleKey: (input: string, key: Key, viewMode: ViewMode) => boolean;
@@ -194,10 +182,6 @@ export function useFileView(
     setSelectedIndex(0);
   }, [searchQuery, setSelectedIndex]);
 
-  // Ref to hold the latest setSelectedIndex for use in setTimeout callbacks
-  const setSelectedIndexRef = useRef(setSelectedIndex);
-  setSelectedIndexRef.current = setSelectedIndex;
-
   const handleKey = useCallback(
     (input: string, key: Key, viewMode: ViewMode): boolean => {
       if (
@@ -219,8 +203,15 @@ export function useFileView(
               .flatMap((ext) => ['--include', ext]);
             const args = ['-rn', '-i', ...includeArgs, grepQuery, projectPath];
             const loadId = ++grepLoadIdRef.current;
-            execFile('grep', args, { encoding: 'utf-8', maxBuffer: 1024 * 1024 }, (_err, stdout) => {
+            execFile('grep', args, { encoding: 'utf-8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
                 if (loadId !== grepLoadIdRef.current) return; // stale result — user navigated away
+                // grep exits with code 1 when there are no matches — that is normal, not an error.
+                // Any other non-null error is a real failure (e.g., binary not found, bad args).
+                if (err && err.code !== 1) {
+                  setGrepResults([]);
+                  setGrepRunning(false);
+                  return;
+                }
                 const results = (stdout || '')
                   .split('\n')
                   .filter(Boolean)
@@ -321,20 +312,29 @@ export function useFileView(
           if (entry) {
             setViewMode('files');
             searchInput.reset();
-            const idx = allFiles.findIndex((f) => f.path === entry.path);
-            if (idx >= 0) {
-              const parents = new Set(collapsed);
-              let dir = path.dirname(entry.path);
-              while (dir.startsWith(projectPath) && dir !== projectPath) {
-                parents.delete(dir);
-                dir = path.dirname(dir);
-              }
-              setCollapsed(parents);
-              // Selection will be updated after visibleEntries recomputes
-              setTimeout(() => {
-                setSelectedIndexRef.current(idx);
-              }, 0);
+            // Uncollapse all parent directories so the entry is visible in the tree
+            const parents = new Set(collapsed);
+            let dir = path.dirname(entry.path);
+            while (dir.startsWith(projectPath) && dir !== projectPath) {
+              parents.delete(dir);
+              dir = path.dirname(dir);
             }
+            setCollapsed(parents);
+            // Compute new visible entries synchronously using the already-updated
+            // `parents` set (uncollapsed). No setTimeout needed — we have all the
+            // information required right here without waiting for a React re-render.
+            const newVisibleEntries: FileNode[] = [];
+            let skipUntilDepth = -1;
+            for (const node of allFiles) {
+              if (skipUntilDepth >= 0 && node.depth > skipUntilDepth) continue;
+              skipUntilDepth = -1;
+              newVisibleEntries.push(node);
+              if (node.isDirectory && parents.has(node.path)) {
+                skipUntilDepth = node.depth;
+              }
+            }
+            const newIdx = newVisibleEntries.findIndex((f) => f.path === entry.path);
+            setSelectedIndex(newIdx >= 0 ? newIdx : 0);
           } else {
             setViewMode('files');
             searchInput.reset();

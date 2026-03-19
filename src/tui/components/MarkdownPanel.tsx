@@ -3,8 +3,8 @@ import { Box, Text } from 'ink';
 import { renderMarkdownToAnsi } from '../renderMarkdown.js';
 
 interface MarkdownPanelProps {
-  /** Raw markdown string to render */
-  content: string;
+  /** Pre-computed ANSI lines from useMarkdownLines. */
+  lines: string[];
   /** Number of visible lines in the viewport */
   height: number;
   /** Current scroll offset (lines from top) */
@@ -21,19 +21,17 @@ interface MarkdownPanelProps {
 
 /**
  * Renders markdown content as scrollable ANSI-styled terminal text.
- * Shared by DetailPanel, ChronicleList, and any future markdown viewers.
+ * Shared by DetailPanel and any future markdown viewers.
+ *
+ * Callers must pass pre-computed `lines` from useMarkdownLines.
  */
 export function MarkdownPanel({
-  content,
+  lines,
   height,
   scrollOffset,
   maxScrollRef,
   renderLine,
 }: MarkdownPanelProps): React.ReactElement {
-  const lines = useMemo(() => {
-    const rendered = renderMarkdownToAnsi(content);
-    return rendered.replace(/\n{3,}/g, '\n\n').trim().split('\n');
-  }, [content]);
 
   const maxScroll = Math.max(0, lines.length - height);
   if (maxScrollRef) maxScrollRef.current = maxScroll;

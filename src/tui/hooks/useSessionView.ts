@@ -5,6 +5,7 @@ import type { ClaudeSession } from '../../server/services/claudeSessions.js';
 import { listClaudeSessions, getClaudeSessionLog } from '../../server/services/claudeSessions.js';
 import { useListNavigation } from './useListNavigation.js';
 import { useSearchInput } from './useSearchInput.js';
+import { useDetailSearch } from './useDetailSearch.js';
 import { formatDate } from '../formatters.js';
 import { renderMarkdownToAnsi, stripAnsi } from '../renderMarkdown.js';
 import chalk from 'chalk';
@@ -23,31 +24,12 @@ export interface SessionViewState {
   sessionContent: string | null; // rendered ANSI string for PagerView
   detailScrollOffset: number;
   detailTitle: string;
-  // Pager search state
-  pagerSearchQuery: string;
-  pagerSearchMode: boolean;
-  pagerActiveSearch: string;
-  pagerCurrentMatchIndex: number;
-  pagerMatchingLines: number[];
+  // Detail search state
+  detailSearchMode: boolean;
+  detailActiveSearch: string;
+  detailCurrentMatchIndex: number;
+  detailMatchingLines: number[];
 }
-
-const DEFAULT_STATE: SessionViewState = {
-  sessions: [],
-  filteredSessions: [],
-  loading: true,
-  selectedIndex: 0,
-  listScrollOffset: 0,
-  searchQuery: '',
-  searchMode: false,
-  sessionContent: null,
-  detailScrollOffset: 0,
-  detailTitle: '',
-  pagerSearchQuery: '',
-  pagerSearchMode: false,
-  pagerActiveSearch: '',
-  pagerCurrentMatchIndex: 0,
-  pagerMatchingLines: [],
-};
 
 interface UseSessionViewResult {
   state: SessionViewState;
@@ -62,18 +44,13 @@ export function useSessionView(
   const [sessions, setSessions] = useState<ClaudeSession[]>([]);
   const [loading, setLoading] = useState(true);
   const sessionLoadIdRef = useRef(0);
+  const lastProjectPathRef = useRef<string | undefined>(undefined);
   const [searchMode, setSearchMode] = useState(false);
   const [sessionContent, setSessionContent] = useState<string | null>(null);
   const [detailScrollOffset, setDetailScrollOffset] = useState(0);
   const [detailTitle, setDetailTitle] = useState('');
-  // Pager search state
-  const [pagerSearchMode, setPagerSearchMode] = useState(false);
-  const [pagerActiveSearch, setPagerActiveSearch] = useState('');
-  const [pagerCurrentMatchIndex, setPagerCurrentMatchIndex] = useState(0);
-
   const searchInput = useSearchInput();
   const searchQuery = searchInput.query;
-  const pagerSearchInput = useSearchInput();
 
   // Filtered sessions derived from list + search query
   const filteredSessions = useMemo(() => {
@@ -102,10 +79,13 @@ export function useSessionView(
     setSelectedIndex(0);
   }, [searchQuery, setSelectedIndex]);
 
-  // Load sessions once on mount (cached — only fetches when sessions list is empty)
+  // Load sessions. Re-fetches when projectPath changes; caches per project.
   useEffect(() => {
-    if (sessions.length > 0) return;
+    if (sessions.length > 0 && lastProjectPathRef.current === projectPath) return;
+    lastProjectPathRef.current = projectPath;
     let cancelled = false;
+    setLoading(true);
+    setSessions([]);
     listClaudeSessions(projectPath)
       .then((result) => {
         if (!cancelled) {
@@ -117,37 +97,35 @@ export function useSessionView(
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectPath]);
+  }, [projectPath, sessions.length]);
 
-  // Compute pager matching lines whenever activeSearch or content changes
-  const pagerLines = useMemo(() => {
+  // Compute detail (pager) lines whenever session content changes
+  const detailLines = useMemo(() => {
     if (!sessionContent) return [];
     return sessionContent.replace(/\n{3,}/g, '\n\n').trim().split('\n');
   }, [sessionContent]);
 
-  const pagerMatchingLines = useMemo(() => {
-    if (!pagerActiveSearch) return [];
-    const q = pagerActiveSearch.toLowerCase();
-    return pagerLines.reduce<number[]>((acc, line, i) => {
-      if (stripAnsi(line).toLowerCase().includes(q)) acc.push(i);
-      return acc;
-    }, []);
-  }, [pagerLines, pagerActiveSearch]);
+  // rows - 3: PagerView has header (1) + separator (1) + footer/status (1)
+  const detailContentHeight = rows - 3;
 
-  const pagerMaxScroll = useMemo(() => {
-    const contentHeight = rows - 3;
-    return Math.max(0, pagerLines.length - contentHeight);
-  }, [pagerLines, rows]);
-
-  // Helper: scroll to a target line, placing it ~25% from top of viewport
-  const pagerScrollToLine = useCallback(
-    (line: number): number => {
-      const contentHeight = rows - 3;
-      return Math.max(0, Math.min(line - Math.floor(contentHeight / 4), pagerMaxScroll));
-    },
-    [rows, pagerMaxScroll],
+  const detailMaxScroll = useMemo(
+    () => Math.max(0, detailLines.length - detailContentHeight),
+    [detailLines.length, detailContentHeight],
   );
+
+  const {
+    detailSearchMode,
+    detailActiveSearch,
+    detailCurrentMatchIndex,
+    detailMatchingLines,
+    handleSearchKey: handleDetailSearchKey,
+    resetSearch: resetDetailSearch,
+  } = useDetailSearch({
+    lines: detailLines,
+    scrollOffset: detailScrollOffset,
+    setScrollOffset: setDetailScrollOffset,
+    contentHeight: detailContentHeight,
+  });
 
   // Helper to switch between sessions list and session-search viewModes
   const setMode = useCallback(
@@ -175,98 +153,43 @@ export function useSessionView(
 
       // ── Session detail (pager) ──────────────────────────────────────────────
       if (viewMode === 'session-detail') {
-        // Pager search input mode
-        if (pagerSearchMode) {
-          if (key.return) {
-            const query = pagerSearchInput.query;
-            setPagerActiveSearch(query);
-            setPagerSearchMode(false);
-            if (query) {
-              const q = query.toLowerCase();
-              const allMatches = pagerLines.reduce<number[]>((acc, line, i) => {
-                if (stripAnsi(line).toLowerCase().includes(q)) acc.push(i);
-                return acc;
-              }, []);
-              const idx = allMatches.findIndex((m) => m >= detailScrollOffset);
-              if (idx >= 0) {
-                setPagerCurrentMatchIndex(idx);
-                setDetailScrollOffset(pagerScrollToLine(allMatches[idx]));
-              } else if (allMatches.length > 0) {
-                setPagerCurrentMatchIndex(0);
-                setDetailScrollOffset(pagerScrollToLine(allMatches[0]));
-              }
-            }
-            return true;
-          }
-          const consumed = pagerSearchInput.handleKey(input, key);
-          if (consumed) {
-            if (key.escape) {
-              setPagerSearchMode(false);
-            }
-            return true;
-          }
-          return true;
-        }
+        // Delegate search state machine (/, Enter, Esc, n, p) to useDetailSearch
+        const searchConsumed = handleDetailSearchKey(input, key);
+        if (searchConsumed) return true;
 
-        // Pager normal mode
+        // Back / clear search
         if (input === 'b' || input === 'B') {
           setViewMode('sessions');
           setSessionContent(null);
           setDetailScrollOffset(0);
-          setPagerActiveSearch('');
-          pagerSearchInput.reset();
-          setPagerCurrentMatchIndex(0);
-          setPagerSearchMode(false);
+          resetDetailSearch();
           return true;
         }
-        if (key.escape) {
-          if (pagerActiveSearch) {
-            setPagerActiveSearch('');
-            pagerSearchInput.reset();
-            setPagerCurrentMatchIndex(0);
-          }
-          return true;
-        }
-        if (input === '/') {
-          pagerSearchInput.reset();
-          setPagerSearchMode(true);
-          return true;
-        }
-        if (input === 'n' && pagerActiveSearch && pagerMatchingLines.length > 0) {
-          const nextIdx = (pagerCurrentMatchIndex + 1) % pagerMatchingLines.length;
-          setPagerCurrentMatchIndex(nextIdx);
-          setDetailScrollOffset(pagerScrollToLine(pagerMatchingLines[nextIdx]));
-          return true;
-        }
-        if (input === 'p' && pagerActiveSearch && pagerMatchingLines.length > 0) {
-          const prevIdx = (pagerCurrentMatchIndex - 1 + pagerMatchingLines.length) % pagerMatchingLines.length;
-          setPagerCurrentMatchIndex(prevIdx);
-          setDetailScrollOffset(pagerScrollToLine(pagerMatchingLines[prevIdx]));
-          return true;
-        }
-        const contentHeight = rows - 3;
+
+        // Scroll navigation
+        // rows - 3: PagerView header (1) + separator (1) + status bar (1)
         if (key.upArrow) {
           setDetailScrollOffset((o) => Math.max(0, o - 1));
           return true;
         }
         if (key.downArrow) {
-          setDetailScrollOffset((o) => Math.min(o + 1, pagerMaxScroll));
+          setDetailScrollOffset((o) => Math.min(o + 1, detailMaxScroll));
           return true;
         }
         if (key.pageUp) {
-          setDetailScrollOffset((o) => Math.max(0, o - contentHeight));
+          setDetailScrollOffset((o) => Math.max(0, o - detailContentHeight));
           return true;
         }
         if (key.pageDown) {
-          setDetailScrollOffset((o) => Math.min(o + contentHeight, pagerMaxScroll));
+          setDetailScrollOffset((o) => Math.min(o + detailContentHeight, detailMaxScroll));
           return true;
         }
         if (input === 'd') {
-          setDetailScrollOffset((o) => Math.min(o + Math.floor(contentHeight / 2), pagerMaxScroll));
+          setDetailScrollOffset((o) => Math.min(o + Math.floor(detailContentHeight / 2), detailMaxScroll));
           return true;
         }
         if (input === 'u') {
-          setDetailScrollOffset((o) => Math.max(0, o - Math.floor(contentHeight / 2)));
+          setDetailScrollOffset((o) => Math.max(0, o - Math.floor(detailContentHeight / 2)));
           return true;
         }
         return false;
@@ -340,15 +263,10 @@ export function useSessionView(
       selectedIndex,
       searchQuery,
       searchInput,
-      pagerSearchInput,
-      pagerSearchMode,
-      pagerActiveSearch,
-      pagerMatchingLines,
-      pagerCurrentMatchIndex,
-      pagerMaxScroll,
-      pagerScrollToLine,
-      pagerLines,
-      detailScrollOffset,
+      handleDetailSearchKey,
+      resetDetailSearch,
+      detailMaxScroll,
+      detailContentHeight,
       rows,
       handleUp,
       handleDown,
@@ -370,11 +288,10 @@ export function useSessionView(
     sessionContent,
     detailScrollOffset,
     detailTitle,
-    pagerSearchQuery: pagerSearchInput.query,
-    pagerSearchMode,
-    pagerActiveSearch,
-    pagerCurrentMatchIndex,
-    pagerMatchingLines,
+    detailSearchMode,
+    detailActiveSearch,
+    detailCurrentMatchIndex,
+    detailMatchingLines,
   };
 
   return { state, handleKey };

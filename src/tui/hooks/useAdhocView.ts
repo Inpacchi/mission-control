@@ -5,8 +5,8 @@ import type { UntrackedCommit } from '../../shared/types.js';
 import { getUntrackedCommits } from '../../server/services/gitParser.js';
 import { useListNavigation } from './useListNavigation.js';
 import { useSearchInput } from './useSearchInput.js';
+import { useDetailSearch } from './useDetailSearch.js';
 import { execFile } from 'node:child_process';
-import { stripAnsi } from '../renderMarkdown.js';
 
 export interface AdhocViewState {
   // List state
@@ -24,39 +24,17 @@ export interface AdhocViewState {
   detailLoading: boolean;
   detailScrollOffset: number;
   // Detail search state
-  detailSearchQuery: string;
-  activeDetailSearch: string;
-  currentMatchIndex: number;
+  detailActiveSearch: string;
+  detailCurrentMatchIndex: number;
   detailSearchMode: boolean; // true when /search input active in detail
   // Derived: matching line indices (computed in hook, used by component)
-  matchingLines: number[];
+  detailMatchingLines: number[];
 }
-
-const DEFAULT_STATE: AdhocViewState = {
-  commits: [],
-  filteredCommits: [],
-  loading: true,
-  selectedIndex: 0,
-  listScrollOffset: 0,
-  listSearchQuery: '',
-  listSearchMode: false,
-  selectedCommit: null,
-  detailContent: null,
-  detailLoading: false,
-  detailScrollOffset: 0,
-  detailSearchQuery: '',
-  activeDetailSearch: '',
-  currentMatchIndex: 0,
-  detailSearchMode: false,
-  matchingLines: [],
-};
 
 interface UseAdhocViewResult {
   state: AdhocViewState;
   handleKey: (input: string, key: Key, viewMode: ViewMode) => boolean;
 }
-
-const SUMMARY_RE = /\d+ files? changed/;
 
 export function useAdhocView(
   projectPath: string,
@@ -65,20 +43,14 @@ export function useAdhocView(
 ): UseAdhocViewResult {
   const [commits, setCommits] = useState<UntrackedCommit[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastProjectPathRef = useRef<string | undefined>(undefined);
   const [listSearchMode, setListSearchMode] = useState(false);
   const [selectedCommit, setSelectedCommit] = useState<UntrackedCommit | null>(null);
   const [detailContent, setDetailContent] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailScrollOffset, setDetailScrollOffset] = useState(0);
-  const [detailSearchMode, setDetailSearchMode] = useState(false);
-  const [activeDetailSearch, setActiveDetailSearch] = useState('');
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-
   const listSearchInput = useSearchInput();
   const listSearchQuery = listSearchInput.query;
-
-  const detailSearchInput = useSearchInput();
-  const detailSearchQuery = detailSearchInput.query;
 
   // Ref for cancellation of execFile callbacks on unmount
   const unmountedRef = useRef(false);
@@ -90,17 +62,18 @@ export function useAdhocView(
   // the previous git show resolves, the earlier callback discards its result.
   const detailLoadIdRef = useRef(0);
 
-  // Load untracked commits once. getUntrackedCommits is synchronous (uses execSync internally).
-  // We wrap in a useEffect with a brief async yield so the loading state renders before blocking.
+  // Load untracked commits. Re-fetches when projectPath changes; caches per project.
+  // getUntrackedCommits is synchronous (uses execSync internally). We wrap in a useEffect
+  // with a brief async yield so the loading state renders before blocking.
   useEffect(() => {
-    if (commits.length > 0) return; // cached
+    if (commits.length > 0 && lastProjectPathRef.current === projectPath) return;
+    lastProjectPathRef.current = projectPath;
     let cancelled = false;
-    // Use Promise.resolve() to defer to next microtask, allowing loading UI to render first
+    setLoading(true);
+    setCommits([]);
     void Promise.resolve().then(() => {
       if (cancelled) return;
       try {
-        // NOTE: getUntrackedCommits uses execSync internally — this blocks the event loop briefly.
-        // This is acceptable for the unified app since it's a one-time startup cost.
         const result = getUntrackedCommits(projectPath);
         if (!cancelled) {
           setCommits(result);
@@ -111,8 +84,7 @@ export function useAdhocView(
       }
     });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectPath]);
+  }, [projectPath, commits.length]);
 
   const filteredCommits = useMemo(() => {
     if (!listSearchQuery) return commits;
@@ -144,22 +116,23 @@ export function useAdhocView(
     [detailContent],
   );
 
-  const matchingLines = useMemo(() => {
-    if (!activeDetailSearch) return [];
-    const q = activeDetailSearch.toLowerCase();
-    return detailLines.reduce<number[]>((acc, line, i) => {
-      if (stripAnsi(line).toLowerCase().includes(q)) acc.push(i);
-      return acc;
-    }, []);
-  }, [detailLines, activeDetailSearch]);
-
+  // rows - 5: 3-line header (hash/message, date, separator) + 1 status bar + 1 bottom bar
   const detailContentHeight = Math.max(1, rows - 5);
 
-  const scrollToDetailLine = useCallback(
-    (line: number): number =>
-      Math.max(0, Math.min(line - Math.floor(detailContentHeight / 4), Math.max(0, detailLines.length - detailContentHeight))),
-    [detailContentHeight, detailLines.length],
-  );
+  const {
+    detailSearchMode,
+    detailActiveSearch,
+    detailCurrentMatchIndex,
+    detailMatchingLines,
+    detailMaxScroll,
+    handleSearchKey: handleDetailSearchKey,
+    resetSearch: resetDetailSearch,
+  } = useDetailSearch({
+    lines: detailLines,
+    scrollOffset: detailScrollOffset,
+    setScrollOffset: setDetailScrollOffset,
+    contentHeight: detailContentHeight,
+  });
 
   const openDetail = useCallback(
     (commit: UntrackedCommit) => {
@@ -167,10 +140,7 @@ export function useAdhocView(
       setDetailContent(null);
       setDetailLoading(true);
       setDetailScrollOffset(0);
-      setDetailSearchMode(false);
-      setActiveDetailSearch('');
-      detailSearchInput.reset();
-      setCurrentMatchIndex(0);
+      resetDetailSearch();
 
       const loadId = ++detailLoadIdRef.current;
       execFile(
@@ -189,7 +159,7 @@ export function useAdhocView(
         },
       );
     },
-    [projectPath, detailSearchInput],
+    [projectPath, resetDetailSearch],
   );
 
   const handleKey = useCallback(
@@ -205,46 +175,30 @@ export function useAdhocView(
 
       // ── Detail view ──────────────────────────────────────────────────────────
       if (viewMode === 'adhoc-detail' || viewMode === 'adhoc-detail-search') {
-        // Detail search mode
-        if (detailSearchMode) {
-          if (key.return) {
-            setActiveDetailSearch(detailSearchQuery);
-            setDetailSearchMode(false);
-            setViewMode('adhoc-detail');
-            if (detailSearchQuery) {
-              const q = detailSearchQuery.toLowerCase();
-              const allMatches = detailLines.reduce<number[]>((acc, line, i) => {
-                if (stripAnsi(line).toLowerCase().includes(q)) acc.push(i);
-                return acc;
-              }, []);
-              const idx = allMatches.findIndex((m) => m >= detailScrollOffset);
-              if (idx >= 0) {
-                setCurrentMatchIndex(idx);
-                setDetailScrollOffset(scrollToDetailLine(allMatches[idx]));
-              } else if (allMatches.length > 0) {
-                setCurrentMatchIndex(0);
-                setDetailScrollOffset(scrollToDetailLine(allMatches[0]));
-              }
-            }
-            return true;
+        // Delegate search state machine (/, Enter, Esc, n, p) to useDetailSearch.
+        // Note: adhoc-detail-search viewMode is used for the search-active state;
+        // we also need to update viewMode when entering/exiting search.
+        if (detailSearchMode || input === '/') {
+          if (input === '/') {
+            setViewMode('adhoc-detail-search');
           }
-          const consumed = detailSearchInput.handleKey(input, key);
-          if (consumed) {
+          const searchConsumed = handleDetailSearchKey(input, key);
+          if (searchConsumed) {
+            // When Esc consumed by the search handler, always revert to adhoc-detail.
+            // Unconditional: stale viewMode state cannot cause a wrong transition.
             if (key.escape) {
-              setDetailSearchMode(false);
               setViewMode('adhoc-detail');
             }
             return true;
           }
-          return true;
+          // Unhandled key in search mode falls through
         }
 
-        // Detail normal mode
+        // Back / clear search
         if (input === 'b' || key.escape) {
-          if (activeDetailSearch) {
-            setActiveDetailSearch('');
-            detailSearchInput.reset();
-            setCurrentMatchIndex(0);
+          if (detailActiveSearch) {
+            resetDetailSearch();
+            if (viewMode === 'adhoc-detail-search') setViewMode('adhoc-detail');
             return true;
           }
           setViewMode('adhoc');
@@ -252,31 +206,14 @@ export function useAdhocView(
           setSelectedCommit(null);
           return true;
         }
-        if (input === '/') {
-          detailSearchInput.reset();
-          setDetailSearchMode(true);
-          setViewMode('adhoc-detail-search');
-          return true;
-        }
-        if (input === 'n' && activeDetailSearch && matchingLines.length > 0) {
-          const nextIdx = (currentMatchIndex + 1) % matchingLines.length;
-          setCurrentMatchIndex(nextIdx);
-          setDetailScrollOffset(scrollToDetailLine(matchingLines[nextIdx]));
-          return true;
-        }
-        if (input === 'p' && activeDetailSearch && matchingLines.length > 0) {
-          const prevIdx = (currentMatchIndex - 1 + matchingLines.length) % matchingLines.length;
-          setCurrentMatchIndex(prevIdx);
-          setDetailScrollOffset(scrollToDetailLine(matchingLines[prevIdx]));
-          return true;
-        }
+
+        // Scroll navigation
         if (key.upArrow) {
           setDetailScrollOffset((o) => Math.max(0, o - 1));
           return true;
         }
         if (key.downArrow) {
-          const maxScroll = Math.max(0, detailLines.length - detailContentHeight);
-          setDetailScrollOffset((o) => Math.min(o + 1, maxScroll));
+          setDetailScrollOffset((o) => Math.min(o + 1, detailMaxScroll));
           return true;
         }
         return false;
@@ -332,15 +269,10 @@ export function useAdhocView(
     },
     [
       detailSearchMode,
-      detailSearchQuery,
-      detailSearchInput,
-      activeDetailSearch,
-      matchingLines,
-      currentMatchIndex,
-      detailScrollOffset,
-      detailLines,
-      detailContentHeight,
-      scrollToDetailLine,
+      detailActiveSearch,
+      handleDetailSearchKey,
+      resetDetailSearch,
+      detailMaxScroll,
       listSearchQuery,
       listSearchInput,
       filteredCommits,
@@ -365,11 +297,10 @@ export function useAdhocView(
     detailContent,
     detailLoading,
     detailScrollOffset,
-    detailSearchQuery,
-    activeDetailSearch,
-    currentMatchIndex,
+    detailActiveSearch,
+    detailCurrentMatchIndex,
     detailSearchMode,
-    matchingLines,
+    detailMatchingLines,
   };
 
   return { state, handleKey };

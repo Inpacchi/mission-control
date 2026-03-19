@@ -1,4 +1,4 @@
-import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react';
 
 interface UseListNavigationResult {
   selectedIndex: number;
@@ -28,23 +28,21 @@ export function useListNavigation(
   // Trailing-edge scroll: keep selectedIndex visible at the bottom edge
   const scrollOffset = Math.max(0, selectedIndex - viewportHeight + 1);
 
-  function handleUp(): void {
+  const handleUp = useCallback((): void => {
     setSelectedIndex((prev) => Math.max(0, prev - 1));
-  }
+  }, []);
 
-  function handleDown(): void {
-    if (itemCount === 0) return;
-    setSelectedIndex((prev) => Math.min(prev + 1, itemCount - 1));
-  }
+  const handleDown = useCallback((): void => {
+    setSelectedIndex((prev) => Math.min(prev + 1, Math.max(0, itemCount - 1)));
+  }, [itemCount]);
 
-  function handlePageUp(): void {
+  const handlePageUp = useCallback((): void => {
     setSelectedIndex((prev) => Math.max(0, prev - viewportHeight));
-  }
+  }, [viewportHeight]);
 
-  function handlePageDown(): void {
-    if (itemCount === 0) return;
-    setSelectedIndex((prev) => Math.min(prev + viewportHeight, itemCount - 1));
-  }
+  const handlePageDown = useCallback((): void => {
+    setSelectedIndex((prev) => Math.min(prev + viewportHeight, Math.max(0, itemCount - 1)));
+  }, [itemCount, viewportHeight]);
 
   return {
     selectedIndex,

@@ -26,11 +26,9 @@ interface AdhocBrowserProps {
   detailContent: string | null;
   detailLoading: boolean;
   detailScrollOffset: number;
-  detailSearchQuery: string;
-  activeDetailSearch: string;
-  currentMatchIndex: number;
-  detailSearchMode: boolean;
-  matchingLines: number[];
+  detailActiveSearch: string;
+  detailCurrentMatchIndex: number;
+  detailMatchingLines: number[];
   height?: number;
 }
 
@@ -62,11 +60,9 @@ export function AdhocBrowser({
   detailContent,
   detailLoading,
   detailScrollOffset,
-  detailSearchQuery: _detailSearchQuery,
-  activeDetailSearch,
-  currentMatchIndex,
-  detailSearchMode: _detailSearchMode,
-  matchingLines,
+  detailActiveSearch,
+  detailCurrentMatchIndex,
+  detailMatchingLines,
   height: heightProp,
 }: AdhocBrowserProps): React.ReactElement {
   const { stdout } = useStdout();
@@ -77,6 +73,9 @@ export function AdhocBrowser({
     () => (detailContent ? detailContent.split('\n') : []),
     [detailContent],
   );
+
+  // Memoized at top level (unconditionally) to comply with rules of hooks
+  const matchSet = useMemo(() => new Set(detailMatchingLines), [detailMatchingLines]);
 
   // ── Detail view ──────────────────────────────────────────────────────────────
   if (viewMode === 'adhoc-detail' || viewMode === 'adhoc-detail-search') {
@@ -95,18 +94,17 @@ export function AdhocBrowser({
     const shortHash = commit.hash.slice(0, 7);
     const dateStr = formatDate(commit.date);
 
-    const activeMatchLine = matchingLines.length > 0 ? matchingLines[currentMatchIndex] : -1;
-    const matchSet = new Set(matchingLines);
+    const activeMatchLine = detailMatchingLines.length > 0 ? detailMatchingLines[detailCurrentMatchIndex] : -1;
 
     const renderDetailLine = (line: string, absoluteIndex: number): React.ReactElement => {
-      if (activeDetailSearch && absoluteIndex === activeMatchLine) {
+      if (detailActiveSearch && absoluteIndex === activeMatchLine) {
         return (
           <Text key={absoluteIndex} backgroundColor="yellow" color="black" bold>
             {stripAnsi(line) || ' '}
           </Text>
         );
       }
-      if (activeDetailSearch && matchSet.has(absoluteIndex)) {
+      if (detailActiveSearch && matchSet.has(absoluteIndex)) {
         return (
           <Text key={absoluteIndex} backgroundColor="gray" color="white">
             {stripAnsi(line) || ' '}
@@ -153,8 +151,7 @@ export function AdhocBrowser({
 
   // ── List view ────────────────────────────────────────────────────────────────
   const listViewportHeight = Math.max(1, height - 3);
-  const listHeight = listViewportHeight;
-  const visibleCommits = filteredCommits.slice(listScrollOffset, listScrollOffset + listHeight);
+  const visibleCommits = filteredCommits.slice(listScrollOffset, listScrollOffset + listViewportHeight);
   const isSearchActive = listSearchQuery.length > 0;
 
   const HASH_W = 7;

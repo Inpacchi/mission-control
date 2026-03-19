@@ -195,8 +195,6 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
       detailScrollOffset,
       detailMaxScrollRef,
       activeDocType,
-      detailSearchMode,
-      detailSearchQuery,
       detailActiveSearch,
       detailCurrentMatchIndex,
       detailMatchLinesRef,
@@ -207,7 +205,6 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
     files,
   } = useKeyboard({
     zones,
-    viewMode: 'board',
     projectPath,
     onExit: exit,
     onOpenEditor: openEditor,
@@ -251,8 +248,6 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
             scrollOffset={detailScrollOffset}
             maxScrollRef={detailMaxScrollRef}
             activeDocType={activeDocType}
-            detailSearchMode={detailSearchMode}
-            detailSearchQuery={detailSearchQuery}
             detailActiveSearch={detailActiveSearch}
             detailCurrentMatchIndex={detailCurrentMatchIndex}
             detailMatchLinesRef={detailMatchLinesRef}
@@ -275,16 +270,13 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
           searchQuery={chronicle.searchQuery}
           searchMode={chronicle.searchMode}
           viewMode={viewMode}
-          selectedFilePath={chronicle.selectedFilePath}
           activeDocType={chronicle.activeDocType}
           detailScrollOffset={chronicle.detailScrollOffset}
           projectPath={projectPath}
           detailMaxScrollRef={chronicle.detailMaxScrollRef}
-          detailSearchMode={chronicle.detailSearchMode}
-          detailSearchQuery={chronicle.detailSearchQuery}
           detailActiveSearch={chronicle.detailActiveSearch}
           detailCurrentMatchIndex={chronicle.detailCurrentMatchIndex}
-          detailMatchLinesRef={chronicle.detailMatchLinesRef}
+          detailMatchingLines={chronicle.detailMatchingLines}
           height={height - 2}
         />
       </ViewLayout>
@@ -307,11 +299,9 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
           sessionContent={sessions.sessionContent}
           detailScrollOffset={sessions.detailScrollOffset}
           detailTitle={sessions.detailTitle}
-          pagerSearchQuery={sessions.pagerSearchQuery}
-          pagerSearchMode={sessions.pagerSearchMode}
-          pagerActiveSearch={sessions.pagerActiveSearch}
-          pagerCurrentMatchIndex={sessions.pagerCurrentMatchIndex}
-          pagerMatchingLines={sessions.pagerMatchingLines}
+          detailActiveSearch={sessions.detailActiveSearch}
+          detailCurrentMatchIndex={sessions.detailCurrentMatchIndex}
+          detailMatchingLines={sessions.detailMatchingLines}
           height={height - 2}
         />
       </ViewLayout>
@@ -340,11 +330,9 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
           detailContent={adhoc.detailContent}
           detailLoading={adhoc.detailLoading}
           detailScrollOffset={adhoc.detailScrollOffset}
-          detailSearchQuery={adhoc.detailSearchQuery}
-          activeDetailSearch={adhoc.activeDetailSearch}
-          currentMatchIndex={adhoc.currentMatchIndex}
-          detailSearchMode={adhoc.detailSearchMode}
-          matchingLines={adhoc.matchingLines}
+          detailActiveSearch={adhoc.detailActiveSearch}
+          detailCurrentMatchIndex={adhoc.detailCurrentMatchIndex}
+          detailMatchingLines={adhoc.detailMatchingLines}
           height={height - 2}
         />
       </ViewLayout>

@@ -4,6 +4,109 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-19 — Post-Fix Verification Round 2
+
+**Deliverable:** Ad hoc post-fix verification (chronicle migration, detailMaxScroll, MarkdownPanel lines-only, misc cleanup)
+**Scope:** `useDetailSearch.ts`, `useChronicleView.ts`, `useSessionView.ts`, `useAdhocView.ts`, `useFileView.ts`, `useKeyboard.ts`, `MarkdownPanel.tsx`, `DetailPanel.tsx`, `BoardApp.tsx`, `ChronicleList.tsx`
+
+**HIGH findings:**
+- H1 (new regression): `useChronicleView.ts` — `detailMaxScroll` from `useDetailSearch` is NOT destructured. Chronicle detail scroll handlers at lines 220-243 still use `detailMaxScrollRef.current` (initialized to `Infinity`). `useAdhocView` correctly uses `detailMaxScroll`; `useChronicleView` does not. Chronicle detail scroll has no upper bound until `DetailPanel` renders and writes the ref.
+
+**MEDIUM findings:**
+- M1: `useChronicleView.ts` lines 116-128 — `detailMaxScroll` produced by `useDetailSearch` but not consumed. Described in H1.
+- M2: `useChronicleView.ts` lines 108-114 + `DetailPanel.tsx` lines 59-62 — Same file loaded twice (two `useFileContent` calls for same path) and same markdown rendered twice (two `useMarkdownLines` calls) per render cycle. Chronicle path variant of the MarkdownPanel double-render pattern.
+- M3: `useSessionView.ts` lines 111-114 — Independent `useMemo` for `detailMaxScroll` duplicates the formula already inside `useDetailSearch`, which also computes it. `useSessionView` doesn't destructure `detailMaxScroll` from `useDetailSearch`; computes it separately. Not a bug but a DRY violation.
+
+**LOW findings:**
+- L1: `AdhocViewState.detailSearchQuery` (line 27 of `useAdhocView.ts`) — present in interface and state construction; was removed from chronicle/session states. May be live if AdhocBrowser consumes it, or dead prop survivor. Cannot confirm without reading AdhocBrowser.
+
+**Fixes confirmed correct:**
+- useChronicleView fully migrated to useDetailSearch — PARTIAL (search state machine migrated; detailMaxScroll was not consumed)
+- detailMatchingLines array passed to ChronicleList/DetailPanel — CORRECT
+- MarkdownPanel content prop removed, lines required — CORRECT
+- board.detailSearchMode/detailSearchQuery removed from BoardViewState — CORRECT
+- detailSearchQuery removed from ChronicleViewState and SessionViewState — CORRECT
+- entries removed from useChronicleView handleKey deps — CORRECT
+- searchInput destructured for stable useCallback deps — CORRECT
+- setTimeout(0) removed from useFileView file-search — CORRECT
+- Adhoc Esc logic simplified — CORRECT
+- Unused useMemo import removed from SessionBrowser — CORRECT
+
+**Pattern learned:**
+- When a shared hook exposes a computed value (detailMaxScroll), the consuming hook must explicitly destructure AND use it — exposing the value in the interface is insufficient. Verify each consumer's destructure list, not just that the hook API was updated.
+
+---
+
+## 2026-03-19 — Post-Fix Verification Review (21 fixes)
+
+**Deliverable:** Ad hoc post-fix verification pass
+**Scope:** `useDetailSearch.ts` (new), `useKeyboard.ts`, `useChronicleView.ts`, `useSessionView.ts`, `useAdhocView.ts`, `useFileView.ts`, `useSearchInput.ts`, `useListNavigation.ts`, `useFileContent.ts`, `MarkdownPanel.tsx`, `DetailPanel.tsx`, `BoardApp.tsx`, `AdhocBrowser.tsx`, `ChronicleList.tsx`, `SessionBrowser.tsx`, `Pager.tsx`, `theme.ts`
+
+**Fix verification:** 19 of 21 fixes confirmed correct. Two issues:
+- Fix 2 (useDetailSearch extraction) INCOMPLETE — useChronicleView not migrated, retains inline machine.
+- Fix 13 (file-search Enter index) uses setTimeout(0) against React state — fragile timing assumption.
+
+**HIGH findings:**
+- H1 (pre-existing, unresolved): `useSearchInput.ts` lines 35/42 — `onQueryChange` callback called inside functional updater. Documented in recurring-patterns.md but not in this fix set's scope. No current caller passes the callback so no observable bug today.
+- H2 (new): `useFileView.ts` lines 329-356 — file-search→files navigation defers index computation via `setTimeout(0)`. The `parents` closure + `allFiles` closure combo is correct only under React's current synchronous state-batching timing. Fragile under concurrent mode or batching changes.
+
+**MEDIUM findings:**
+- M1: `useChronicleView` retains inline detail-search state machine (detailSearchInput + 80-line handleKey block). useDetailSearch extraction was not applied here.
+- M2: `detailSearchQuery` destructured but discarded in useSessionView line 118 — not in SessionViewState, not used anywhere.
+- M3: `Pager.tsx` line 212 — matchSet rebuilt inline (not memoized). PagerView fixed; Pager.tsx missed.
+- M4: `useChronicleView.ts` handleKey dep array includes `entries` (never read inside handler); only `filteredEntries` is used.
+- M5: `useAdhocView` detail scroll missing pageUp/pageDown/u/d — all other detail pagers have them.
+- M6: `MarkdownPanel` `computedLines` memo duplicates `useMarkdownLines` logic in the same file.
+
+**LOW findings:**
+- L1: `useSearchInput` eslint-disable comment documents caller assumption rather than enforcing hook contract.
+- L2: `BoardApp.openEditor` uses EDITOR only, not VISUAL. All other editor-launch sites use VISUAL-first.
+- L3: `useSessionView` detailContentHeight = rows - 3 but PagerView has no footer — wastes one content line.
+
+**Patterns learned:**
+- Partial hook extractions (useDetailSearch applied to 2 of 3 consumers) pass in isolation but leave the third consumer as a DRY violation that will silently diverge if the shared hook is updated.
+- `setTimeout(0)` as a React state-settling wait is a known anti-pattern. Correct form: useEffect on the dependency that needs to settle.
+- When verifying "dead prop removal" fixes, check that the destructured-but-discarded variables were also removed, not just the interface entries.
+
+---
+
+## 2026-03-19 — TUI Refactoring Review (commits 1c4813f, a879671, d7af0b1)
+
+**Deliverable:** Ad hoc — scroll clamping, DRY markdown rendering, AdhocBrowser, session transcript rendering, unified architecture refactor
+**Scope:** `useKeyboard.ts`, `useChronicleView.ts`, `useSessionView.ts`, `useAdhocView.ts`, `useFileView.ts`, `BoardApp.tsx`, `ChronicleList.tsx`, `SessionBrowser.tsx`, `AdhocBrowser.tsx`, `FileBrowser.tsx`, `PagerView.tsx`, `HelpBar.tsx`, `DetailPanel.tsx`, `MarkdownPanel.tsx`, `useSearchInput.ts`, `useListNavigation.ts`, `useFileContent.ts`, `launchScreen.ts`, `index.ts`, `formatters.ts`
+
+**CRITICAL:** None new. Pre-existing `execSync` in Pager.tsx line 133 not fixed by these commits.
+
+**HIGH findings:**
+- H1: `useFileView.ts` grep `_err` discarded — zero-matches vs real error indistinguishable. Re-occurrence of previously flagged pattern at same hook.
+- H2: `useSessionView.ts` `buildSessionContent` search-on-Enter uses `detailScrollOffset` from `useCallback` closure rather than a ref — functionally correct NOW because `detailScrollOffset` is in deps, but latent trap if deps are cleaned up.
+
+**MEDIUM findings:**
+- M1: `SUMMARY_RE` duplicated in `useAdhocView.ts` line 59 and `AdhocBrowser.tsx` line 37.
+- M2: `_selectedFilePath` dead prop in ChronicleList — interface, pass-through in BoardApp, underscore destructure all present.
+- M3: `MarkdownPanel` renders markdown twice — `DetailPanel` calls `useMarkdownLines` (renders internally) then passes raw `content` to `MarkdownPanel` which renders again. Double-render per keystroke.
+- M4: `ViewLayout` inner `<Box flexGrow={1}>` still redundant (was M2 in prior review, still present).
+- M5: `useFileView` file-search→files navigation uses `allFiles` index not `visibleEntries` index — wrong entry selected after collapse.
+- M6: `useListNavigation` exposes raw `setSelectedIndex` — callers bypass clamp, -1 possible for one render.
+- M7: `DEFAULT_STATE` constants in 3 per-view hooks are dead code (unused by `useState` initializers).
+- M8: `matchSet = new Set(matchingLines)` in `AdhocBrowser.tsx` line 99 — inline, non-memoized, O(n) per render.
+- M9: `ChronicleList.tsx` detail view uses `entries[selectedIndex]` (unfiltered) instead of `filteredEntries[selectedIndex]` — wrong entry shown when search filter is active.
+- M10: `useFileView` grep error path — binary-not-found errors silently show "no matches."
+
+**LOW findings:**
+- L1: `RARITY_INK_COLOR` defined twice (DetailPanel.tsx and ChronicleList.tsx).
+- L2: `listHeight` alias of `listViewportHeight` still present in ChronicleList and SessionBrowser.
+- L3: `_detailSearchQuery` / `_detailSearchMode` dead props in AdhocBrowser.
+- L4: `searchMode: boolean` vs `detailSearchMode: DetailSearchMode` inconsistency in ChronicleViewState.
+
+**Prior findings resolved (confirmed):** H1 BottomBar getShortcuts memoization, H3 DetailPanel includes→Set, M4 PagerView matchSet memoized, sessionLoadIdRef in useSessionView, detailLoadIdRef in useAdhocView, spawnSync array-form in useFileView.
+
+**Patterns confirmed:**
+- `MarkdownPanel` accepting raw `content` creates a double-render trap when callers also call `useMarkdownLines` for match data. The abstraction boundary needs to be `lines: string[]` not `content: string`.
+- `ChronicleList` detail view must use `filteredEntries` not `entries` for index lookup — the selectedIndex always tracks into the filtered list.
+
+---
+
 ## 2026-03-18 — Code Reuse Review (BottomBar / footer consolidation) — CONFIRMED REVIEW
 
 **Deliverable:** Ad hoc — BottomBar refactor pass (removed inline footers, centralized in BoardApp)

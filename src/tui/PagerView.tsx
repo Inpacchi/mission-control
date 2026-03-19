@@ -16,8 +16,6 @@ interface PagerViewProps {
   title: string;
   content: string;
   scrollOffset: number;
-  searchQuery: string; // live query being typed (shown in search mode)
-  searchMode: boolean; // true when user is actively typing a search query
   activeSearch: string; // committed search term (used for highlighting)
   currentMatchIndex: number;
   matchingLines: number[];
@@ -29,8 +27,6 @@ export function PagerView({
   title,
   content,
   scrollOffset,
-  searchQuery: _searchQuery,
-  searchMode: _searchMode,
   activeSearch,
   currentMatchIndex,
   matchingLines,

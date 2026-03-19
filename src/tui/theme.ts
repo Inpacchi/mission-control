@@ -30,6 +30,15 @@ export const TYPE_ICON: Record<string, string> = {
   architecture: '\u2302',  // ⌂
 };
 
+// Ink color names keyed by rarity tier — used in terminal (Ink) components
+export const RARITY_INK_COLOR: Record<string, string> = {
+  common: 'white',
+  uncommon: 'green',
+  rare: 'cyan',
+  epic: 'yellow',
+  mythic: 'yellow',
+};
+
 /**
  * Map complexity to rarity tier.
  * Note: arch→mythic and moonshot→epic are intentionally counterintuitive per design spec.

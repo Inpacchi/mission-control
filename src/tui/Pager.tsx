@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import { useSearchInput } from './hooks/useSearchInput.js';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { stripAnsi } from './renderMarkdown.js';
 
 interface PagerProps {
@@ -130,7 +130,7 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
       process.stdout.write('\x1b[?1049l');
       process.stdout.write('\x1b[?25h');
       try {
-        execSync(`${editor} "${filePath}"`, { stdio: 'inherit' });
+        spawnSync(editor, [filePath], { stdio: 'inherit' });
       } catch { /* editor error */ }
       // Re-enter alternate screen
       process.stdout.write('\x1b[?1049h');
