@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseChronicle } from '../server/services/sdlcParser.js';
 import type { Deliverable } from '../shared/types.js';
 import { complexityToRarity } from './theme.js';
-import { renderMarkdownToAnsi } from './renderMarkdown.js';
+import { MarkdownPanel, useMarkdownLines } from './components/MarkdownPanel.js';
 
 interface ChronicleListProps {
   projectPath: string;
@@ -54,13 +54,16 @@ export function ChronicleList({ projectPath, fromBoard = false }: ChronicleListP
       });
   }, [projectPath]);
 
+  // Hook must be called unconditionally (before early returns)
+  const renderedLines = useMarkdownLines(docContent);
+
   useInput((input, key) => {
     if (viewMode === 'list') {
       if (input === 'q') {
+        console.clear();
         if (fromBoard) {
           process.exit(0); // hard quit the entire mc process
         }
-        console.clear();
         exit(); // standalone: just exit this Ink instance
         return;
       }
@@ -121,8 +124,8 @@ export function ChronicleList({ projectPath, fromBoard = false }: ChronicleListP
       }
       if (key.downArrow) {
         setScrollOffset((o) => {
-          const lineCount = docContent?.split('\n').length ?? 0;
-          const maxScroll = Math.max(0, lineCount - (process.stdout.rows || 24) + 6);
+          const contentHeight = Math.max(1, height - 5);
+          const maxScroll = Math.max(0, renderedLines.length - contentHeight);
           return Math.min(o + 1, maxScroll);
         });
         return;
@@ -152,13 +155,6 @@ export function ChronicleList({ projectPath, fromBoard = false }: ChronicleListP
     );
   }
 
-  // Render markdown when detail content is available
-  const renderedLines = useMemo(() => {
-    if (!docContent) return [];
-    const rendered = renderMarkdownToAnsi(docContent);
-    return rendered.split('\n');
-  }, [docContent]);
-
   // Detail view
   if (viewMode === 'detail') {
     const entry = entries[selectedIndex];
@@ -166,9 +162,8 @@ export function ChronicleList({ projectPath, fromBoard = false }: ChronicleListP
     const footerHeight = 1;
     const contentHeight = Math.max(1, height - headerHeight - footerHeight);
 
-    const rawLines = renderedLines.length > 0 ? renderedLines : [];
-    const clampedOffset = Math.min(scrollOffset, Math.max(0, rawLines.length - contentHeight));
-    const visibleLines = rawLines.slice(clampedOffset, clampedOffset + contentHeight);
+    const maxScroll = Math.max(0, renderedLines.length - contentHeight);
+    const clampedOffset = Math.min(scrollOffset, maxScroll);
 
     const rarity = complexityToRarity(entry.complexity);
     const idColor = RARITY_INK_COLOR[rarity] ?? 'white';
@@ -190,27 +185,35 @@ export function ChronicleList({ projectPath, fromBoard = false }: ChronicleListP
         </Box>
 
         {/* Document content */}
-        <Box flexDirection="column" flexGrow={1} paddingX={1} overflow="hidden">
-          {detailLoading ? (
+        {detailLoading ? (
+          <Box flexDirection="column" flexGrow={1} paddingX={1}>
             <Text dimColor>Loading document…</Text>
-          ) : detailError ? (
+          </Box>
+        ) : detailError ? (
+          <Box flexDirection="column" flexGrow={1} paddingX={1}>
             <Text color="red">{detailError}</Text>
-          ) : docContent === null ? (
+          </Box>
+        ) : docContent === null ? (
+          <Box flexDirection="column" flexGrow={1} paddingX={1}>
             <Text dimColor>(no content)</Text>
-          ) : rawLines.length === 0 ? (
+          </Box>
+        ) : renderedLines.length === 0 ? (
+          <Box flexDirection="column" flexGrow={1} paddingX={1}>
             <Text dimColor>(empty document)</Text>
-          ) : (
-            visibleLines.map((line, i) => (
-              <Text key={i} wrap="truncate">{line}</Text>
-            ))
-          )}
-        </Box>
+          </Box>
+        ) : (
+          <MarkdownPanel
+            content={docContent}
+            height={contentHeight}
+            scrollOffset={clampedOffset}
+          />
+        )}
 
         {/* Footer */}
         <Box paddingX={1}>
           <Text dimColor>
             Esc/q: back  ↑↓: scroll
-            {rawLines.length > 0 ? `  ${clampedOffset + 1}-${Math.min(clampedOffset + contentHeight, rawLines.length)}/${rawLines.length} lines` : ''}
+            {renderedLines.length > 0 ? `  ${clampedOffset + 1}-${Math.min(clampedOffset + contentHeight, renderedLines.length)}/${renderedLines.length} lines` : ''}
           </Text>
         </Box>
       </Box>

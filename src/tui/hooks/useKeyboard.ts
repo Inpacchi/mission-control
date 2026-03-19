@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useInput } from 'ink';
 import type { Deliverable } from '../../shared/types.js';
 
@@ -29,6 +29,7 @@ interface UseKeyboardResult {
   showHelp: boolean;
   expandedCardId: string | null;
   detailScrollOffset: number;
+  detailMaxScrollRef: React.RefObject<number>;
   activeDocType: DocType;
   pendingAction: BoardAction;
 }
@@ -47,6 +48,7 @@ export function useKeyboard({
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [activeDocType, setActiveDocType] = useState<DocType>('auto');
   const [detailScrollOffset, setDetailScrollOffset] = useState<number>(0);
+  const detailMaxScrollRef = useRef<number>(Infinity);
   const [pendingAction, setPendingAction] = useState<BoardAction>(null);
 
   // In collapsed mode Deck (0) and Graveyard (3) are badge-only — skip them
@@ -178,7 +180,7 @@ export function useKeyboard({
       }
 
       if (key.downArrow) {
-        setDetailScrollOffset((prev) => Math.min(prev + 1, 10000));
+        setDetailScrollOffset((prev) => Math.min(prev + 1, detailMaxScrollRef.current));
         return;
       }
     }
@@ -191,6 +193,7 @@ export function useKeyboard({
     showHelp,
     expandedCardId,
     detailScrollOffset,
+    detailMaxScrollRef,
     activeDocType,
     pendingAction,
   };

@@ -130,7 +130,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
     spawnSync(editor, [notesPath], { stdio: 'inherit' });
   }, [projectPath]);
 
-  const { selectedZone, selectedCard, showHelp, viewMode, expandedCardId, detailScrollOffset, activeDocType, pendingAction } = useKeyboard({
+  const { selectedZone, selectedCard, showHelp, viewMode, expandedCardId, detailScrollOffset, detailMaxScrollRef, activeDocType, pendingAction } = useKeyboard({
     zones,
     viewMode: 'board',
     onExit: exit,
@@ -176,6 +176,7 @@ export function BoardApp({ projectPath, initialDeliverables, onAction }: BoardAp
           width={width}
           height={height}
           scrollOffset={detailScrollOffset}
+          maxScrollRef={detailMaxScrollRef}
           activeDocType={activeDocType}
         />
       );

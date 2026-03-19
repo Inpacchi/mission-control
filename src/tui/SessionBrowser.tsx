@@ -97,10 +97,10 @@ export function SessionBrowser({ projectPath, fromBoard = false }: SessionBrowse
 
     // List mode input handling
     if (input === 'q') {
+      console.clear();
       if (fromBoard) {
         process.exit(0); // hard quit the entire mc process
       }
-      console.clear();
       exit(); // standalone: just exit this Ink instance
       return;
     }
@@ -204,15 +204,18 @@ export function SessionBrowser({ projectPath, fromBoard = false }: SessionBrowse
               ? session.title.slice(0, width - 43) + '...'
               : session.title;
 
+            const shortId = session.id.slice(0, 8);
+
             if (isSelected) {
               return (
                 <Text key={session.id} bold inverse>
-                  {` ${dateStr}  ${msgCount.padEnd(7)}  ${branch ? branch + ' ' : ''}${title}`}
+                  {` ${shortId}  ${dateStr}  ${msgCount.padEnd(7)}  ${branch ? branch + ' ' : ''}${title}`}
                 </Text>
               );
             }
             return (
               <Box key={session.id}>
+                <Text color="gray">{shortId}  </Text>
                 <Text dimColor>{dateStr}  </Text>
                 <Text color="yellow">{msgCount.padEnd(7)}  </Text>
                 {branch && <Text color="magenta">{branch} </Text>}

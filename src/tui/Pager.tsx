@@ -116,6 +116,7 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
     if (input === 'q' || input === 'Q') {
       if (onBack) {
         // Launched from board: q means quit the entire mc process
+        console.clear();
         process.exit(0);
       }
       exit();
@@ -253,7 +254,8 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
             if (mode === 'search') {
               right = ' [Enter] Search [Esc] Cancel ';
             } else {
-              const parts = ['[↑↓] Line', '[u/d] Half', '[PgUp/Dn] Page', '[/] Find', '[n/p] Next/Prev'];
+              const parts = ['[↑↓] Line', '[u/d] Half', '[PgUp/Dn] Page', '[/] Find'];
+              if (activeSearch) parts.push('[p/n] Prev/Next');
               if (filePath) parts.push('[e] Edit');
               if (onBack) parts.push('[b] Back');
               parts.push('[q] Quit');

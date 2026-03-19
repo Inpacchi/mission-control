@@ -209,8 +209,8 @@ export function FileBrowser({ projectPath, fromBoard = false }: FileBrowserProps
     // --- Grep results mode ---
     if (mode === 'grep-results') {
       if (input === 'q' || input === 'Q') {
-        if (fromBoard) { process.exit(0); }
         console.clear();
+        if (fromBoard) { process.exit(0); }
         exit();
         return;
       }
@@ -328,10 +328,10 @@ export function FileBrowser({ projectPath, fromBoard = false }: FileBrowserProps
 
     // --- Browse mode ---
     if (input === 'q' || input === 'Q') {
+      console.clear();
       if (fromBoard) {
         process.exit(0); // hard quit the entire mc process
       }
-      console.clear();
       exit(); // standalone: just exit this Ink instance
       return;
     }
@@ -526,7 +526,7 @@ export function FileBrowser({ projectPath, fromBoard = false }: FileBrowserProps
           <Text backgroundColor="black" color="white">
             {(() => {
               const left = ` ${grepResults.length > 0 ? grepSelectedIndex + 1 : 0}/${grepResults.length}`;
-              const right = ' [↑↓] Nav  [u/d] Half  [PgUp/Dn] Page  [/] Find  [g] New Grep  [Enter] Edit  [b] Back  [q] Quit ';
+              const right = ' [↑↓] Nav  [u/d] Half  [PgUp/Dn] Page  [/] Find File  [g] New Grep  [Enter] Edit  [b] Back  [q] Quit ';
               const gap = Math.max(1, width - left.length - right.length);
               return left + ' '.repeat(gap) + right;
             })()}
@@ -583,8 +583,8 @@ export function FileBrowser({ projectPath, fromBoard = false }: FileBrowserProps
           {(() => {
             const left = ` ${visibleEntries.length > 0 ? selectedIndex + 1 : 0}/${visibleEntries.length}`;
             const right = fromBoard
-              ? ' [↑↓] Nav [←/→] Collapse/Expand [PgUp/Dn] Page [/] Find [g] Grep [Enter] Edit [b] Back [q] Quit '
-              : ' [↑↓] Nav [←/→] Collapse/Expand [PgUp/Dn] Page [/] Find [g] Grep [Enter] Edit [q] Quit ';
+              ? ' [↑↓] Nav [←/→] Collapse/Expand [PgUp/Dn] Page [/] Find File [g] Grep [Enter] Edit [b] Back [q] Quit '
+              : ' [↑↓] Nav [←/→] Collapse/Expand [PgUp/Dn] Page [/] Find File [g] Grep [Enter] Edit [q] Quit ';
             const gap = Math.max(1, width - left.length - right.length);
             return left + ' '.repeat(gap) + right;
           })()}

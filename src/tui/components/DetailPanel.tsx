@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Deliverable } from '../../shared/types.js';
-import { renderMarkdownToAnsi } from '../renderMarkdown.js';
 import { type DocType } from '../hooks/useKeyboard.js';
+import { MarkdownPanel, useMarkdownLines } from './MarkdownPanel.js';
 
 interface DetailPanelProps {
   deliverable: Deliverable;
@@ -12,6 +12,7 @@ interface DetailPanelProps {
   width: number;
   height: number;
   scrollOffset: number;
+  maxScrollRef?: React.RefObject<number>;
   activeDocType?: DocType;
 }
 
@@ -21,6 +22,7 @@ export function DetailPanel({
   width: _width,
   height,
   scrollOffset,
+  maxScrollRef,
   activeDocType = 'auto',
 }: DetailPanelProps): React.ReactElement {
   const [content, setContent] = useState<string | null>(null);
@@ -69,12 +71,8 @@ export function DetailPanel({
       });
   }, [filePath, projectPath]);
 
-  // Hoisted above early returns — hooks must always be called in the same order
-  const rendered = useMemo(() => (content ? renderMarkdownToAnsi(content) : ''), [content]);
-  const lines = useMemo(
-    () => rendered ? rendered.replace(/\n{3,}/g, '\n\n').trim().split('\n') : [],
-    [rendered]
-  );
+  // Hook must be called unconditionally (before early returns)
+  const lines = useMarkdownLines(content);
 
   if (!filePath) {
     return (
@@ -110,10 +108,12 @@ export function DetailPanel({
   }
 
   const contentHeight = height - 4; // reserve header (1) + footer (1) + padding (2)
-  const visibleLines = lines.slice(scrollOffset, scrollOffset + contentHeight);
+  const maxScroll = Math.max(0, lines.length - contentHeight);
+  if (maxScrollRef) maxScrollRef.current = maxScroll;
+  const clampedOffset = Math.min(scrollOffset, maxScroll);
   const totalPages = Math.ceil(lines.length / Math.max(1, contentHeight));
   const currentPage = Math.min(
-    Math.floor(scrollOffset / Math.max(1, contentHeight)) + 1,
+    Math.floor(clampedOffset / Math.max(1, contentHeight)) + 1,
     totalPages
   );
 
@@ -146,15 +146,11 @@ export function DetailPanel({
       </Box>
 
       {/* Content */}
-      <Box flexDirection="column" flexGrow={1} paddingX={1}>
-        {visibleLines.length === 0 && scrollOffset > 0 ? (
-          <Text dimColor>— end of document —</Text>
-        ) : (
-          visibleLines.map((line, i) => (
-            <Text key={`line-${scrollOffset}-${i}`}>{line || ' '}</Text>
-          ))
-        )}
-      </Box>
+      <MarkdownPanel
+        content={content}
+        height={contentHeight}
+        scrollOffset={clampedOffset}
+      />
 
       {/* Footer with scroll hint */}
       <Box paddingX={1} justifyContent="space-between">
