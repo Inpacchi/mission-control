@@ -71,3 +71,25 @@ type: project
 
 **Critical migration-specific note:**
 The migration had no git commit at time of audit. This is an unusual state — framework files were updated but not staged. The migration audit was conducted on the working tree state.
+
+---
+
+## 2026-03-19 Audit (Post-change: frontmatter standardization + SDLC-Lite D-numbers)
+
+**Score:** 8.8/10
+**Trigger:** Post-change consistency audit — YAML frontmatter schema, D-number registration for lite plans, file renames, parser/type updates, `mc init-frontmatter` command
+**Follow-through rate from 2026-03-17b:** ~50% (W1 resolved, W3 resolved, I1 resolved, I5 resolved; W2/I2/I3/I4 persist)
+
+**Key findings:**
+- W1: `create-test-suite` SKILL.md uses old `{slug}_plan.md` (no D-prefix) for SDLC-Lite plan path — functional risk if skill invoked
+- W2: `ops/sdlc/process/overview.md` tier table still says "Plan file only" for SDLC-Lite
+- W3: `ops/sdlc/initial-prompt.md` still says "plan file only" / "doesn't need full tracking"
+- W4: `sdlc_changelog.md` missing entry for 2026-03-19 changes (frontmatter, D-numbers, init-frontmatter command, etc.)
+- I1: `ops/sdlc/BOOTSTRAP.md` line 185 — ambiguous "doesn't need full tracking" wording
+- I2: `deliverable_lifecycle.md` makes no mention of lite tier lifecycle
+- I3: Agent memory entries reference old plan paths (unified_tui_app_plan.md, tui-dry-extraction_plan.md)
+- I4: `init-frontmatter.ts` summary output omits `tier` field from printed schema
+
+**All templates, parser, types, CLI, existing plan files (D5/D6/D7), catalog — PASS.**
+
+**Recurring pattern to watch:** When a process change touches skills, the supporting skills (like create-test-suite) that reference patterns from updated skills are commonly missed. The primary skills (sdlc-lite-plan, sdlc-lite-execute) were updated correctly; create-test-suite was not swept.

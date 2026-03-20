@@ -1,8 +1,17 @@
+---
+tier: full
+type: architecture
+complexity: moonshot
+effort: 5
+flavor: "The war room is built. The campaigns can begin."
+created: 2026-03-16
+completed: 2026-03-16
+author: CC
+---
+
 # D1: Mission Control MVP — Result
 
-**Deliverable:** D1 — Mission Control MVP
-**Plan:** `docs/current_work/planning/d1_mission_control_mvp_plan.md`
-**Completed:** 2026-03-16
+**Spec:** `d1_mission_control_mvp_spec.md`
 
 ---
 

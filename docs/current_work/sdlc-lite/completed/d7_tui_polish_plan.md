@@ -1,3 +1,14 @@
+---
+tier: lite
+type: feature
+complexity: moderate
+effort: 2
+flavor: "Polish is not vanity — it is respect for the user."
+created: 2026-03-18
+author: CC
+agents: [frontend-developer]
+---
+
 # SDLC-Lite Plan: TUI Polish — Session Formatting, Commit Details, Search Discovery
 
 **Execute this plan using the `sdlc-lite-execute` skill.**

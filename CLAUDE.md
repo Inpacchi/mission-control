@@ -104,9 +104,20 @@ CC produces SDLC artifacts across two skills:
 | Complete | `dNN_name_COMPLETE.md` | `d1_auth_COMPLETE.md` |
 | Blocked | `dNN_name_BLOCKED.md` | `d1_auth_BLOCKED.md` |
 
+### Artifact Frontmatter
+
+All SDLC artifacts (spec, plan, result) use standardized YAML frontmatter. See `ops/sdlc/templates/` for the full schema.
+
+**Complexity and effort must be re-evaluated at each stage:**
+- **Spec** — initial estimate based on the problem statement
+- **Plan** — re-evaluate after planning reveals actual scope. If the approach is harder or simpler than the spec assumed, adjust.
+- **Result** — final values reflecting actual implementation. If it was easier or harder than planned, adjust.
+
+Each artifact gets its own **flavor text** reflecting that stage: the spec captures the vision, the plan captures the approach, the result captures the outcome.
+
 ### When to Use Full Process vs. SDLC-Lite vs. Direct Dispatch
 - **Full SDLC (deliverable ID + skill):** New features, architectural changes, new integrations, new subsystems
-- **SDLC-Lite:** Complex enough to benefit from a reviewed plan, but doesn't need full tracking
+- **SDLC-Lite:** Complex enough to benefit from a reviewed plan, but doesn't need spec or result docs. Gets a D-number (tier: lite).
 - **Direct dispatch:** CD steers in real-time — agents do the work, no plan file needed
 - **Before touching any file:** If you identify non-trivial complexity (cross-domain, non-obvious approach, new subsystems), surface the scope and ask CD which tier to use.
 

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Box, Text } from 'ink';
-import { renderMarkdownToAnsi } from '../renderMarkdown.js';
+import { Box, Text, useStdout } from 'ink';
+import { renderMarkdownToAnsi, stripAnsi } from '../renderMarkdown.js';
 
 interface MarkdownPanelProps {
   /** Pre-computed ANSI lines from useMarkdownLines. */
@@ -46,18 +46,65 @@ export function MarkdownPanel({
           return renderLine(line, absoluteIndex);
         }
         return (
-          <Text key={`${clampedOffset}-${i}`} wrap="truncate">{line || ' '}</Text>
+          <Text key={`${clampedOffset}-${i}`} wrap="wrap">{line || ' '}</Text>
         );
       })}
     </Box>
   );
 }
 
+/**
+ * Wrap a single ANSI-styled line to fit within `width` visible characters.
+ * Splits at word boundaries when possible, preserving ANSI escape sequences.
+ */
+function wrapAnsiLine(line: string, width: number): string[] {
+  if (width <= 0) return [line];
+  const visibleLength = stripAnsi(line).length;
+  if (visibleLength <= width) return [line];
+
+  const result: string[] = [];
+  let current = '';
+  let visibleCount = 0;
+  // Track whether we're inside an ANSI escape sequence
+  let inEscape = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (ch === '\x1b') {
+      inEscape = true;
+      current += ch;
+      continue;
+    }
+    if (inEscape) {
+      current += ch;
+      if (ch === 'm') inEscape = false;
+      continue;
+    }
+
+    if (visibleCount >= width) {
+      result.push(current);
+      current = '';
+      visibleCount = 0;
+    }
+    current += ch;
+    visibleCount++;
+  }
+  if (current) result.push(current);
+  return result;
+}
+
 /** Hook variant for components that need the line data without the rendering */
-export function useMarkdownLines(content: string | null) {
+export function useMarkdownLines(content: string | null, width?: number) {
+  const { stdout } = useStdout();
+  const termWidth = width ?? stdout?.columns ?? 80;
+  // Account for paddingX={1} on the MarkdownPanel container (2 chars total)
+  const wrapWidth = Math.max(20, termWidth - 2);
+
   return useMemo(() => {
     if (!content) return [];
     const rendered = renderMarkdownToAnsi(content);
-    return rendered.replace(/\n{3,}/g, '\n\n').trim().split('\n');
-  }, [content]);
+    const rawLines = rendered.replace(/\n{3,}/g, '\n\n').trim().split('\n');
+    return rawLines.flatMap((line) => wrapAnsiLine(line, wrapWidth));
+  }, [content, wrapWidth]);
 }

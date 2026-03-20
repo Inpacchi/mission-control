@@ -1,6 +1,6 @@
 # Project Deliverable Catalog
 
-Next ID: **D5**
+Next ID: **D8**
 
 This is the single source of truth for all deliverable IDs and their statuses.
 
@@ -19,6 +19,9 @@ _No active deliverables._
 | D2 | Tech Debt Cleanup | Archived | [mvp](chronicle/mvp/) |
 | D3 | TCG Card Design System | Archived | [mvp](chronicle/mvp/) |
 | D4 | Terminal-First Mission Control | Archived | [mvp](chronicle/mvp/) |
+| D5 | Unified TUI App | Complete (lite) | — |
+| D6 | TUI DRY Extraction | Complete (lite) | — |
+| D7 | TUI Polish | Complete (lite) | — |
 
 ## Notes
 

@@ -1,16 +1,16 @@
 ---
+tier: full
 type: refactor
 complexity: moderate
 effort: 3
 flavor: "A clean foundation holds more weight than a decorated ruin."
+created: 2026-03-16
+author: CC
+depends_on: [D1]
+agents: [software-architect, refactoring-specialist]
 ---
 
 # D2: Tech Debt Cleanup — Specification
-
-**Status:** Draft
-**Created:** 2026-03-16
-**Author:** software-architect
-**Depends On:** D1
 
 ---
 

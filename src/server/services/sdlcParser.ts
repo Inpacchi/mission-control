@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
-import type { Deliverable, DeliverableStatus, DeliverablePhase, DeliverableType, DeliverableComplexity, CatalogEntry } from '../../shared/types.js';
+import type { Deliverable, DeliverableStatus, DeliverablePhase, DeliverableType, DeliverableComplexity, DeliverableTier, CatalogEntry } from '../../shared/types.js';
 import { parse as parseCatalog } from './catalogParser.js';
 
 const VALID_CARD_TYPES: DeliverableType[] = ['feature', 'bugfix', 'refactor', 'research', 'architecture'];
 const VALID_COMPLEXITIES: DeliverableComplexity[] = ['simple', 'moderate', 'complex', 'arch', 'moonshot'];
+const VALID_TIERS: DeliverableTier[] = ['full', 'lite'];
 
 const DELIVERABLE_FILE_RE = /^d(\d+[a-z]?)_(.+?)_(spec|plan|result|COMPLETE|BLOCKED)\.md$/i;
 
@@ -55,10 +56,7 @@ async function scanDirectory(dirPath: string): Promise<FileInfo[]> {
 
     const filePath = path.join(dirPath, entry.name);
     const stat = await fs.stat(filePath);
-    let content: string | undefined;
-    if (type === 'spec') {
-      content = await fs.readFile(filePath, 'utf-8');
-    }
+    const content = await fs.readFile(filePath, 'utf-8');
     results.push({ id, name, type, filePath, mtime: stat.mtime, content });
   }
 
@@ -82,6 +80,11 @@ function parseFrontmatter(content: string): {
   complexity?: DeliverableComplexity;
   effort?: number;
   flavor?: string;
+  agents?: string[];
+  created?: string;
+  completed?: string;
+  dependsOn?: string[];
+  tier?: DeliverableTier;
 } {
   try {
     const { data } = matter(content);
@@ -92,7 +95,12 @@ function parseFrontmatter(content: string): {
       effort = Math.min(5, Math.max(1, data.effort));
     }
     const flavor = typeof data.flavor === 'string' ? data.flavor : undefined;
-    return { cardType, complexity, effort, flavor };
+    const agents = Array.isArray(data.agents) ? data.agents.filter((a: unknown) => typeof a === 'string') : undefined;
+    const created = typeof data.created === 'string' ? data.created : undefined;
+    const completed = typeof data.completed === 'string' ? data.completed : undefined;
+    const dependsOn = Array.isArray(data.depends_on) ? data.depends_on.filter((d: unknown) => typeof d === 'string') : undefined;
+    const tier = VALID_TIERS.includes(data.tier) ? (data.tier as DeliverableTier) : undefined;
+    return { cardType, complexity, effort, flavor, agents, created, completed, dependsOn, tier };
   } catch (err) {
     console.warn(`[sdlcParser] Failed to parse frontmatter: ${err instanceof Error ? err.message : String(err)}`);
     return {};
@@ -115,8 +123,9 @@ function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?:
     ? new Date(Math.min(...files.map((f) => f.mtime.getTime()))).toISOString()
     : new Date().toISOString();
 
-  // Parse frontmatter from spec file if available
-  const frontmatter = specFile?.content ? parseFrontmatter(specFile.content) : {};
+  // Parse frontmatter — prefer spec, fall back to plan, then result
+  const primaryFile = specFile || planFile || resultFile;
+  const frontmatter = primaryFile?.content ? parseFrontmatter(primaryFile.content) : {};
 
   return {
     id,

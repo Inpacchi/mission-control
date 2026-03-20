@@ -1,3 +1,14 @@
+---
+tier: lite
+type: refactor
+complexity: moderate
+effort: 3
+flavor: "Five patterns, one source of truth."
+created: 2026-03-18
+author: CC
+agents: [refactoring-specialist, frontend-developer]
+---
+
 # SDLC-Lite Plan: TUI DRY Refactoring — Extract 5 Shared Patterns
 
 **Execute this plan using the `sdlc-lite-execute` skill.**

@@ -1,7 +1,17 @@
+---
+tier: full                 # full | lite
+type: feature              # feature | bugfix | refactor | research | architecture
+complexity: moderate       # RE-EVALUATE from spec — adjust if planning revealed more/less complexity
+effort: 3                  # RE-EVALUATE from spec — adjust if scope grew or shrank during planning
+flavor: ""                 # the approach — how this will be built
+created: YYYY-MM-DD
+author: CC                 # CD | CC
+agents: []                 # [frontend-developer, backend-developer, etc.]
+---
+
 # DNN: Feature Name — Implementation Instructions
 
 **Spec:** `dNN_feature_name_spec.md`
-**Created:** YYYY-MM-DD
 
 ---
 

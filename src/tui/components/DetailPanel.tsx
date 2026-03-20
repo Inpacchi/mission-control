@@ -88,7 +88,7 @@ export function DetailPanel({
   const renderLine = useCallback(
     (line: string, absoluteIndex: number): React.ReactElement => {
       if (!detailActiveSearch) {
-        return <Text key={absoluteIndex} wrap="truncate">{line || ' '}</Text>;
+        return <Text key={absoluteIndex} wrap="wrap">{line || ' '}</Text>;
       }
       const isActiveMatch =
         matchingLines.length > 0 && matchingLines[detailCurrentMatchIndex] === absoluteIndex;
@@ -97,19 +97,19 @@ export function DetailPanel({
 
       if (isActiveMatch) {
         return (
-          <Text key={absoluteIndex} backgroundColor="yellow" color="black" bold wrap="truncate">
+          <Text key={absoluteIndex} backgroundColor="yellow" color="black" bold wrap="wrap">
             {stripAnsi(line) || ' '}
           </Text>
         );
       }
       if (isOtherMatch) {
         return (
-          <Text key={absoluteIndex} backgroundColor="gray" color="white" wrap="truncate">
+          <Text key={absoluteIndex} backgroundColor="gray" color="white" wrap="wrap">
             {stripAnsi(line) || ' '}
           </Text>
         );
       }
-      return <Text key={absoluteIndex} wrap="truncate">{line || ' '}</Text>;
+      return <Text key={absoluteIndex} wrap="wrap">{line || ' '}</Text>;
     },
     [detailActiveSearch, matchingLines, detailCurrentMatchIndex, matchSet]
   );

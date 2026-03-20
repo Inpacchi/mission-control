@@ -1,16 +1,16 @@
 ---
+tier: full
 type: feature
 complexity: complex
 effort: 4
 flavor: "Every deliverable deserves a card worth collecting."
+created: 2026-03-17
+author: CC
+depends_on: [D1, D2]
+agents: [software-architect, ui-ux-designer, frontend-developer]
 ---
 
 # D3: TCG Card Design System + War Table Layout — Specification
-
-**Status:** Draft
-**Created:** 2026-03-17
-**Author:** software-architect
-**Depends On:** D1 (MVP must be stable), D2 (tech debt resolved)
 
 ---
 

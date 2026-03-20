@@ -7,6 +7,9 @@ export type DeliverableComplexity = 'simple' | 'moderate' | 'complex' | 'arch' |
 // Rarity derived from complexity
 export type RarityTier = 'common' | 'uncommon' | 'rare' | 'epic' | 'mythic';
 
+// Process tier
+export type DeliverableTier = 'full' | 'lite';
+
 // Deliverable types
 export interface Deliverable {
   id: string; // e.g., "D1"
@@ -23,6 +26,9 @@ export interface Deliverable {
   complexity?: DeliverableComplexity;
   effort?: number; // 1-5 scale
   flavor?: string; // flavor text
+  agents?: string[]; // agents involved
+  dependsOn?: string[]; // [D1, D5] dependencies
+  tier?: DeliverableTier; // full (spec+plan+result) or lite (plan only)
 }
 
 export type DeliverableStatus =

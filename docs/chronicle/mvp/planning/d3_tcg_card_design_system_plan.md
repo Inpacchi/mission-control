@@ -1,7 +1,17 @@
+---
+tier: full
+type: feature
+complexity: complex
+effort: 4
+flavor: "Rarity tiers, type badges, and a war table to display them."
+created: 2026-03-17
+author: CC
+agents: [ui-ux-designer, frontend-developer]
+---
+
 # D3: TCG Card Design System + War Table Layout -- Implementation Plan
 
 **Spec:** `d3_tcg_card_design_system_spec.md`
-**Created:** 2026-03-17
 **Revised:** 2026-03-17 (incorporates review findings and CD decisions)
 
 ---

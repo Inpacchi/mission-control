@@ -1,16 +1,16 @@
 ---
+tier: full
 type: architecture
 complexity: moonshot
 effort: 5
 flavor: "The first pane of glass through which all campaigns are waged."
+created: 2026-03-16
+author: CC
+depends_on: []
+agents: [software-architect, backend-developer, frontend-developer]
 ---
 
 # D1: Mission Control MVP — Specification
-
-**Status:** Complete
-**Created:** 2026-03-16
-**Author:** software-architect
-**Depends On:** None
 
 ---
 

@@ -1,8 +1,17 @@
+---
+tier: full
+type: feature
+complexity: arch
+effort: 5
+flavor: "The battlefield moved to the terminal. No browser required."
+created: 2026-03-17
+completed: 2026-03-17
+author: CC
+---
+
 # D4: Terminal-First Mission Control -- Result
 
 **Spec:** `d4_terminal_first_mission_control_spec.md`
-**Plan:** `d4_terminal_first_mission_control_plan.md`
-**Completed:** 2026-03-17
 
 ---
 

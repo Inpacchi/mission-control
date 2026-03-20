@@ -1,7 +1,17 @@
+---
+tier: full
+type: architecture
+complexity: moonshot
+effort: 5
+flavor: "Express, WebSocket, PTY — the bones of a command center."
+created: 2026-03-16
+author: CC
+agents: [software-architect, backend-developer, frontend-developer]
+---
+
 # D1: Mission Control MVP -- Implementation Plan
 
 **Spec:** `d1_mission_control_mvp_spec.md`
-**Created:** 2026-03-16
 **Revised:** 2026-03-16 (architecture review findings incorporated)
 
 ---

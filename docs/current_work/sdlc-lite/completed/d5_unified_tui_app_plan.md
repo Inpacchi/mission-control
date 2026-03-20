@@ -1,3 +1,14 @@
+---
+tier: lite
+type: refactor
+complexity: complex
+effort: 4
+flavor: "One app to rule them all, one render loop to bind them."
+created: 2026-03-18
+author: CC
+agents: [frontend-developer]
+---
+
 # SDLC-Lite Plan: Unified Single-App TUI Architecture
 
 **Execute this plan using the `sdlc-lite-execute` skill.**

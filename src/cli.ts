@@ -127,4 +127,13 @@ program
     await runLog(id, projectDir);
   });
 
+program
+  .command('init-frontmatter')
+  .description('Add YAML frontmatter to SDLC templates for Mission Control')
+  .argument('[path]', 'Project directory', process.cwd())
+  .action(async (projectDir: string) => {
+    const { runInitFrontmatter } = await import('./commands/init-frontmatter.js');
+    await runInitFrontmatter(projectDir);
+  });
+
 program.parse();

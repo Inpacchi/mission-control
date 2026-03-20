@@ -1,7 +1,17 @@
+---
+tier: full                 # full | lite
+type: feature              # feature | bugfix | refactor | research | architecture
+complexity: moderate       # FINAL — adjust from plan if implementation was harder/easier than expected
+effort: 3                  # FINAL — the actual effort, not the estimate
+flavor: ""                 # the outcome — what was achieved
+created: YYYY-MM-DD
+completed: YYYY-MM-DD
+author: CC                 # CD | CC
+---
+
 # DNN: Feature Name — Complete
 
 **Spec:** `dNN_feature_name_spec.md`
-**Completed:** YYYY-MM-DD
 
 ---
 

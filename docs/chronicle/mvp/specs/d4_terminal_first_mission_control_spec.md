@@ -1,16 +1,16 @@
 ---
+tier: full
 type: feature
 complexity: arch
 effort: 5
 flavor: "The terminal is not a fallback. It is the battlefield."
+created: 2026-03-17
+author: CC
+depends_on: [D1, D3]
+agents: [software-architect, frontend-developer]
 ---
 
 # D4: Terminal-First Mission Control -- Specification
-
-**Status:** Draft
-**Created:** 2026-03-17
-**Author:** software-architect
-**Depends On:** D1 (MVP), D3 (TCG Card Design System)
 
 ---
 

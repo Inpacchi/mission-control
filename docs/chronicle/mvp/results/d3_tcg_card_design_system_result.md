@@ -1,8 +1,17 @@
+---
+tier: full
+type: feature
+complexity: complex
+effort: 4
+flavor: "The cards are printed. The collection grows."
+created: 2026-03-17
+completed: 2026-03-17
+author: CC
+---
+
 # D3: TCG Card Design System + War Table Layout — Result
 
 **Spec:** `d3_tcg_card_design_system_spec.md`
-**Plan:** `d3_tcg_card_design_system_plan.md`
-**Completed:** 2026-03-17
 
 ---
 

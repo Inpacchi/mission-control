@@ -1,7 +1,17 @@
+---
+tier: full
+type: refactor
+complexity: moderate
+effort: 3
+flavor: "Twelve debts, five phases, zero regressions."
+created: 2026-03-16
+author: CC
+agents: [refactoring-specialist, backend-developer, frontend-developer]
+---
+
 # D2: Tech Debt Cleanup — Implementation Plan
 
 **Spec:** `d2_tech_debt_cleanup_spec.md`
-**Created:** 2026-03-16
 
 ---
 

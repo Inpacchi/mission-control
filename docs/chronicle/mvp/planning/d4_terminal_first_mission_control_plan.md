@@ -1,7 +1,17 @@
+---
+tier: full
+type: feature
+complexity: arch
+effort: 5
+flavor: "Ink, Zustand, six commands — the TUI takes shape."
+created: 2026-03-17
+author: CC
+agents: [software-architect, frontend-developer]
+---
+
 # D4: Terminal-First Mission Control -- Implementation Plan
 
 **Spec:** `d4_terminal_first_mission_control_spec.md`
-**Created:** 2026-03-17
 
 ---
 
