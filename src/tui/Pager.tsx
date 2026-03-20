@@ -115,11 +115,10 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
     // Normal mode
     if (input === 'q' || input === 'Q') {
       if (onBack) {
-        // Launched from board: q means quit the entire mc process
-        console.clear();
-        process.exit(0);
+        onBack();
+      } else {
+        exit();
       }
-      exit();
       return;
     }
 
