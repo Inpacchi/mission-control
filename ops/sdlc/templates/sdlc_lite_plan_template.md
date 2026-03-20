@@ -3,7 +3,7 @@ tier: lite                 # full | lite
 type: feature              # feature | bugfix | refactor | research | architecture
 complexity: moderate       # simple | moderate | complex | arch | moonshot
 effort: 3                  # 1-5 scale
-flavor: ""                 # the approach — how this will be built
+flavor: ""                 # evocative one-liner (like TCG flavor text) — not a description of the work
 created: YYYY-MM-DD
 author: CC                 # CD | CC
 agents: []                 # [frontend-developer, backend-developer, etc.]
