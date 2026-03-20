@@ -89,24 +89,73 @@ page_header:
   notes: "Consistent across all list pages — same structure, different content"
 
 
-# ─── Project-Specific Components ───
-# Add your project's component test strategies here following the same structure.
-# Each entry should include: description, applies_to, element_discovery, test_patterns, gotchas.
-#
-# Example entry structure:
-#
-# your_component_name:
-#   description: "Short description"
-#   applies_to:
-#     - "your-project (feature area)"
-#   element_discovery:
-#     preferred_method: "accessibility tree"
-#     patterns:
-#       key_element: "role=X, name='Y'"
-#   test_patterns:
-#     open: "trigger action → wait for component"
-#   gotchas:
-#     - id: "unique-gotcha-id"
-#       symptom: "What goes wrong"
-#       cause: "Why it happens"
-#       prevention: "How to avoid it"
+# ─── Mission Control TUI Components ───
+# Ink-based terminal components. Test via @inkjs/testing-library.
+# Assert against lastFrame() string output, not DOM.
+
+ink_deliverable_card:
+  description: "DeliverableCard — TCG-styled card showing deliverable ID, name, status, effort pips"
+  applies_to:
+    - "mission-control (src/tui/components/DeliverableCard.tsx)"
+  element_discovery:
+    preferred_method: "lastFrame() string matching"
+    why: "Ink has no DOM — output is a character buffer"
+    patterns:
+      id_bracket: "string contains '[D7]' or '[D12a]'"
+      effort_pips: "string contains ●○ characters"
+      selection_pointer: "string contains '▸' when selected"
+      status_label: "string contains 'active', 'spec', 'plan', etc."
+  test_patterns:
+    render_selected: "render with isSelected=true → lastFrame() contains '▸' and '┃'"
+    render_unselected: "render with isSelected=false → lastFrame() contains ' ' and '│'"
+    rarity_color: "render with complexity='complex' → verify output (visual inspection or snapshot)"
+    truncation: "render with name longer than width → verify '…' appears"
+  gotchas:
+    - id: "ink-card-width-truncation"
+      symptom: "Name doesn't truncate, wraps to next line"
+      cause: "Width calculation doesn't subtract pointer + bar + id + pips"
+      prevention: "Always test with width=40 (narrow) to exercise truncation path"
+
+ink_zone_strip:
+  description: "ZoneStrip — column of DeliverableCards with zone header and subzone grouping"
+  applies_to:
+    - "mission-control (src/tui/components/ZoneStrip.tsx)"
+  test_patterns:
+    empty_zone: "render with cards=[] → verify empty state message"
+    card_selection: "render with selectedCard=1 → verify second card has ▸ indicator"
+    subzones: "render Active Zone with mixed statuses → verify subzone grouping"
+
+ink_board_app:
+  description: "BoardApp — top-level TUI with view router, responsive layout, help overlay"
+  applies_to:
+    - "mission-control (src/tui/BoardApp.tsx)"
+  test_patterns:
+    responsive_full: "render at width=120 → verify 4 zones side-by-side"
+    responsive_collapsed: "render at width=100 → verify badge layout (D[n], G[n])"
+    responsive_narrow: "render at width=50 → verify error message"
+    help_overlay: "render → send '?' input → verify help text appears"
+    view_routing: "render → send 'c' → verify chronicle view renders"
+  gotchas:
+    - id: "ink-boardapp-mock-stdout"
+      symptom: "Cannot control dimensions in test"
+      cause: "BoardApp reads process.stdout.columns which is fixed in test env"
+      prevention: "Mock useStdout or pass dimensions as props"
+
+ink_use_keyboard:
+  description: "useKeyboard — central keyboard routing hook for all TUI views"
+  applies_to:
+    - "mission-control (src/tui/hooks/useKeyboard.ts)"
+  test_patterns:
+    zone_navigation: "send left/right → verify selectedZone changes"
+    card_navigation: "send up/down → verify selectedCard changes"
+    view_transitions: "send 'c' → verify viewMode='chronicle'"
+    detail_entry: "select card + Enter → verify viewMode='detail' + expandedCardId set"
+    search_flow: "in detail, send '/' → type query → Enter → verify detailActiveSearch"
+  gotchas:
+    - id: "ink-hook-isolation"
+      symptom: "useInput handlers from one test leak into next"
+      cause: "Ink hooks share process.stdin"
+      prevention: "Unmount component in afterEach"
+
+# ─── Other Project-Specific Components ───
+# Add additional component test strategies below.

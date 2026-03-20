@@ -131,6 +131,33 @@
   discovered: "2026-03-16 — D2 formatters.test.ts authoring"
   applies_to: "mission-control (src/ui/utils/formatters.ts)"
 
+- id: mission-control-ink-render-testing
+  severity: medium
+  symptom: "Ink component test produces empty output or mismatched snapshot"
+  cause: "Ink's render() returns a frame buffer, not a DOM. Must use ink-testing-library's render() and read lastFrame()"
+  resolution: "Use @inkjs/testing-library — render component, assert against lastFrame() string output"
+  prevention: "Never attempt DOM-style assertions (querySelector, getByRole) on Ink components — there is no DOM"
+  discovered: "2026-03-19 — TUI agent infrastructure"
+  applies_to: "mission-control (src/tui)"
+
+- id: mission-control-useinput-test-isolation
+  severity: high
+  symptom: "Keyboard test fires input but wrong view handler receives it"
+  cause: "Multiple Ink test instances share process.stdin — useInput handlers leak across tests"
+  resolution: "Each test must render its own isolated Ink instance and clean up via unmount()"
+  prevention: "Use ink-testing-library's render() which isolates stdin per instance. Call unmount() in afterEach."
+  discovered: "2026-03-19 — TUI agent infrastructure"
+  applies_to: "mission-control (src/tui hooks)"
+
+- id: mission-control-alternate-screen-in-tests
+  severity: medium
+  symptom: "Test output garbled — content from TUI leaks into test runner output"
+  cause: "launchBoard() enters alternate screen buffer. Test runner's stdout is the same stream."
+  resolution: "Never call launchBoard() in tests. Test BoardApp component directly via ink-testing-library."
+  prevention: "Test components in isolation. Entry point (launchBoard) is integration-tested manually."
+  discovered: "2026-03-19 — TUI agent infrastructure"
+  applies_to: "mission-control (src/tui/index.ts)"
+
 - id: mission-control-slug-os-homedir-mock
   severity: low
   symptom: "Importing projectRegistry in tests triggers real ~/.mc filesystem access; test contamination"

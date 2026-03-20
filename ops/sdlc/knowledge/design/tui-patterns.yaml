@@ -1,0 +1,223 @@
+# TUI Design & Development Patterns
+# Ink/React terminal rendering patterns specific to Mission Control.
+# Read before any TUI work. Keep updated as patterns evolve.
+# Last updated: 2026-03-19
+
+id: tui-patterns
+name: "Terminal UI Patterns"
+description: >
+  Established patterns for Mission Control's Ink-based TUI.
+  Covers rendering, keyboard handling, state management, and
+  the TCG-inspired visual system.
+
+# ─────────────────────────────────────────────
+# Rendering Constraints
+# ─────────────────────────────────────────────
+
+rendering:
+  framework: "Ink 5 (React renderer for terminals)"
+  react_version: "19"
+  key_differences_from_web:
+    - "No CSS — all layout via Ink <Box> flexDirection, width, height (integers)"
+    - "No mouse — keyboard only via useInput hook"
+    - "No variable font sizes — hierarchy via bold/dim/color/inverse"
+    - "No subpixel — every character is exactly one cell (emoji may be 2)"
+    - "Terminal redraws are atomic — no smooth transitions"
+    - "process.stdout dimensions, not window.innerWidth"
+
+  alternate_screen:
+    entry: "\\x1b[?1049h"
+    exit: "\\x1b[?1049l"
+    cursor_restore: "\\x1b[?25h"
+    managed_in: "src/tui/index.ts — launchBoard()"
+    rule: "Never manipulate alternate screen from components"
+
+  responsive_breakpoints:
+    too_narrow: "< 60 columns — show error message"
+    vertical: "60-79 columns — zones stacked vertically"
+    collapsed: "80-119 columns — Deck/Graveyard become badges"
+    full: ">= 120 columns — 4 zones side-by-side"
+
+  dimensions:
+    initial: "useStdout().stdout.columns / .rows"
+    resize: "process.stdout 'resize' event (NOT useStdout — it doesn't emit resize)"
+    gotcha: "Must use process.stdout directly for resize listener"
+
+# ─────────────────────────────────────────────
+# Keyboard Architecture
+# ─────────────────────────────────────────────
+
+keyboard:
+  pattern: "Single useInput handler in useKeyboard — no competing handlers"
+  router: "ViewMode discriminated union dispatches to per-view handleKey methods"
+  file: "src/tui/hooks/useKeyboard.ts"
+
+  conventions:
+    - key: "q/Q"
+      action: "Quit the process"
+      scope: "all views"
+    - key: "Esc"
+      action: "Back / clear search / close overlay"
+      scope: "all views"
+    - key: "b/B"
+      action: "Back to board"
+      scope: "sub-views and detail"
+    - key: "/"
+      action: "Enter search mode"
+      scope: "all views with search"
+    - key: "n/p"
+      action: "Next/previous search match"
+      scope: "all views with search"
+    - key: "1/2/3"
+      action: "Switch doc type (spec/plan/result)"
+      scope: "detail and chronicle-detail"
+    - key: "←→"
+      action: "Navigate between zones"
+      scope: "board"
+    - key: "↑↓"
+      action: "Navigate cards / scroll content"
+      scope: "board / detail / list views"
+    - key: "Enter"
+      action: "Open selected item"
+      scope: "board / list views"
+    - key: "u/d"
+      action: "Half-page scroll up/down"
+      scope: "detail views"
+    - key: "?"
+      action: "Toggle help overlay"
+      scope: "board"
+
+  anti_patterns:
+    - "NEVER add useInput in child components — creates handler conflicts"
+    - "NEVER use process.stdin directly — Ink's useInput manages stdin"
+
+# ─────────────────────────────────────────────
+# View Architecture
+# ─────────────────────────────────────────────
+
+views:
+  pattern: "ViewMode → view hook → component → BoardApp router"
+  adding_a_view:
+    steps:
+      - "Add ViewMode variants to the union type in useKeyboard.ts"
+      - "Create a view hook (useXxxView) managing state + handleKey"
+      - "Wire the hook into useKeyboard (call unconditionally, delegate in handler)"
+      - "Create the view component (receives state as props, renders only)"
+      - "Add the route in BoardApp.tsx's view router section"
+      - "Add key binding to enter the view from board mode"
+      - "Document the key in HelpOverlay"
+
+  state_rule: "View state lives in hooks, not components. Components are pure renderers."
+
+  existing_views:
+    - name: "board"
+      hook: "useKeyboard (inline)"
+      component: "BoardApp (inline)"
+    - name: "detail"
+      hook: "useKeyboard (inline)"
+      component: "DetailPanel"
+    - name: "chronicle / chronicle-detail"
+      hook: "useChronicleView"
+      component: "ChronicleList"
+    - name: "sessions / session-search / session-detail"
+      hook: "useSessionView"
+      component: "SessionBrowser"
+    - name: "adhoc / adhoc-search / adhoc-detail / adhoc-detail-search"
+      hook: "useAdhocView"
+      component: "AdhocBrowser"
+    - name: "files / file-search / file-grep-input / file-grep-results"
+      hook: "useFileView"
+      component: "FileBrowser"
+
+# ─────────────────────────────────────────────
+# TCG Visual System
+# ─────────────────────────────────────────────
+
+visual_system:
+  theme_file: "src/tui/theme.ts"
+
+  rarity_tiers:
+    common: { color: "white", style: "normal", complexity: "simple" }
+    uncommon: { color: "green", style: "normal", complexity: "moderate" }
+    rare: { color: "cyan", style: "bold", complexity: "complex" }
+    epic: { color: "yellow", style: "bold", complexity: "moonshot" }
+    mythic: { color: "yellow", style: "bold+underline", complexity: "arch" }
+
+  zone_colors:
+    idea: "gray (dim)"
+    spec: "blue"
+    plan: "magenta"
+    in-progress: "yellow"
+    review: "cyan"
+    complete: "green (dim)"
+    blocked: "red (bold)"
+
+  card_layout: |
+    ▸┃ [D7] Feature name ●●●○○     <- row 1: pointer + bar + ID + name + effort pips
+     ┃ ★ feature · active           <- row 2: type icon + type · status
+     ┃ Flavor text goes here...     <- row 3 (optional): italic flavor
+
+  selection_indicators:
+    selected: "▸ pointer + ┃ bold bar + inverse name text"
+    unselected: "  space + │ thin bar + normal text"
+
+  box_drawing:
+    border_chars: "│ ┃ ─ ▸"
+    separator: "─"
+    usage: "Deliberate aesthetic — maintain consistency"
+
+  unicode_symbols:
+    feature: "★ (U+2605)"
+    bugfix: "⚒ (U+2692)"
+    refactor: "⫯ (U+2B6F)"
+    research: "🔍 (U+1F50D) — caution: double-width in some terminals"
+    architecture: "⌂ (U+2302)"
+    effort_filled: "● (U+25CF)"
+    effort_empty: "○ (U+25CB)"
+
+# ─────────────────────────────────────────────
+# Gotchas
+# ─────────────────────────────────────────────
+
+gotchas:
+  - id: ink-useinput-conflicts
+    severity: high
+    symptom: "Keypress handled by wrong view or handled twice"
+    cause: "Multiple useInput handlers active — Ink calls all of them"
+    prevention: "Single useInput in useKeyboard only. Never in child components."
+
+  - id: ink-resize-event-source
+    severity: high
+    symptom: "TUI doesn't respond to terminal resize"
+    cause: "useStdout().stdout does not emit 'resize' events"
+    prevention: "Listen on process.stdout directly for resize"
+
+  - id: ink-character-width-overflow
+    severity: medium
+    symptom: "Text wraps unexpectedly, breaking multi-row card alignment"
+    cause: "Width calculation doesn't account for border chars, padding, or selection indicators"
+    prevention: "Always subtract: pointer(1) + bar(1) + space(1) + any trailing pips"
+
+  - id: ink-emoji-double-width
+    severity: medium
+    symptom: "Layout shifts right after emoji, misaligning subsequent columns"
+    cause: "Emoji occupy 2 character cells but count as 1 in string.length"
+    prevention: "Use BMP Unicode symbols (★, ●, ▸) not emoji. If emoji needed, account for double width."
+
+  - id: ink-alternate-screen-leak
+    severity: high
+    symptom: "Terminal stays in alternate screen after crash — user's shell history disappears"
+    cause: "Process exited without writing \\x1b[?1049l"
+    prevention: "launchBoard() has try/finally + SIGTERM handler. Never manipulate from components."
+
+  - id: ink-memoization-matters-more
+    severity: medium
+    symptom: "Visible stutter or flicker during keyboard navigation"
+    cause: "Ink re-renders are more expensive than web React — terminal redraws are atomic full-screen"
+    prevention: "useMemo for zone filtering, card lists, and any computation in the render path"
+
+  - id: chalk-vs-ink-color
+    severity: low
+    symptom: "ANSI escape codes appear as raw text in Ink components"
+    cause: "Used chalk() inside Ink <Text> — Ink expects color props, not embedded ANSI"
+    prevention: "chalk for CLI output (formatters.ts). Ink color='cyan' for components. Never mix."
