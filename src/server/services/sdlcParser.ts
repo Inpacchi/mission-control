@@ -63,7 +63,23 @@ async function scanDirectory(dirPath: string): Promise<FileInfo[]> {
   return results;
 }
 
-function deriveStatus(files: FileInfo[]): { status: DeliverableStatus; phase: DeliverablePhase } {
+const STATUS_PHASE_MAP: Record<DeliverableStatus, DeliverablePhase> = {
+  idea: 'idea',
+  spec: 'specifying',
+  plan: 'planning',
+  'in-progress': 'executing',
+  review: 'reviewing',
+  complete: 'done',
+  blocked: 'blocked',
+};
+
+function deriveStatus(files: FileInfo[], frontmatterStatus?: DeliverableStatus): { status: DeliverableStatus; phase: DeliverablePhase } {
+  // Frontmatter status takes priority — allows execution skills to mark deliverables complete
+  if (frontmatterStatus && STATUS_PHASE_MAP[frontmatterStatus]) {
+    return { status: frontmatterStatus, phase: STATUS_PHASE_MAP[frontmatterStatus] };
+  }
+
+  // Fall back to file-suffix heuristic
   const types = new Set(files.map((f) => f.type));
 
   if (types.has('complete')) return { status: 'complete', phase: 'done' };
@@ -75,6 +91,8 @@ function deriveStatus(files: FileInfo[]): { status: DeliverableStatus; phase: De
   return { status: 'idea', phase: 'idea' };
 }
 
+const VALID_STATUSES: DeliverableStatus[] = ['idea', 'spec', 'plan', 'in-progress', 'review', 'complete', 'blocked'];
+
 function parseFrontmatter(content: string): {
   cardType?: DeliverableType;
   complexity?: DeliverableComplexity;
@@ -85,6 +103,7 @@ function parseFrontmatter(content: string): {
   completed?: string;
   dependsOn?: string[];
   tier?: DeliverableTier;
+  frontmatterStatus?: DeliverableStatus;
 } {
   try {
     const { data } = matter(content);
@@ -100,7 +119,8 @@ function parseFrontmatter(content: string): {
     const completed = typeof data.completed === 'string' ? data.completed : undefined;
     const dependsOn = Array.isArray(data.depends_on) ? data.depends_on.filter((d: unknown) => typeof d === 'string') : undefined;
     const tier = VALID_TIERS.includes(data.tier) ? (data.tier as DeliverableTier) : undefined;
-    return { cardType, complexity, effort, flavor, agents, created, completed, dependsOn, tier };
+    const frontmatterStatus = VALID_STATUSES.includes(data.status) ? (data.status as DeliverableStatus) : undefined;
+    return { cardType, complexity, effort, flavor, agents, created, completed, dependsOn, tier, frontmatterStatus };
   } catch (err) {
     console.warn(`[sdlcParser] Failed to parse frontmatter: ${err instanceof Error ? err.message : String(err)}`);
     return {};
@@ -108,7 +128,6 @@ function parseFrontmatter(content: string): {
 }
 
 function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?: CatalogEntry): Deliverable {
-  const { status, phase } = deriveStatus(files);
   const specFile = files.find((f) => f.type === 'spec');
   const planFile = files.find((f) => f.type === 'plan');
   const resultFile = files.find((f) => f.type === 'result') || files.find((f) => f.type === 'complete');
@@ -126,6 +145,9 @@ function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?:
   // Parse frontmatter — prefer spec, fall back to plan, then result
   const primaryFile = specFile || planFile || resultFile;
   const frontmatter = primaryFile?.content ? parseFrontmatter(primaryFile.content) : {};
+
+  // Frontmatter status overrides file-suffix heuristic
+  const { status, phase } = deriveStatus(files, frontmatter.frontmatterStatus);
 
   return {
     id,
