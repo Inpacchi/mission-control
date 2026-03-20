@@ -3,6 +3,7 @@ import { Text } from 'ink';
 import chalk from 'chalk';
 import type { Deliverable } from '../../shared/types.js';
 import type { ViewMode } from '../hooks/useKeyboard.js';
+import { ZONE_GLYPH } from '../theme.js';
 
 interface Zone {
   name: string;
@@ -15,20 +16,24 @@ interface BottomBarProps {
   width: number;
   viewMode?: ViewMode;
   searchMode?: boolean;
+  /** When provided, replaces the normal keyboard-shortcut row with this string (single-zone mode). */
+  singleZoneHint?: string;
+  /** When true, renders a 3-row bottom bar: zone hint, shortcuts, zone counts. */
+  threeRowMode?: boolean;
 }
+
+const ZONE_FULL_NAME: Record<string, string> = {
+  deck: 'Deck',
+  active: 'Active',
+  review: 'Review',
+  graveyard: 'Grave',
+};
 
 const ZONE_CHALK_COLOR: Record<string, (s: string) => string> = {
   deck: (s) => chalk.gray(s),
   active: (s) => chalk.yellow(s),
   review: (s) => chalk.cyan(s),
   graveyard: (s) => chalk.green(s),
-};
-
-const ZONE_SHORT: Record<string, string> = {
-  deck: 'D',
-  active: 'A',
-  review: 'R',
-  graveyard: 'G',
 };
 
 type Shortcut = { key: string; label: string };
@@ -100,30 +105,78 @@ function getShortcuts(viewMode: ViewMode): Shortcut[] {
   }
 }
 
-export function BottomBar({ zones, width, viewMode = 'board', searchMode = false }: BottomBarProps): React.ReactElement {
-  // Row 1: keyboard shortcuts — memoized on viewMode + width + searchMode
+export function BottomBar({ zones, width, viewMode = 'board', searchMode = false, singleZoneHint, threeRowMode = false }: BottomBarProps): React.ReactElement {
+  // Row 1: keyboard shortcuts — memoized on viewMode + width + searchMode + singleZoneHint
   const row1Str = useMemo(() => {
+    if (singleZoneHint !== undefined) {
+      const content = ' ' + singleZoneHint;
+      const pad = Math.max(0, width - content.length);
+      return chalk.bgGray.white(content + ' '.repeat(pad));
+    }
     const shortcuts = searchMode ? SEARCH_MODE : getShortcuts(viewMode);
     const content = ' ' + shortcuts.map((s) => `${s.key}:${s.label}`).join('  ');
     const pad = Math.max(0, width - content.length);
     return chalk.bgGray.white(content + ' '.repeat(pad));
-  }, [viewMode, width, searchMode]);
+  }, [viewMode, width, searchMode, singleZoneHint]);
 
   // Row 2: zone counts — memoized on zones + width
+  // ≥60 cols: full glyphs + names  e.g. "◇ Deck:0  ◆ Active:1  ◎ Review:3  ✦ Grave:0"
+  // <60 cols: compact glyph codes  e.g. "◇:0 ◆:1 ◎:3 ✦:0"
   const row2Str = useMemo(() => {
     const mcPart = chalk.bgBlack.white.bold(' MC  ');
+    const isNarrow = width < 60;
+
     const zonePartsStr = zones
       .map((z, i) => {
         const colorFn = ZONE_CHALK_COLOR[z.type] ?? ((s: string) => s);
-        const sep = i > 0 ? chalk.bgBlack('  ') : '';
-        return sep + chalk.bgBlack(colorFn.call(null, `${ZONE_SHORT[z.type]}:`)) + chalk.bgBlack.white(`${z.cards.length}`);
+        const glyph = ZONE_GLYPH[z.type] ?? z.type[0].toUpperCase();
+        const sep = i > 0 ? chalk.bgBlack(isNarrow ? ' ' : '  ') : '';
+        if (isNarrow) {
+          return sep + chalk.bgBlack(colorFn(`${glyph}:`)) + chalk.bgBlack.white(`${z.cards.length}`);
+        }
+        const fullName = ZONE_FULL_NAME[z.type] ?? z.type;
+        return sep + chalk.bgBlack(colorFn(`${glyph} ${fullName}:`)) + chalk.bgBlack.white(`${z.cards.length}`);
       })
       .join('');
+
     const row2Content = mcPart + zonePartsStr;
-    const row2Visible = ` MC  ` + zones.map((z, i) => (i > 0 ? '  ' : '') + `${ZONE_SHORT[z.type]}:${z.cards.length}`).join('');
+
+    // Visible-length estimate for padding (ANSI-free)
+    const visibleZones = zones
+      .map((z, i) => {
+        const glyph = ZONE_GLYPH[z.type] ?? z.type[0].toUpperCase();
+        if (isNarrow) {
+          return (i > 0 ? ' ' : '') + `${glyph}:${z.cards.length}`;
+        }
+        const fullName = ZONE_FULL_NAME[z.type] ?? z.type;
+        return (i > 0 ? '  ' : '') + `${glyph} ${fullName}:${z.cards.length}`;
+      })
+      .join('');
+    const row2Visible = ` MC  ` + visibleZones;
     const pad = Math.max(0, width - row2Visible.length);
     return row2Content + chalk.bgBlack(' '.repeat(pad));
   }, [zones, width]);
+
+  // 3-row mode: zone hint (row 1) + shortcuts (row 2) + zone counts (row 3)
+  if (threeRowMode && singleZoneHint !== undefined) {
+    const hintContent = ' ' + singleZoneHint;
+    const hintPad = Math.max(0, width - hintContent.length);
+    const row0Str = chalk.bgGray.white(hintContent + ' '.repeat(hintPad));
+
+    // Row 2: shortcuts (without the singleZoneHint override)
+    const shortcuts = searchMode ? SEARCH_MODE : getShortcuts(viewMode);
+    const shortcutContent = ' ' + shortcuts.map((s) => `${s.key}:${s.label}`).join('  ');
+    const shortcutPad = Math.max(0, width - shortcutContent.length);
+    const row1ShortcutsStr = chalk.bgGray.white(shortcutContent + ' '.repeat(shortcutPad));
+
+    return (
+      <>
+        <Text>{row0Str}</Text>
+        <Text>{row1ShortcutsStr}</Text>
+        <Text>{row2Str}</Text>
+      </>
+    );
+  }
 
   return (
     <>

@@ -38,13 +38,22 @@ const SUBZONE_COLOR: Record<string, string> = {
   blocked: 'red',
 };
 
-// 3 rows per card (id+name, type+status, flavor) + 1 divider line.
-// All current deliverable cards carry flavor text, so 4 is accurate.
-// If cards without flavor are added, this will overestimate slightly and
-// overflow:hidden on the Ink box will clip the excess — acceptable trade-off.
-const CARD_HEIGHT = 4;
+const EMPTY_PERSONALITY: Record<ZoneType, string> = {
+  deck: 'shuffle some ideas in',
+  active: 'all quiet on the field',
+  review: 'nothing to review',
+  graveyard: 'the graveyard rests quiet',
+};
+
+// 3-4 content rows per card (id+name, type+status, flavor up to 2 lines) + 1 divider line.
+// Flavor text wraps to 2 lines when it overflows, so worst case is 5 rows.
+// Cards with short/no flavor use fewer rows; Ink clips the excess.
+const CARD_HEIGHT = 5;
 const HEADER_HEIGHT = 2; // zone name + border line
 const SUBZONE_HEADER_HEIGHT = 1;
+
+// Collapsed height for empty zones — single row: ZoneName (0)  — personality text
+export const EMPTY_ZONE_HEIGHT = 1;
 
 export function ZoneStrip({
   name,
@@ -90,6 +99,20 @@ export function ZoneStrip({
   const truncatedName =
     name.length > titleAvailable ? name.slice(0, Math.max(0, titleAvailable - 1)) + '…' : name;
 
+  // Empty zone: render as single collapsed row — no border, no padding
+  if (cards.length === 0) {
+    const personality = EMPTY_PERSONALITY[type];
+    const label = `${name} (0)`;
+    const fullText = `${label}  — ${personality}`;
+    const maxWidth = Math.max(4, width - 2); // 1-char margin each side
+    const displayText = fullText.length > maxWidth ? fullText.slice(0, maxWidth - 1) + '…' : fullText;
+    return (
+      <Box width={width}>
+        <Text color={headerColor} bold={isSelected}>{displayText}</Text>
+      </Box>
+    );
+  }
+
   return (
     <Box
       flexDirection="column"
@@ -124,25 +147,21 @@ export function ZoneStrip({
 
       {/* Cards */}
       <Box flexDirection="column" flexGrow={1} paddingX={1}>
-        {visibleCards.length === 0 ? (
-          <Text dimColor>— empty —</Text>
-        ) : (
-          visibleCards.map((card, i) => {
-            const absoluteIndex = i + scrollOffset;
-            return (
-              <React.Fragment key={card.id}>
-                {i > 0 && (
-                  <Text dimColor>{'─'.repeat(Math.max(0, width - 4))}</Text>
-                )}
-                <DeliverableCard
-                  deliverable={card}
-                  isSelected={isSelected && absoluteIndex === selectedCard}
-                  width={width - 4} // outer border (2) + paddingX={1} on cards container (2)
-                />
-              </React.Fragment>
-            );
-          })
-        )}
+        {visibleCards.map((card, i) => {
+          const absoluteIndex = i + scrollOffset;
+          return (
+            <React.Fragment key={card.id}>
+              {i > 0 && (
+                <Text dimColor>{'╌'.repeat(Math.max(0, width - 4))}</Text>
+              )}
+              <DeliverableCard
+                deliverable={card}
+                isSelected={isSelected && absoluteIndex === selectedCard}
+                width={width - 4} // outer border (2) + paddingX={1} on cards container (2)
+              />
+            </React.Fragment>
+          );
+        })}
       </Box>
 
       {/* Scroll indicator when there are more cards than visible */}

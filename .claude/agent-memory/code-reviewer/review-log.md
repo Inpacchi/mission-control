@@ -4,6 +4,90 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-20 — D8 Dense Playmat Board Redesign Round 2 Re-Review
+
+**Deliverable:** D8 (tier: lite) — Dense Playmat Board Redesign
+**Scope:** `src/tui/theme.ts`, `HeaderBar.tsx`, `DeliverableCard.tsx`, `ZoneStrip.tsx`, `HelpBar.tsx`, `BoardApp.tsx`
+**Review type:** Round 2 — verify round 1 fixes, full six-lens pass
+
+**Round 1 fix status:**
+- M1 (parallel zone→Ink-color maps, review zone divergence): Color value divergence fixed (both now `'cyan'`); parallel maps still exist as separate local objects — DRY issue remains, not a new finding.
+- M3 (pluralization "1 deliverables"): UNFIXED — still at HeaderBar.tsx line 143.
+- M7 (inline subzone count filter): UNFIXED — still at ZoneStrip.tsx line 138.
+- L1 (too-narrow comment wrong): UNFIXED — still at HeaderBar.tsx line 9.
+- L2 (ZONE_FULL_NAME inside useMemo): UNFIXED — still at HelpBar.tsx lines 120-125.
+
+**New HIGH findings:**
+- H1: `DeliverableCard.tsx` lines 39-40, 85-86 — `idUnderline = false` hardcoded, passed to two `<Text underline>` props. Plan specified mythic=underline; code and comment contradict plan and each other. Either a missing feature or dead code with wrong comment.
+- H2: `DeliverableCard.tsx` lines 65, 96-111 — `pillsWidth` declared but never used in any truncation formula. No row-2 text truncation guard when pills are shown. Type/status text can visually collide with pills on 50-63 col zones.
+- H3: `DeliverableCard.tsx` line 77 — `flavorAvailable = width - 3`. Plan specified `width - 7`. Neither the old nor spec value matches implementation.
+
+**New MEDIUM findings:**
+- M1: `BoardApp.tsx` lines 597-598 (half-row) and 690-694 (full) — side zone widths can be 16-19 at minimum viewport width (160 cols), below the plan-mandated minimum of 20.
+- M3 carried forward: `HeaderBar.tsx` line 143 — pluralization still "1 deliverables".
+
+**New LOW findings:**
+- L1 carried forward: HeaderBar.tsx line 9 — too-narrow comment wrong.
+- L4: BoardApp.tsx line 420 — `zoneIndex` redundant defensive clamp.
+
+**Pattern learned:**
+- Plan arithmetic fixes (e.g., "update width - 5 to width - 7") are easy to partially apply — verify the exact numeric value in the produced code, not just that the formula shape changed.
+- When a plan specifies a minimum width constant (20), grep for ALL width calculations that feed side zones in ALL layout branches — not just the primary branch that was updated.
+- `const x = false; <Text underline={x}>` is an antipattern: declare the prop conditionally or remove it. A hardcoded boolean constant always signals either dead code or an unimplemented conditional.
+
+---
+
+## 2026-03-20 — D8 Dense Playmat Board Redesign Post-Execution Review
+
+**Deliverable:** D8 (tier: lite) — Dense Playmat Board Redesign
+**Scope:** `src/tui/theme.ts`, `HeaderBar.tsx`, `DeliverableCard.tsx`, `ZoneStrip.tsx`, `HelpBar.tsx`, `BoardApp.tsx`
+**Review type:** Post-execution code review (Phase 4 checklist + six-lens pass)
+
+**Checklist summary:** 15 of 16 items SATISFIED. One partial (item 8 — `ZONE_COLOR` locally redefined in ZoneStrip, not a `ZONE_GLYPH` restatement but a parallel zone→Ink-color map).
+
+**MEDIUM findings:**
+- M1: `ZoneStrip.tsx` local `ZONE_COLOR` (Ink strings, keyed by ZoneType) and `HeaderBar.tsx` local `ZONE_INK_COLOR` (Ink strings, keyed by ZoneKey) are independently defined parallel maps. The review zone color differs: ZoneStrip uses `'cyan'`, HeaderBar uses `'yellow'` (approximating REVIEW_ORANGE). The divergence is unspecified and a drift risk.
+- M3: `HeaderBar.tsx` line 143 — "N deliverables" not pluralized; shows "1 deliverables" at count=1.
+- M7: `ZoneStrip.tsx` subzone count filtering (line 136) runs inline on every render — could be memoized.
+
+**LOW findings:**
+- L1: `ViewportMode` comment for `'too-narrow'` says `< 60 cols` but classification uses `< 28`. Misleading.
+- L2: `ZONE_FULL_NAME` defined inside `useMemo` body in HelpBar.tsx — should be module-level constant.
+- L5: Pre-existing: `openEditor` at BoardApp.tsx line 203 uses `EDITOR` only, not `VISUAL`-first. Out of D8 scope.
+
+**Pattern learned:**
+- When a plan instructs "import shared constant from theme", verify not only that no local *glyph/color literal* is redefined, but also that no parallel *mapping object* (zone→color) exists locally in each file. These local maps are harder to spot and create silent divergence across components.
+- Ink color string maps (ZoneType→string) and chalk function maps (DeliverableStatus→ChalkInstance) serve different consumers but map the same zones — a shared Ink-color source in theme.ts would eliminate the HeaderBar vs ZoneStrip review-zone color divergence.
+
+---
+
+## 2026-03-20 — D8 Dense Playmat Board Redesign Plan Re-Review
+
+**Deliverable:** D8 (tier: lite) — Dense Playmat Board Redesign
+**Scope:** Plan document `docs/current_work/sdlc-lite/d8_dense_playmat_plan.md`; cross-referenced against `BoardApp.tsx`, `theme.ts`, `DeliverableCard.tsx`, `HelpBar.tsx`, `ZoneStrip.tsx`, `src/shared/types.ts`
+**Review type:** Re-review after C1-C12 original findings were addressed.
+
+**All 12 original findings (C1-C12) confirmed resolved.**
+
+**HIGH findings:**
+- H1: Viewport classification dead zone — `50 ≤ width < 160, height ≤ 12` has no matching branch. Classification falls off the end. Must add explicit case or document intentional collapse.
+- H2: Collapsed layout min-width guard at `BoardApp.tsx` lines 435-438 hardcodes `16` twice (not the `Math.max(16, ...)` pattern). Plan's "update to 20" instruction targets only `Math.max(16, ...)` and will miss these two sites.
+
+**MEDIUM findings:**
+- M1: `ViewportMode` type ownership not specified in plan. Both `HeaderBar.tsx` and `BoardApp.tsx` need it; plan should designate the canonical source.
+- M2: Plan's DRY cleanup for `RARITY_INK_COLOR` does not note that the stale comment in `DeliverableCard.tsx` lines 12-15 must also be removed/updated.
+- M3: Half-row layout empty-zone column width not specified (full layout uses `Math.max(12, floor(width * 0.08))`; half-row section is silent on this).
+- M4: `BOTTOM_BARS_HEIGHT = 2` stays as-is but zone counts appear in both HeaderBar and HelpBar row 2 simultaneously — design intent is correct but plan should make it explicit to prevent agent "cleanup" of HelpBar row 2.
+
+**LOW findings:**
+- L1: Viewport Matrix table shows `half-col` width as "80-100 cols" but classification logic covers 50-159 — mismatch compounds H1 visibility gap.
+
+**Pattern learned:**
+- 2D breakpoint tables with "any" ranges can mask dead zones. When a classification function uses a 2D grid of conditions, always enumerate all four quadrants of the major breakpoints and verify each has a named branch. Missing quadrant = silent fallthrough.
+- When a plan updates a minimum constant pattern (`Math.max(16, ...)`), the reviewer must grep for ALL instances of the old value in the target file — guard conditions and fallback assignments often use the same number as a raw literal, not via the constant being updated.
+
+---
+
 ## 2026-03-19 — Post-Fix Verification Round 2
 
 **Deliverable:** Ad hoc post-fix verification (chronicle migration, detailMaxScroll, MarkdownPanel lines-only, misc cleanup)
@@ -984,3 +1068,36 @@ type: project
 
 **Stale memory note:**
 - Notepad.tsx findings in review-log (2026-03-17) are fully resolved — Notepad.tsx was deleted in this commit range.
+
+---
+
+## 2026-03-20 — D8 Dense Playmat Board Redesign Plan Review
+
+**Deliverable:** D8 (SDLC-Lite, tier: lite)
+**Scope:** Plan review only — no code changed. Files read: `BoardApp.tsx`, `DeliverableCard.tsx`, `ZoneStrip.tsx`, `HelpBar.tsx` (BottomBar), `theme.ts`, `shared/types.ts`, `useKeyboard.ts`
+
+**CRITICAL findings:**
+1. No specification for quarter-panel (<60 col) layout. CD required support for 40-50 col Zellij panes. Plan says "needs rethinking" — not actionable.
+2. Width arithmetic does not propagate rarity glyph (+2 chars) and doc pills (+9 chars) to minimum zone width constants in the collapsed layout. At minWidth=16, adding these chrome chars causes row-wrap corruption on row 1.
+
+**HIGH findings:**
+3. Doc pill derivation contract unspecified: presence-of-path vs. existence-on-disk, row placement (same row vs. dedicated row), and CARD_HEIGHT impact are all implementation decisions left to the agent.
+4. `collapsed` flag behavior for the new narrow layout is unspecified. Wrong value passed to `useKeyboard` would silently make Deck/Graveyard unreachable.
+5. `EMPTY_ZONE_HEIGHT` is a phantom constant — does not exist in ZoneStrip.tsx. The height redistribution formula for the full layout when empty zones collapse is absent.
+
+**MEDIUM findings:**
+6. HelpBar row 2 new format (~45 chars) overflows at 40-col quarter panels. No fallback format specified.
+7. HeaderBar not specified as board-only or all-views. Sub-view height budget changes if HeaderBar is always visible.
+8. Empty deliverables state not addressed — unclear if HeaderBar renders there.
+9. Flavor text truncation formula (`width - 5`) not updated for rarity glyph addition — overflows by 2 on every card with flavor.
+10. Zone glyph mapping specified by example (HelpBar row 2) but not canonically in the theme section — risk of inconsistency across surfaces.
+11. Vertical layout (60-79 cols) at 24-row terminal with new HEADER_HEIGHT=2: each zone gets 4 rows (down from 5), visibleCount clamped to 1. Tight but not broken — plan should warn agent.
+
+**LOW findings:**
+12. RARITY_GLYPH map is a new rarity-keyed map — recurring `complexityToRarity` inversion risk. Plan should note to key by RarityTier, not DeliverableComplexity.
+13. HelpBar padding uses `.length` for display-width, not wcwidth. New glyphs (⚔ U+2694) may be 2-column in some terminals.
+
+**Patterns confirmed:**
+- Width arithmetic must be propagated across ALL fixed chrome additions when computing minimum zone widths and name truncation.
+- Phantom constants in plans (EMPTY_ZONE_HEIGHT) cause implementing agents to silently invent formulas without spec coverage.
+- Any new rarity map requires explicit callout of arch→mythic, moonshot→epic ordering.

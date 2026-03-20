@@ -1,6 +1,6 @@
 # Project Deliverable Catalog
 
-Next ID: **D8**
+Next ID: **D9**
 
 This is the single source of truth for all deliverable IDs and their statuses.
 
@@ -9,7 +9,7 @@ This is the single source of truth for all deliverable IDs and their statuses.
 | ID | Name | Status | Spec | Plan | Result |
 |----|------|--------|------|------|--------|
 
-_No active deliverables._
+| D8 | Dense Playmat Board Redesign | In Progress (lite) | — | [plan](current_work/sdlc-lite/d8_dense_playmat_plan.md) | — |
 
 ## Completed & Archived
 

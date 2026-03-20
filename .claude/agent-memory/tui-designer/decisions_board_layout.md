@@ -45,6 +45,29 @@ Replaces `— empty —` with zone-specific flavor:
 Card separators change from `─` (U+2500) to `╌` (U+254C, BOX DRAWINGS LIGHT DOUBLE DASH HORIZONTAL). Visually lighter, reduces noise between cards.
 
 ### 7. Bottom bar row 2 upgrade
-Full zone names with glyphs: `⚔  MC   ◈ Deck:0   ★ Active:1   ◎ Review:3   ✦ Graveyard:0`
+Full zone names with glyphs: `★  MC   ◈ Deck:0   ★ Active:1   ◎ Review:3   ✦ Graveyard:0`
 
-Note: `⚔` (U+2694) may render as emoji double-width — test in Ghostty, fall back to `★` or omit.
+`⚔` (U+2694) excluded — confirmed double-width risk. Lead glyph is `★` or omitted.
+
+### 8. Zellij-aware responsive breakpoints (D8 review decision)
+The user runs Ghostty + Zellij as their daily environment. Quarter panels render at 40-50 columns.
+The old 60-column hard cutoff ("too narrow") is replaced by a genuine 5-tier breakpoint model:
+
+| Tier | Width range | Layout |
+|---|---|---|
+| Ultra-narrow | 28–49 | 1 col, Active + Review stacked, no flavor rows, abbreviated bottom bar, 1-row header |
+| Narrow | 50–79 | 1 col, all 4 zones stacked, flavor rows present, full bottom bar, 2-row header |
+| Collapsed | 80–119 | 2 center cols, Deck/Graveyard as badges, full bottom bar |
+| Full | 120–159 | 4 cols, zone widths proportional |
+| Wide | 160+ | 4 cols, center zones expand, Deck/Graveyard capped at max 20 cols each |
+
+Absolute floor: 28 columns. The isTooNarrow check moves from `< 60` to `< 28`.
+
+**Why:** Quarter-panel is a primary usage mode, not an edge case. The board must render useful information
+at 40 columns — refusing to render breaks the tool in the user's most common multi-pane workflow.
+
+### 9. Wide layout max-width cap (D8 review decision)
+At widths above 160, Deck and Graveyard must be capped at 20 columns maximum.
+Without a cap, the 12% proportional calculation expands side zones to 24+ columns at 200 cols,
+leaving empty whitespace on every card row with no information value.
+Center zones (Active + Review) absorb extra width up to a practical card content limit.

@@ -4,6 +4,12 @@ description: Code patterns that have appeared as findings in more than one revie
 type: project
 ---
 
+## Parallel zone→Ink-color maps across TUI components
+
+**Pattern:** A plan instructs "import X from theme.ts — no local restatements." Agents comply for the specific named constant (e.g., `ZONE_GLYPH`) but leave or create separate *mapping objects* (e.g., `ZONE_COLOR: Record<ZoneType, string>`, `ZONE_INK_COLOR`) that cover the same domain with locally-defined values. These parallel maps silently diverge — in D8, `ZoneStrip.ZONE_COLOR.review = 'cyan'` while `HeaderBar.ZONE_INK_COLOR.review = 'yellow'` (REVIEW_ORANGE approximation).
+**First seen:** D8 post-execution review (2026-03-20) — ZoneStrip.tsx lines 20-25 and HeaderBar.tsx lines 42-47.
+**Mitigation:** When reviewing "import from theme" instructions, grep for ALL `Record<Zone*,` or `Record<string, string>` constants in changed files, not just for the named constant being consolidated. Consider adding a shared Ink-color-by-zone map to theme.ts.
+
 ## Side-effect callback called inside a functional updater
 **Pattern:** A hook calls an optional `onXxx` callback inside a functional updater: `setState(prev => { onXxx(next); return next; })`. Functional updaters must be pure. React may call them more than once (Strict Mode double-invocation, concurrent mode). The callback fires a non-deterministic number of times per state update.
 **First seen:** `useSearchInput.ts` — `options.onQueryChange?.(next)` called inside `setQuery((q) => ...)` for both backspace and printable character branches.
