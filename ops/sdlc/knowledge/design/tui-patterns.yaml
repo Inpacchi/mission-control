@@ -1,7 +1,7 @@
 # TUI Design & Development Patterns
 # Ink/React terminal rendering patterns specific to Mission Control.
 # Read before any TUI work. Keep updated as patterns evolve.
-# Last updated: 2026-03-19
+# Last updated: 2026-03-20
 
 id: tui-patterns
 name: "Terminal UI Patterns"
@@ -33,10 +33,14 @@ rendering:
     rule: "Never manipulate alternate screen from components"
 
   responsive_breakpoints:
-    too_narrow: "< 60 columns — show error message"
-    vertical: "60-79 columns — zones stacked vertically"
-    collapsed: "80-119 columns — Deck/Graveyard become badges"
-    full: ">= 120 columns — 4 zones side-by-side"
+    too_narrow: "< 28 cols — terminal too narrow to render"
+    quarter_col: "28-49 cols, > 12 rows — single zone or 2-zone stacked"
+    quarter_quadrant: "28-49 cols, <= 12 rows — single zone only"
+    thirds_col: "50-79 cols, > 12 rows — same as quarter-col behavior"
+    thirds_quadrant: "50-79 cols, <= 12 rows — same as quarter-quadrant behavior"
+    half_col: "80-159 cols — collapsed 2-zone layout"
+    half_row: "160+ cols, <= 12 rows — wide but short"
+    full: "160+ cols, > 12 rows — all 4 zones visible"
 
   dimensions:
     initial: "useStdout().stdout.columns / .rows"
