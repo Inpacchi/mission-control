@@ -9,8 +9,7 @@ This is the single source of truth for all deliverable IDs and their statuses.
 | ID | Name | Status | Spec | Plan | Result |
 |----|------|--------|------|------|--------|
 
-| D8 | Dense Playmat Board Redesign | Complete (lite) | — | [plan](current_work/sdlc-lite/completed/d8_dense_playmat_plan.md) | — |
-| D9 | Three-Zone Playmat | In Progress (lite) | — | [plan](current_work/sdlc-lite/d9_three_zone_playmat_plan.md) | — |
+*(none)*
 
 ## Completed & Archived
 
@@ -23,6 +22,8 @@ This is the single source of truth for all deliverable IDs and their statuses.
 | D5 | Unified TUI App | Complete (lite) | — |
 | D6 | TUI DRY Extraction | Complete (lite) | — |
 | D7 | TUI Polish | Complete (lite) | — |
+| D8 | Dense Playmat Board Redesign | Complete (lite) | — |
+| D9 | Three-Zone Playmat | Complete (lite) | — |
 
 ## Notes
 

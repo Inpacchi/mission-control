@@ -93,3 +93,36 @@ The migration had no git commit at time of audit. This is an unusual state — f
 **All templates, parser, types, CLI, existing plan files (D5/D6/D7), catalog — PASS.**
 
 **Recurring pattern to watch:** When a process change touches skills, the supporting skills (like create-test-suite) that reference patterns from updated skills are commonly missed. The primary skills (sdlc-lite-plan, sdlc-lite-execute) were updated correctly; create-test-suite was not swept.
+
+---
+
+## 2026-03-21 Audit (Post-migration: 8f62ee1 → 99a189c)
+
+**Score:** 9.0/10
+**Trigger:** Post-migration verification (cc-sdlc 8f62ee1 → 99a189c) — sdlc-idea, sdlc-initialize, domain-boundary-gotchas.yaml, Session Handoff enforcement, coding anti-pattern
+**Follow-through rate from 2026-03-19:** 62.5% (W1 resolved, W2 resolved, W4 resolved, I4 resolved; W3 partial, I1/I2/I3 persist)
+
+**Key findings:**
+- W1: Migration uncommitted — 14 files in working tree, not committed (commit immediately)
+- W2: D9 catalog has broken link (points to active/ but file is in completed/) and stale "In Progress" status
+- W3: D9 plan frontmatter missing `status: complete` and `completed:` date fields (07a5679 backfill missed D9)
+- W4: `initial-prompt.md` still exists despite changelog saying it was removed in this migration
+- W5: software-architect hardcodes knowledge paths — now misses 2 new entries (risk-assessment-framework, domain-boundary-gotchas) added to context map in this migration (UPGRADED from Info to Warning due to new relevant file being missed)
+- I1: docs/current_work/ideas/ directory not created (sdlc-idea skill handles gracefully)
+- I2: BOOTSTRAP.md not updated to mention sdlc-initialize (persistent low priority)
+- I3: deliverable_lifecycle.md missing lite tier docs (persistent low priority)
+- I4: software-architect still no agent memory (persistent low priority)
+
+**What was resolved by this migration:**
+- create-test-suite plan path (W1 from 2026-03-19) — DONE
+- overview.md "Plan file only" wording (W2 from 2026-03-19) — DONE
+- sdlc_changelog.md missing entry (W4 from 2026-03-19) — DONE (changelog has 4 new entries)
+- init-frontmatter tier field (I4 from 2026-03-19) — DONE
+- design.md stale skill names (W2 from 2026-03-17b) — DONE (resolved in intermediate session)
+- sdlc-idea skill added, wired into CLAUDE.md, CLAUDE-SDLC.md, overview.md
+- sdlc-initialize skill added
+- domain-boundary-gotchas.yaml added and mapped
+- Session Handoff sections added to all 4 execution/planning skills
+- coding.md "Code Assertion Without Verification" anti-pattern added
+
+**New persistent issue to watch:** software-architect's hardcoded Knowledge Context is now a Warning (not Info) because new knowledge files added to the context map will be silently missed. Each migration adds entries; agent won't see them. Recommend fixing before next migration.

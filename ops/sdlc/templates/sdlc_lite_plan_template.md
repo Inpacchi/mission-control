@@ -1,16 +1,3 @@
----
-tier: lite                 # full | lite
-status: plan               # plan | in-progress | complete | blocked
-type: feature              # feature | bugfix | refactor | research | architecture
-complexity: moderate       # simple | moderate | complex | arch | moonshot
-effort: 3                  # 1-5 scale
-flavor: ""                 # evocative one-liner (like TCG flavor text) — not a description of the work
-created: YYYY-MM-DD
-completed:                 # YYYY-MM-DD — set by sdlc-lite-execute on completion
-author: CC                 # CD | CC
-agents: []                 # [frontend-developer, backend-developer, etc.]
----
-
 # SDLC-Lite Plan: [Title]
 
 **Execute this plan using the `sdlc-lite-execute` skill.**

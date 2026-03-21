@@ -4,7 +4,9 @@ type: refactor
 complexity: moderate
 effort: 2
 flavor: "Four zones enter, three zones leave."
+status: complete
 created: 2026-03-21
+completed: 2026-03-21
 author: CC
 agents: [tui-developer, frontend-developer, code-reviewer]
 ---

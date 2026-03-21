@@ -3,11 +3,11 @@
 ## The Flow
 
 ```
-Idea → Spec → Planning → Implementation → Validation → Deploy → Result → Chronicle
+Idea → (optional: Explore) → Spec → Planning → Implementation → Validation → Deploy → Result → Chronicle
 ```
 
 ### 1. Idea
-A feature, fix, or improvement is identified. Assign a deliverable ID: **D1, D2, ... Dnn**
+A feature, fix, or improvement is identified. If the idea is vague or the user wants to explore before committing, use the `sdlc-idea` skill for open-ended exploration — Socratic questioning, codebase grounding, and conceptual sketching. When the idea is shaped enough, assign a deliverable ID: **D1, D2, ... Dnn**
 
 ### 2. Spec
 Create `docs/current_work/specs/dNN_name_spec.md`
@@ -182,8 +182,10 @@ CC will:
 - Read the current SDLC changelog at `process/sdlc_changelog.md`
 - Discuss the proposed addition or change
 - Update the relevant canonical files
-- Append to the changelog with date, description, and rationale
+- Append to the changelog with date, description, and rationale **immediately after making the change** — do not defer to a later step or session
 - Wait for approval before committing
+
+**Timing rule:** The changelog entry must be written in the same step as the process change, not as a separate follow-up task. Every process decision change — new rules, classification adjustments, workflow modifications, guard additions — gets a changelog entry before moving on to other work. If CD has to ask for the changelog update, it was already too late.
 
 The changelog serves as a living record of how the process evolves through use. Not every change needs a formal proposal — often the best improvements emerge from noticing friction during real work.
 
@@ -231,12 +233,30 @@ Execution phases are gated:
 
 ---
 
+## Project Initialization
+
+To adopt cc-sdlc in a new or existing project, invoke the `sdlc-initialize` skill. It detects the project state and selects the appropriate mode:
+
+| Mode | When | What Happens |
+|------|------|-------------|
+| **Greenfield** | New repo, no existing code or docs | Spec first (defines the project), then scaffold, agents, knowledge, disciplines |
+| **Retrofit** | Existing project with code and docs | Discovery of existing artifacts, proposal for categorization, then scaffold and integration |
+
+**Trigger:** Say **"Initialize SDLC in this project"** or **"Bootstrap SDLC"**
+
+The skill walks through: skeleton installation (`setup.sh`), CLAUDE.md authoring, deliverable catalog setup, domain agent creation (via `/plugin-dev:agent-development`), agent-context map wiring, knowledge seeding, discipline initialization, testing gotcha seeding, plugin verification, and a final checklist.
+
+See `BOOTSTRAP.md` for the retrofit reference.
+
+---
+
 ## Work Without Plans
 
-Not everything needs the full Spec → Planning → Result flow. The SDLC supports three tiers:
+Not everything needs the full Spec → Planning → Result flow. The SDLC supports four tiers:
 
 | Tier | When | Artifact |
 |------|------|----------|
+| **Idea Exploration** | User has a thought or direction but isn't ready to commit to requirements | Idea brief (optional), saved to `docs/current_work/ideas/` |
 | **Full SDLC** | New features, architectural changes, new subsystems | Deliverable ID, spec, plan, result doc |
 | **SDLC-Lite** | Complex enough to benefit from a reviewed plan, doesn't need spec or result docs | Deliverable ID (tier: lite), catalog entry, plan file |
 | **Direct dispatch** | CD steers in real-time, agents do the work | No artifact — scope stated in conversation |

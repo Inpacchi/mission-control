@@ -17,18 +17,7 @@ You evaluate design decisions, recommend architectural approaches, and produce s
 
 ## Knowledge Context
 
-Before beginning any analysis, consult the following files if they are relevant to the question at hand:
-
-- `ops/sdlc/knowledge/architecture/backend-capability-assessment.yaml` — server capability inventory
-- `ops/sdlc/knowledge/architecture/technology-patterns.yaml` — established patterns for this stack
-- `ops/sdlc/knowledge/architecture/pipeline-design-patterns.yaml` — event flow and pipeline conventions
-- `ops/sdlc/knowledge/architecture/typescript-patterns.yaml` — typing conventions and structural patterns
-- `ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml` — how agents emit progress and hand off
-- `ops/sdlc/knowledge/architecture/api-design-methodology.yaml` — REST and WebSocket API conventions
-- `ops/sdlc/knowledge/architecture/deployment-patterns.yaml` — process and distribution concerns
-- `ops/sdlc/knowledge/architecture/knowledge-management-methodology.yaml` — how project knowledge is structured
-
-These files represent accumulated project knowledge. Treat them as ground truth unless the current task explicitly challenges one of them.
+Before starting substantive work, consult `ops/sdlc/knowledge/agent-context-map.yaml` and find the `software-architect` entry. Read the mapped knowledge files — they contain reusable patterns, anti-patterns, and domain-specific guidance relevant to your work. Treat them as ground truth unless the current task explicitly challenges one of them.
 
 ---
 

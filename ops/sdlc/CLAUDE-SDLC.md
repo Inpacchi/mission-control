@@ -17,7 +17,7 @@ The SDLC defines what artifacts a deliverable requires; two skills define how CC
 - **CC (Claude Code):** The entire agent system — specs, plans, implements, reviews via domain-agent-driven skills
 
 ### Deliverable Workflow
-Idea → Spec (CD approves) → Plan (reviewed) → Execute → Review → Result → Chronicle
+Idea → (optional: `sdlc-idea` for exploration) → Spec (CD approves) → Plan (reviewed) → Execute → Review → Result → Chronicle
 
 CC produces SDLC artifacts across two skills:
 - **Spec** → `docs/current_work/specs/dNN_name_spec.md` (planning skill, CD must approve)
@@ -46,11 +46,12 @@ CC produces SDLC artifacts across two skills:
 
 | Tier | When | What Happens |
 |------|------|-------------|
+| **Idea Exploration** (`sdlc-idea`) | The user has a thought or direction but isn't ready to commit to requirements | Idea brief (optional), saved to `docs/current_work/ideas/` |
 | **Full SDLC** (`sdlc-plan` → `sdlc-execute`) | New features, architectural changes, new integrations, new subsystems | Deliverable ID, spec, plan, result doc, chronicle |
 | **SDLC-Lite** (`sdlc-lite-plan` → `sdlc-lite-execute`) | Work complex enough to benefit from a reviewed plan up front, but doesn't need spec or result docs | Deliverable ID (tier: lite), plan file, agent review, catalog entry |
 | **Direct dispatch** (no skill) | CD is steering in real-time — describing goals, testing results, giving feedback | Agents do the work, CC orchestrates, CD drives iteration |
 
-**Choosing a tier:** The question is whether the work benefits from a **plan artifact that survives context clears**. If yes → SDLC or SDLC-Lite. If the user is actively steering and iterating in conversation → direct dispatch.
+**Choosing a tier:** If the user isn't sure what they want yet → `sdlc-idea`. If the work benefits from a **plan artifact that survives context clears** → SDLC or SDLC-Lite. If the user is actively steering and iterating in conversation → direct dispatch.
 
 **Before touching any file:** If you identify non-trivial complexity (cross-domain, non-obvious approach, new subsystems), surface the scope and ask CD which tier to use. The user should never be in the position of catching a missed planning gate.
 
@@ -86,6 +87,12 @@ If you're in direct dispatch and ANY of these become true, stop and ask CD about
 
 ### Workflow Rules
 
+**STOP and invoke `sdlc-idea` when:**
+
+- The user has a vague idea, question, or direction they want to explore ("what if we...", "I'm thinking about...", "could we...")
+- The user describes a problem without proposing a solution and wants to think it through
+- Multiple viable approaches exist and the user hasn't chosen — exploration before commitment
+
 **STOP and invoke `sdlc-plan` when ANY of the following is true:**
 
 - The user asks to build a new feature, new integration, or new subsystem
@@ -117,19 +124,47 @@ This is the exact sequence that bypasses process incorrectly:
 Step 4 is wrong. After step 3, the correct action is to surface the scope assessment and ask which tier to use — or if the user is already steering, state scope and start dispatching agents.
 
 ### Process Changelog
-When you make changes to SDLC process files (skills, agents, process docs, CLAUDE-SDLC.md, disciplines, knowledge), update `ops/sdlc/process/sdlc_changelog.md` in the same session. The changelog captures *why* process changes were made — context that git log alone doesn't preserve. Don't backdate entries for changes made in prior sessions.
+When you make changes to SDLC process files (skills, agents, process docs, CLAUDE-SDLC.md, disciplines, knowledge), update `ops/sdlc/process/sdlc_changelog.md` **immediately after the change, in the same step**. Do not defer changelog updates to a later step, a separate commit, or a future session. Every process decision change — new rules, classification changes, workflow adjustments, guard additions — must have a changelog entry written before moving on to other work. The changelog captures *why* process changes were made — context that git log alone doesn't preserve. Don't backdate entries for changes made in prior sessions.
 
 ### Compliance Auditing
 Run `"Let's run an SDLC compliance audit"` periodically (~every 2-4 weeks or at each version bump). See `ops/sdlc/process/compliance_audit.md`.
+
+**Presenting audit results:** When the auditor returns, present results to CD in this standardized format:
+
+```
+[Audit Type]: [Score]/10 — [Verdict]
+
+[Verdict Label]: [Pass/Fail/Partial]
+
+[1-2 sentence summary of what was checked and the outcome]
+
+Action Items
+
+| # | Severity | Finding | Action |
+|---|----------|---------|--------|
+| 1 | CRITICAL/WARNING/INFO | [concise finding] | [what to do] |
+| 2 | ... | ... | ... |
+```
+
+Rules:
+- One-line header with score and verdict
+- Brief summary paragraph — no more than 2 sentences
+- All findings in a single table with Severity, Finding, and Action columns
+- Severity levels: CRITICAL, WARNING, INFO, Cosmetic
+- Action column says what to do (not just "see report") — e.g., "Fixed during audit", "Remove old directory", "Historical only, no risk"
+- No narrative between findings — the table IS the report
+- Offer to fix actionable items at the end
 
 ### SDLC Commands
 
 | Command | Action |
 |---------|--------|
+| "Initialize SDLC in this project" | Invokes `sdlc-initialize` — detects greenfield vs retrofit, walks through full framework setup |
 | "Let's catalog our ad hoc work" | Invokes the `sdlc-reconciliation` skill — reconciles untracked ad hoc commits back into the deliverable catalog |
 | "Let's organize the chronicles" | Archive completed deliverables from `current_work/` to `chronicle/`. See `ops/sdlc/process/chronicle_organization.md` |
 | "Let's run an SDLC compliance audit" | Audit spec coverage, chronicle freshness, index completeness. See `ops/sdlc/process/compliance_audit.md` |
 | "Let's update the SDLC" | Propose process improvement. See `ops/sdlc/process/sdlc_changelog.md` |
+| "Migrate my SDLC framework" | Apply cc-sdlc upstream updates while preserving project customizations. See `ops/sdlc/MIGRATE.md` |
 
 ### Key References
 - `ops/sdlc/process/overview.md` — Full workflow

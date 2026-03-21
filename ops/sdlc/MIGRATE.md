@@ -77,6 +77,8 @@ Skills have two layers:
    - Project-specific health check URLs and test commands
    - `[PLUGIN: ...]` guards that have been resolved to direct invocations
 
+**Verbatim rule:** Framework content must be copied verbatim from the cc-sdlc source — do not summarize, rephrase, condense, or rewrite in your own words. The source text is the canonical version. When merging, replace the project's framework sections with the exact cc-sdlc text, then re-apply project-specific values (build commands, agent names, etc.) into the appropriate placeholders. If a framework section contains `[build command]` or similar placeholders, substitute the project's actual values — but do not rephrase the surrounding framework text.
+
 **Key rule:** If a section exists in cc-sdlc but not in the project, add it. If a section was removed from cc-sdlc, remove it from the project. If a section was modified in cc-sdlc, update the framework logic while keeping project-specific values.
 
 ### 2.3 Content-Merge: Disciplines
@@ -86,7 +88,7 @@ Discipline files have:
 2. **Project additions** — parking lot entries, active questions, seeded insights
 
 **Migration process:**
-1. Update framework sections to match cc-sdlc
+1. Update framework sections to match cc-sdlc — **verbatim, not rephrased**
 2. Preserve all parking lot entries (these are project-specific knowledge)
 3. Preserve active questions
 4. Add any new seeded insights from cc-sdlc that the project doesn't have
@@ -97,7 +99,7 @@ The `sdlc-compliance-auditor.md` has framework audit logic that must stay curren
 
 1. Read the cc-sdlc source version
 2. Read the project's version
-3. Update all numbered sections (Core Responsibilities 1-8, severity levels, guiding principles)
+3. Update all numbered sections (Core Responsibilities 1-9, severity levels, guiding principles) — **verbatim from cc-sdlc source, not rephrased**
 4. Preserve the project's agent memory path
 5. Preserve any project-specific audit dimensions added by the project
 
@@ -161,7 +163,17 @@ Spot-check 2-3 skills to confirm:
 - Project customizations preserved
 - No orphaned references to removed framework features
 
-### 4.4 Update Manifest
+### 4.4 Post-Migration Audit
+
+Run the `sdlc-compliance-auditor` agent to verify migration integrity. The auditor's §7 (Migration Integrity) checks manifest version, framework file completeness, content-merge correctness, and stale references to removed features — exactly what needs validation after a migration.
+
+```
+"Let's run an SDLC compliance audit"
+```
+
+Fix any findings before committing the migration.
+
+### 4.5 Update Manifest
 
 After migration, update `.sdlc-manifest.json` with the new source version and file hashes:
 
@@ -170,7 +182,7 @@ After migration, update `.sdlc-manifest.json` with the new source version and fi
 # Or manually update source_version to the current cc-sdlc commit hash
 ```
 
-### 4.5 Report to User
+### 4.6 Report to User
 
 ```markdown
 ## SDLC Migration Complete
@@ -197,10 +209,11 @@ After migration, update `.sdlc-manifest.json` with the new source version and fi
 - All agent-context-map paths resolve: yes/no
 - All agents have Knowledge Context: yes/no
 - Spot-check passed: yes/no
+- Post-migration audit: passed/findings fixed
 
 ### Next Steps
-1. Run an SDLC compliance audit to verify integrity
-2. Review the migration diff: `git diff`
+1. Review the migration diff: `git diff`
+2. Commit the migration
 ```
 
 ---
