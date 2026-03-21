@@ -164,24 +164,12 @@ function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?:
   };
 }
 
-export async function parseDeliverables(projectPath: string): Promise<Deliverable[]> {
-  const currentWorkDir = path.join(projectPath, 'docs', 'current_work');
-  const chronicleDir = path.join(projectPath, 'docs', 'chronicle');
-
-  // Scan both directories
-  const [currentFiles, chronicleFiles] = await Promise.all([
-    scanDirectory(currentWorkDir),
-    scanDirectory(chronicleDir),
-  ]);
-  const allFiles = [...currentFiles, ...chronicleFiles];
-
-  // Parse catalog
-  const catalogEntries = await parseCatalog(projectPath);
+function buildDeliverablesFromFiles(files: FileInfo[], catalogEntries: CatalogEntry[]): Deliverable[] {
   const catalogById = new Map(catalogEntries.map((e) => [e.id.toUpperCase(), e]));
 
   // Group files by deliverable ID
   const filesByDeliverable = new Map<string, FileInfo[]>();
-  for (const file of allFiles) {
+  for (const file of files) {
     const key = file.id.toUpperCase();
     const existing = filesByDeliverable.get(key) || [];
     existing.push(file);
@@ -190,11 +178,11 @@ export async function parseDeliverables(projectPath: string): Promise<Deliverabl
 
   // Build deliverables from files
   const deliverables = new Map<string, Deliverable>();
-  for (const [key, files] of filesByDeliverable) {
-    const id = files[0].id;
-    const name = files[0].name;
+  for (const [key, dFiles] of filesByDeliverable) {
+    const id = dFiles[0].id;
+    const name = dFiles[0].name;
     const catalog = catalogById.get(key);
-    deliverables.set(key, buildDeliverable(id, name, files, catalog));
+    deliverables.set(key, buildDeliverable(id, name, dFiles, catalog));
   }
 
   // Add catalog-only entries (ideas with no files)
@@ -220,6 +208,30 @@ export async function parseDeliverables(projectPath: string): Promise<Deliverabl
     if (numA !== numB) return numA - numB;
     return a.id.localeCompare(b.id);
   });
+}
+
+/** Parse active deliverables from current_work/ only — used by the file watcher */
+export async function parseCurrentWork(projectPath: string): Promise<Deliverable[]> {
+  const currentWorkDir = path.join(projectPath, 'docs', 'current_work');
+  const [files, catalogEntries] = await Promise.all([
+    scanDirectory(currentWorkDir),
+    parseCatalog(projectPath),
+  ]);
+  return buildDeliverablesFromFiles(files, catalogEntries);
+}
+
+/** Parse all deliverables from current_work/ + chronicle/ — used by REST endpoints */
+export async function parseDeliverables(projectPath: string): Promise<Deliverable[]> {
+  const currentWorkDir = path.join(projectPath, 'docs', 'current_work');
+  const chronicleDir = path.join(projectPath, 'docs', 'chronicle');
+
+  const [currentFiles, chronicleFiles, catalogEntries] = await Promise.all([
+    scanDirectory(currentWorkDir),
+    scanDirectory(chronicleDir),
+    parseCatalog(projectPath),
+  ]);
+
+  return buildDeliverablesFromFiles([...currentFiles, ...chronicleFiles], catalogEntries);
 }
 
 export async function parseChronicle(projectPath: string): Promise<Deliverable[]> {

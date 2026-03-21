@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import chokidar from 'chokidar';
-import { parseDeliverables } from './sdlcParser.js';
+import chokidar, { type FSWatcher } from 'chokidar';
+import { parseCurrentWork } from './sdlcParser.js';
 import type { Deliverable, DeliverableStatus } from '../../shared/types.js';
 
 export interface FileWatcherOptions {
@@ -13,6 +13,9 @@ export interface FileWatcherOptions {
 export interface FileWatcherHandle {
   close: () => Promise<void>;
 }
+
+const MAX_RESTARTS = 3;
+const RESTART_DELAY_MS = 3000;
 
 export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandle {
   const { projectPath, onUpdate, onStats } = options;
@@ -26,16 +29,27 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandl
     };
   }
 
+  // Only watch active work — chronicle is archived and doesn't change status
+  const currentWorkDir = path.join(docsDir, 'current_work');
+
+  if (!fs.existsSync(currentWorkDir)) {
+    console.warn('[fileWatcher] docs/current_work not found, watcher inactive');
+    return { close: async () => {} };
+  }
+
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let restartCount = 0;
+  let watcher: FSWatcher | null = null;
+  let closed = false;
 
   const handleChange = () => {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
       try {
-        const deliverables = await parseDeliverables(projectPath);
+        const deliverables = await parseCurrentWork(projectPath);
         onUpdate(deliverables);
 
-        // Compute and broadcast stats (excludes untracked — REST-only)
+        // Compute and broadcast stats
         if (onStats) {
           const byStatus: Record<DeliverableStatus, number> = {
             idea: 0,
@@ -57,20 +71,44 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandl
     }, 200);
   };
 
-  const watcher = chokidar.watch(docsDir, {
-    ignoreInitial: true,
-    persistent: true,
-    awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
-  });
+  function startWatcher() {
+    watcher = chokidar.watch(currentWorkDir, {
+      ignoreInitial: true,
+      persistent: true,
+      ignored: /(^|[/\\])\./,
+      awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
+    });
 
-  watcher.on('add', handleChange);
-  watcher.on('change', handleChange);
-  watcher.on('unlink', handleChange);
+    watcher.on('add', handleChange);
+    watcher.on('change', handleChange);
+    watcher.on('unlink', handleChange);
+
+    watcher.on('error', (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[fileWatcher] Watcher error:', message);
+
+      if (closed) return;
+
+      if (restartCount < MAX_RESTARTS) {
+        restartCount++;
+        console.warn(`[fileWatcher] Restarting watcher (attempt ${restartCount}/${MAX_RESTARTS})...`);
+        watcher?.close().catch(() => {});
+        setTimeout(() => {
+          if (!closed) startWatcher();
+        }, RESTART_DELAY_MS);
+      } else {
+        console.error('[fileWatcher] Max restarts reached, watcher permanently stopped. Restart mc to resume live updates.');
+      }
+    });
+  }
+
+  startWatcher();
 
   return {
     close: async () => {
+      closed = true;
       if (debounceTimer) clearTimeout(debounceTimer);
-      await watcher.close();
+      await watcher?.close();
     },
   };
 }
