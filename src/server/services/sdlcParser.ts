@@ -63,6 +63,56 @@ async function scanDirectory(dirPath: string): Promise<FileInfo[]> {
   return results;
 }
 
+/** Scan current_work/ideas/ for loose .md files that aren't standard deliverable artifacts.
+ *  Each file becomes an idea-status deliverable using a synthetic ID (IDEA-filename). */
+async function scanIdeas(projectPath: string): Promise<Deliverable[]> {
+  const ideasDir = path.join(projectPath, 'docs', 'current_work', 'ideas');
+  const results: Deliverable[] = [];
+
+  try {
+    await fs.access(ideasDir);
+  } catch {
+    return results;
+  }
+
+  const entries = await fs.readdir(ideasDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+    // Skip files that match the standard deliverable pattern — scanDirectory handles those
+    if (DELIVERABLE_FILE_RE.test(entry.name)) continue;
+
+    const filePath = path.join(ideasDir, entry.name);
+    const stat = await fs.stat(filePath);
+    const content = await fs.readFile(filePath, 'utf-8');
+    const frontmatter = parseFrontmatter(content);
+
+    // Derive name from filename: strip .md, replace _ and - with spaces, title-case
+    const slug = entry.name.replace(/\.md$/, '');
+    const name = frontmatter.flavor
+      || slug.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+    // Synthetic ID: IDEA- prefix so it never collides with D-numbered deliverables
+    const id = `IDEA-${slug}`;
+
+    results.push({
+      id,
+      name,
+      status: 'idea',
+      phase: 'idea',
+      lastModified: stat.mtime.toISOString(),
+      createdAt: stat.mtime.toISOString(),
+      cardType: frontmatter.cardType,
+      complexity: frontmatter.complexity,
+      effort: frontmatter.effort,
+      flavor: frontmatter.flavor,
+      agents: frontmatter.agents,
+      tier: frontmatter.tier,
+    });
+  }
+
+  return results;
+}
+
 const STATUS_PHASE_MAP: Record<DeliverableStatus, DeliverablePhase> = {
   idea: 'idea',
   spec: 'specifying',
@@ -224,11 +274,20 @@ function buildDeliverablesFromFiles(files: FileInfo[], catalogEntries: CatalogEn
 /** Parse active deliverables from current_work/ only — used by the file watcher */
 export async function parseCurrentWork(projectPath: string): Promise<Deliverable[]> {
   const currentWorkDir = path.join(projectPath, 'docs', 'current_work');
-  const [files, catalogEntries] = await Promise.all([
+  const [files, catalogEntries, ideas] = await Promise.all([
     scanDirectory(currentWorkDir),
     parseCatalog(projectPath),
+    scanIdeas(projectPath),
   ]);
-  return buildDeliverablesFromFiles(files, catalogEntries);
+  // Only return deliverables that have actual files in current_work.
+  // Catalog-only entries (no files) must NOT be included — they would create
+  // ghost "idea" entries for archived deliverables and overwrite correct
+  // chronicle-derived statuses in the frontend merge.
+  const fileIds = new Set(files.map((f) => f.id.toUpperCase()));
+  const deliverables = buildDeliverablesFromFiles(files, catalogEntries).filter(
+    (d) => fileIds.has(d.id.toUpperCase()),
+  );
+  return [...deliverables, ...ideas];
 }
 
 /** Parse all deliverables from current_work/ + chronicle/ — used by REST endpoints */
@@ -236,13 +295,15 @@ export async function parseDeliverables(projectPath: string): Promise<Deliverabl
   const currentWorkDir = path.join(projectPath, 'docs', 'current_work');
   const chronicleDir = path.join(projectPath, 'docs', 'chronicle');
 
-  const [currentFiles, chronicleFiles, catalogEntries] = await Promise.all([
+  const [currentFiles, chronicleFiles, catalogEntries, ideas] = await Promise.all([
     scanDirectory(currentWorkDir),
     scanDirectory(chronicleDir),
     parseCatalog(projectPath),
+    scanIdeas(projectPath),
   ]);
 
-  return buildDeliverablesFromFiles([...currentFiles, ...chronicleFiles], catalogEntries);
+  const deliverables = buildDeliverablesFromFiles([...currentFiles, ...chronicleFiles], catalogEntries);
+  return [...deliverables, ...ideas];
 }
 
 export async function parseChronicle(projectPath: string): Promise<Deliverable[]> {
