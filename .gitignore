@@ -29,6 +29,7 @@ playwright-report/
 # Logs
 *.log
 npm-debug.log*
+pnpm-debug.log*
 
 # TypeScript build artifacts (tsc emits next to source without outDir)
 src/**/*.js

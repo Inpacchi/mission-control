@@ -7,13 +7,14 @@ Mission Control is a standalone global CLI tool (`mc`) that provides a web-based
 **One command. One process. Works with any project.**
 
 ```bash
-npm i -g mission-control
+pnpm add -g mission-control
 mc                           # opens project picker or last-used project
 mc ~/Projects/sleeved        # opens directly to a specific project
 ```
 
 ## Architecture
 
+- **Package Manager:** pnpm (do not use npm or yarn)
 - **Server:** Node.js 20+, Express 5, WebSocket (`ws`), `node-pty` for PTY-backed Claude CLI sessions, `chokidar` for file watching
 - **UI:** React 19, Vite 6, xterm.js (terminal), Chakra UI (styling), Zustand (state), Lucide React (icons)
 - **Port:** 3002 (default)
@@ -236,9 +237,9 @@ Add these to your project's `.claude/settings.json` (create if it doesn't exist)
 {
   "permissions": {
     "allow": [
-      "Bash(npm install)",
-      "Bash(npm run build*)",
-      "Bash(npm test*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm run build*)",
+      "Bash(pnpm test*)",
       "Bash(npx playwright test*)"
     ]
   }

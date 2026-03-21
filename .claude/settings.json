@@ -6,9 +6,9 @@
       "Bash(git log*)",
       "Bash(git add*)",
       "Bash(git commit*)",
-      "Bash(npm install)",
-      "Bash(npm run build*)",
-      "Bash(npm test*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm run build*)",
+      "Bash(pnpm test*)",
       "Bash(npx vitest*)",
       "Bash(npx playwright test*)",
       "Bash(npx tsc*)"

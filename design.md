@@ -9,7 +9,7 @@ A standalone global CLI tool that provides a web-based UI for managing SDLC work
 **One command. One process. Works with any project.**
 
 ```bash
-npm i -g mission-control    # install once
+pnpm add -g mission-control  # install once
 mc                           # opens project picker or last-used project
 mc ~/Projects/sleeved        # opens directly to a specific project
 ```
@@ -40,7 +40,7 @@ This works, but it's fragmented. There is no single pane of glass for the CD (Cl
 ### Soft Requirements
 
 - Accessible from other devices on the network (phone, iPad) via Tailscale or LAN binding
-- Minimal install footprint — single global npm package
+- Minimal install footprint — single global package
 - Fast startup — dashboard visible in under 2 seconds
 
 ## Architecture
