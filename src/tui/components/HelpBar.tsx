@@ -8,7 +8,7 @@ import { ZONE_GLYPH } from '../theme.js';
 interface Zone {
   name: string;
   cards: Deliverable[];
-  type: 'deck' | 'active' | 'review' | 'graveyard';
+  type: 'deck' | 'playmat' | 'graveyard';
 }
 
 interface BottomBarProps {
@@ -24,15 +24,13 @@ interface BottomBarProps {
 
 const ZONE_FULL_NAME: Record<string, string> = {
   deck: 'Deck',
-  active: 'Active',
-  review: 'Review',
+  playmat: 'Playmat',
   graveyard: 'Grave',
 };
 
 const ZONE_CHALK_COLOR: Record<string, (s: string) => string> = {
   deck: (s) => chalk.gray(s),
-  active: (s) => chalk.yellow(s),
-  review: (s) => chalk.cyan(s),
+  playmat: (s) => chalk.yellow(s),
   graveyard: (s) => chalk.green(s),
 };
 
@@ -120,8 +118,8 @@ export function BottomBar({ zones, width, viewMode = 'board', searchMode = false
   }, [viewMode, width, searchMode, singleZoneHint]);
 
   // Row 2: zone counts — memoized on zones + width
-  // ≥60 cols: full glyphs + names  e.g. "◇ Deck:0  ◆ Active:1  ◎ Review:3  ✦ Grave:0"
-  // <60 cols: compact glyph codes  e.g. "◇:0 ◆:1 ◎:3 ✦:0"
+  // ≥60 cols: full glyphs + names  e.g. "◇ Deck:0  ◆ Playmat:1  ✦ Grave:0"
+  // <60 cols: compact glyph codes  e.g. "◇:0 ◆:1 ✦:0"
   const row2Str = useMemo(() => {
     const mcPart = chalk.bgBlack.white.bold(' MC  ');
     const isNarrow = width < 60;

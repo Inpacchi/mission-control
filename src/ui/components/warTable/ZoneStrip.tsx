@@ -3,7 +3,7 @@ import { Box, Flex, Text } from '@chakra-ui/react';
 import type { Deliverable } from '@shared/types';
 import type { ZoneViewMode } from '../../stores/dashboardStore';
 
-export type ZoneType = 'deck' | 'active' | 'review' | 'graveyard';
+export type ZoneType = 'deck' | 'playmat' | 'graveyard';
 
 interface ZoneStripProps {
   title: string;
@@ -15,15 +15,13 @@ interface ZoneStripProps {
 
 const ZONE_ACCENT: Record<ZoneType, string> = {
   deck: '#A78BFA',
-  active: '#F59E0B',
-  review: '#FB923C',
+  playmat: '#F59E0B',
   graveyard: '#22C55E',
 };
 
 const ZONE_BG: Record<ZoneType, string> = {
   deck: '#1E1A2E',
-  active: '#2D1A04',
-  review: '#2D1602',
+  playmat: '#2D1A04',
   graveyard: '#052E16',
 };
 
@@ -71,8 +69,8 @@ export function ZoneStrip({
     <Flex
       role="region"
       direction="column"
-      flex={zoneType === 'active' ? '1 1 120px' : '0 0 auto'}
-      minH={zoneType === 'active' ? '120px' : undefined}
+      flex={zoneType === 'playmat' ? '1 1 120px' : '0 0 auto'}
+      minH={zoneType === 'playmat' ? '120px' : undefined}
       border="1px solid"
       borderColor="border.subtle"
       borderRadius="md"

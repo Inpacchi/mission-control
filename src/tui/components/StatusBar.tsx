@@ -5,7 +5,7 @@ import type { Deliverable } from '../../shared/types.js';
 interface Zone {
   name: string;
   cards: Deliverable[];
-  type: 'deck' | 'active' | 'review' | 'graveyard';
+  type: 'deck' | 'playmat' | 'graveyard';
 }
 
 interface StatusBarProps {
@@ -14,15 +14,13 @@ interface StatusBarProps {
 
 const ZONE_LABEL_COLOR: Record<string, string> = {
   deck: 'gray',
-  active: 'yellow',
-  review: 'cyan',
+  playmat: 'yellow',
   graveyard: 'green',
 };
 
 const ZONE_SHORT: Record<string, string> = {
   deck: 'D',
-  active: 'A',
-  review: 'R',
+  playmat: 'P',
   graveyard: 'G',
 };
 

@@ -11,9 +11,9 @@ export type ViewportMode =
   | 'quarter-quadrant' // 28-49 cols, short — 3-row header, single zone
   | 'thirds-col'       // 50-79 cols, tall — 3-row header, single zone (or 2 stacked)
   | 'thirds-quadrant'  // 50-79 cols, short — 3-row header, single zone
-  | 'half-col'         // 80-159 cols — 2-row header, Active + Review side by side
-  | 'half-row'         // 160+ cols, short — 1-row header, 4 zones side by side
-  | 'full';            // 160+ cols, tall — 2-row header, 4 zones side by side
+  | 'half-col'         // 80-159 cols — 2-row header, Playmat collapsed
+  | 'half-row'         // 160+ cols, short — 1-row header, 3 zones side by side
+  | 'full';            // 160+ cols, tall — 2-row header, 3 zones side by side
 
 interface HeaderBarProps {
   projectName: string;
@@ -24,27 +24,24 @@ interface HeaderBarProps {
 }
 
 // Zone ordering matches the board column order
-const ZONE_ORDER = ['deck', 'active', 'review', 'graveyard'] as const;
+const ZONE_ORDER = ['deck', 'playmat', 'graveyard'] as const;
 type ZoneKey = typeof ZONE_ORDER[number];
 
 const ZONE_FULL_LABEL: Record<ZoneKey, string> = {
   deck: 'Deck',
-  active: 'Active',
-  review: 'Review',
+  playmat: 'Playmat',
   graveyard: 'Graveyard',
 };
 
 const ZONE_STATUS_MAP: Record<ZoneKey, Deliverable['status'][]> = {
   deck: ['idea'],
-  active: ['spec', 'plan', 'in-progress', 'blocked'],
-  review: ['review'],
+  playmat: ['spec', 'plan', 'in-progress', 'blocked', 'review'],
   graveyard: ['complete'],
 };
 
 const ZONE_INK_COLOR: Record<ZoneKey, string> = {
   deck: 'gray',
-  active: 'yellow',
-  review: 'cyan', // matches ZoneStrip ZONE_COLOR and theme.ts ZONE_COLOR for review status
+  playmat: 'yellow',
   graveyard: 'green',
 };
 
@@ -74,7 +71,7 @@ export function HeaderBar({
 
   // Zone counts — memoized on deliverables
   const zoneCounts = useMemo(() => {
-    const counts: Record<ZoneKey, number> = { deck: 0, active: 0, review: 0, graveyard: 0 };
+    const counts: Record<ZoneKey, number> = { deck: 0, playmat: 0, graveyard: 0 };
     for (const d of deliverables) {
       for (const zone of ZONE_ORDER) {
         if ((ZONE_STATUS_MAP[zone] as string[]).includes(d.status)) {
@@ -89,7 +86,7 @@ export function HeaderBar({
   // Highest-priority active deliverable phase label
   const activePhaseLabel = useMemo(() => {
     const activeCards = deliverables.filter((d) =>
-      (ZONE_STATUS_MAP.active as string[]).includes(d.status),
+      (ZONE_STATUS_MAP.playmat as string[]).includes(d.status),
     );
     if (activeCards.length === 0) return 'no active work';
     // Priority order: in-progress > blocked > plan > spec
@@ -145,7 +142,7 @@ export function HeaderBar({
     );
   }
 
-  // half-row: zone counts only — ◇:N  ◆:N  ◎:N  ✦:N
+  // half-row: zone counts only — ◇:N  ◆:N  ✦:N
   if (viewportMode === 'half-row') {
     return (
       <Box width={width} gap={2}>
@@ -162,13 +159,13 @@ export function HeaderBar({
   // --- 2-row mode (half-col / full) ---
 
   // Row 1: project name (bold, truncated) + zone counts right-aligned
-  // Count string: "◇ Deck:N  ◆ Active:N  ◎ Review:N  ✦ Graveyard:N"
+  // Count string: "◇ Deck:N  ◆ Playmat:N  ✦ Graveyard:N"
   const countParts = ZONE_ORDER.map((zone) => `${ZONE_GLYPH[zone]} ${ZONE_FULL_LABEL[zone]}:${zoneCounts[zone]}`);
   const countStr = countParts.join('  ');
   // 2 chars padding between name and counts.
-  // The counts are rendered inside <Box gap={2}> with 4 children — Ink adds 3 × 2 = 6 gap chars
-  // at layout time that are not reflected in countStr.length, so subtract 6 extra chars.
-  const nameMaxWidth = Math.max(4, width - countStr.length - 2 - 6);
+  // The counts are rendered inside <Box gap={2}> with 3 children — Ink adds 2 × 2 = 4 gap chars
+  // at layout time that are not reflected in countStr.length, so subtract 4 extra chars.
+  const nameMaxWidth = Math.max(4, width - countStr.length - 2 - 4);
   const truncName = projectName.length > nameMaxWidth
     ? projectName.slice(0, nameMaxWidth - 1) + '…'
     : projectName;

@@ -33,7 +33,7 @@ export type DetailSearchMode = 'normal' | 'search';
 interface Zone {
   name: string;
   cards: Deliverable[];
-  type: 'deck' | 'active' | 'review' | 'graveyard';
+  type: 'deck' | 'playmat' | 'graveyard';
 }
 
 interface UseKeyboardOptions {
@@ -78,7 +78,7 @@ export function useKeyboard({
   collapsed = false,
   terminalHeight,
 }: UseKeyboardOptions): UseKeyboardResult {
-  const [selectedZone, setSelectedZone] = useState<number>(1); // Default to Active Zone
+  const [selectedZone, setSelectedZone] = useState<number>(1); // Default to Playmat
   const [selectedCard, setSelectedCard] = useState<number>(0);
   const [currentViewMode, setCurrentViewMode] = useState<ViewMode>('board');
   const [showHelp, setShowHelp] = useState<boolean>(false);
@@ -95,10 +95,10 @@ export function useKeyboard({
   const detailMatchLinesRef = useRef<number[]>([]);
   const searchInput = useSearchInput();
 
-  // In collapsed mode Deck (0) and Graveyard (3) are badge-only — skip them
+  // In collapsed mode Deck (0) and Graveyard (2) are badge-only — skip them
   const getNavigableZones = useCallback((): number[] => {
-    if (!collapsed) return [0, 1, 2, 3];
-    return [1, 2]; // Only Active and Review when collapsed
+    if (!collapsed) return [0, 1, 2];
+    return [1]; // Only Playmat when collapsed
   }, [collapsed]);
 
   // When transitioning to collapsed mode, ensure selectedZone is navigable

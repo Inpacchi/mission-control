@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Deliverable } from '../shared/types.js';
-import { isDeckZone, isActiveZone, isReviewZone, isGraveyardZone } from '../shared/zones.js';
+import { isDeckZone, isPlaymatZone, isGraveyardZone } from '../shared/zones.js';
 import { ZoneStrip, EMPTY_ZONE_HEIGHT } from './components/ZoneStrip.js';
 import { ZONE_GLYPH } from './theme.js';
 import { BottomBar } from './components/HelpBar.js';
@@ -44,7 +44,7 @@ function ViewLayout({ children, height, width, zones, viewMode, searchMode }: {
 interface Zone {
   name: string;
   cards: Deliverable[];
-  type: 'deck' | 'active' | 'review' | 'graveyard';
+  type: 'deck' | 'playmat' | 'graveyard';
 }
 
 interface BoardAppProps {
@@ -162,7 +162,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
   const viewportMode = useMemo(() => classifyViewport(width, height), [width, height]);
 
   // collapsed flag: Deck/Graveyard are hidden from zone columns in these modes
-  // quarter/thirds: all 4 zones are keyboard-navigable (single-zone display mode)
+  // quarter/thirds: all 3 zones are keyboard-navigable (single-zone display mode)
   const collapsed =
     viewportMode === 'half-col' ||
     viewportMode === 'half-row';
@@ -175,12 +175,8 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
     () => deliverables.filter((d) => isDeckZone(d.status)),
     [deliverables]
   );
-  const activeCards = useMemo(
-    () => deliverables.filter((d) => isActiveZone(d.status)),
-    [deliverables]
-  );
-  const reviewCards = useMemo(
-    () => deliverables.filter((d) => isReviewZone(d.status)),
+  const playmatCards = useMemo(
+    () => deliverables.filter((d) => isPlaymatZone(d.status)),
     [deliverables]
   );
   const graveyardCards = useMemo(
@@ -191,11 +187,10 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
   const zones = useMemo(
     () => [
       { name: 'Deck', cards: deckCards, type: 'deck' as const },
-      { name: 'Active Zone', cards: activeCards, type: 'active' as const },
-      { name: 'Review', cards: reviewCards, type: 'review' as const },
+      { name: 'Playmat', cards: playmatCards, type: 'playmat' as const },
       { name: 'Graveyard', cards: graveyardCards, type: 'graveyard' as const },
     ],
-    [deckCards, activeCards, reviewCards, graveyardCards]
+    [deckCards, playmatCards, graveyardCards]
   );
 
   // Open project notes in $EDITOR (falls back to vi)
@@ -404,7 +399,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
   const zoneHeight = Math.max(5, height - BOTTOM_BARS_HEIGHT - headerHeight);
 
   // ── Narrow panel mode: quarter and thirds ────────────────────────────────────
-  // Single zone fills the full width. Left/right arrows cycle through all 4 zones.
+  // Single zone fills the full width. Left/right arrows cycle through all 3 zones.
   // Full-height (quarter-col, thirds-col): show 2 zones stacked vertically.
   // Short-height (quarter-quadrant, thirds-quadrant): single zone only.
   if (isNarrowPanel) {
@@ -422,8 +417,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
     // Zone hint for the bottom bar
     const ZONE_SHORT_NAME: Record<string, string> = {
       deck: 'Deck',
-      active: 'Active',
-      review: 'Review',
+      playmat: 'Playmat',
       graveyard: 'Grave',
     };
     const zoneGlyph = ZONE_GLYPH[currentZone.type] ?? currentZone.type[0].toUpperCase();
@@ -458,7 +452,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
               height={topHeight}
               isSelected
               selectedCard={selectedCard}
-              showSubzones={currentZone.type === 'active'}
+              showSubzones={currentZone.type === 'playmat'}
             />
             <ZoneStrip
               name={nextZone.name}
@@ -468,7 +462,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
               height={bottomHeight}
               isSelected={false}
               selectedCard={-1}
-              showSubzones={nextZone.type === 'active'}
+              showSubzones={nextZone.type === 'playmat'}
             />
           </Box>
           <BottomBar zones={zones} width={width} viewMode={viewMode} singleZoneHint={singleZoneHint} threeRowMode />
@@ -495,7 +489,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
             height={zoneHeight}
             isSelected
             selectedCard={selectedCard}
-            showSubzones={currentZone.type === 'active'}
+            showSubzones={currentZone.type === 'playmat'}
           />
         </Box>
         <BottomBar zones={zones} width={width} viewMode={viewMode} singleZoneHint={singleZoneHint} threeRowMode />
@@ -504,7 +498,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
   }
 
   // ── Collapsed layout: half-col (50–159 cols) ─────────────────────────────────
-  // Active and Review at full available width. Deck/Graveyard counts in HeaderBar.
+  // Playmat at full available width. Deck/Graveyard counts in HeaderBar.
   if (viewportMode === 'half-col') {
     if (showHelp) {
       return (
@@ -516,35 +510,6 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
     }
 
     const availableWidth = width; // full width — no badge columns
-    const activeCount = activeCards.length;
-    const reviewCount = reviewCards.length;
-    const totalCards = activeCount + reviewCount;
-    const bothPresent = activeCount > 0 && reviewCount > 0;
-    const eitherEmpty = activeCount === 0 || reviewCount === 0;
-
-    let activeWidth: number;
-    let reviewWidth: number;
-
-    if (totalCards === 0) {
-      activeWidth = Math.floor(availableWidth / 2);
-      reviewWidth = availableWidth - activeWidth;
-    } else if (eitherEmpty) {
-      // One zone is empty — the rendering below uses a stacked (column) layout where both zones
-      // receive availableWidth directly from the JSX, so these variables are not used in those
-      // branches. Set both to availableWidth to satisfy TypeScript and match the stacked layout intent.
-      activeWidth = availableWidth;
-      reviewWidth = availableWidth;
-    } else {
-      // Both non-empty: split proportionally by card count, minimum 20 chars each
-      const activePct = Math.max(0.2, Math.min(0.8, activeCount / totalCards));
-      activeWidth = Math.max(20, Math.floor(availableWidth * activePct));
-      reviewWidth = Math.max(20, availableWidth - activeWidth);
-      // Re-adjust if both minimums exceed available
-      if (activeWidth + reviewWidth > availableWidth) {
-        activeWidth = availableWidth - 20;
-        reviewWidth = 20;
-      }
-    }
 
     return (
       <Box flexDirection="column" height={height}>
@@ -556,80 +521,18 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
           height={height}
           viewportMode={viewportMode}
         />
-        {bothPresent ? (
-          // Both zones have cards — render side by side
-          <Box flexDirection="row" flexGrow={1}>
-            <ZoneStrip
-              name="Active Zone"
-              type="active"
-              cards={activeCards}
-              width={activeWidth}
-              height={zoneHeight}
-              isSelected={selectedZone === 1}
-              selectedCard={selectedZone === 1 ? selectedCard : -1}
-              showSubzones
-            />
-            <ZoneStrip
-              name="Review"
-              type="review"
-              cards={reviewCards}
-              width={reviewWidth}
-              height={zoneHeight}
-              isSelected={selectedZone === 2}
-              selectedCard={selectedZone === 2 ? selectedCard : -1}
-            />
-          </Box>
-        ) : activeCount === 0 ? (
-          // Active is empty — render as collapsed strip above Review
-          <Box flexDirection="column" flexGrow={1}>
-            <Box height={EMPTY_ZONE_HEIGHT}>
-              <ZoneStrip
-                name="Active Zone"
-                type="active"
-                cards={activeCards}
-                width={availableWidth}
-                height={EMPTY_ZONE_HEIGHT}
-                isSelected={selectedZone === 1}
-                selectedCard={-1}
-                showSubzones
-              />
-            </Box>
-            <ZoneStrip
-              name="Review"
-              type="review"
-              cards={reviewCards}
-              width={availableWidth}
-              height={zoneHeight - EMPTY_ZONE_HEIGHT}
-              isSelected={selectedZone === 2}
-              selectedCard={selectedZone === 2 ? selectedCard : -1}
-            />
-          </Box>
-        ) : (
-          // Review is empty — render Active at full height, Review as collapsed strip at bottom
-          <Box flexDirection="column" flexGrow={1}>
-            <ZoneStrip
-              name="Active Zone"
-              type="active"
-              cards={activeCards}
-              width={availableWidth}
-              height={zoneHeight - EMPTY_ZONE_HEIGHT}
-              isSelected={selectedZone === 1}
-              selectedCard={selectedZone === 1 ? selectedCard : -1}
-              showSubzones
-            />
-            <Box height={EMPTY_ZONE_HEIGHT}>
-              <ZoneStrip
-                name="Review"
-                type="review"
-                cards={reviewCards}
-                width={availableWidth}
-                height={EMPTY_ZONE_HEIGHT}
-                isSelected={selectedZone === 2}
-                selectedCard={-1}
-              />
-            </Box>
-          </Box>
-        )}
+        <Box flexGrow={1}>
+          <ZoneStrip
+            name="Playmat"
+            type="playmat"
+            cards={playmatCards}
+            width={availableWidth}
+            height={zoneHeight}
+            isSelected={selectedZone === 1}
+            selectedCard={selectedZone === 1 ? selectedCard : -1}
+            showSubzones
+          />
+        </Box>
         <BottomBar zones={zones} width={width} viewMode={viewMode} />
       </Box>
     );
@@ -650,23 +553,6 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
     const deckWidth = SIDE_MAX;
     const graveyardWidth = SIDE_MAX;
     const centerWidth = width - deckWidth - graveyardWidth;
-    const activeCount = activeCards.length;
-    const reviewCount = reviewCards.length;
-    const totalCenter = activeCount + reviewCount;
-    let activeWidth: number;
-    let reviewWidth: number;
-    if (totalCenter === 0) {
-      activeWidth = Math.floor(centerWidth * 0.6);
-      reviewWidth = centerWidth - activeWidth;
-    } else {
-      const activePct = Math.max(0.25, Math.min(0.75, activeCount / totalCenter));
-      activeWidth = Math.max(20, Math.floor(centerWidth * activePct));
-      reviewWidth = Math.max(20, centerWidth - activeWidth);
-      if (activeWidth + reviewWidth > centerWidth) {
-        activeWidth = centerWidth - 20;
-        reviewWidth = 20;
-      }
-    }
 
     return (
       <Box flexDirection="column" height={height}>
@@ -689,26 +575,16 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
             isSelected={selectedZone === 0}
             selectedCard={selectedZone === 0 ? selectedCard : -1}
           />
-          {/* Active Zone */}
+          {/* Playmat */}
           <ZoneStrip
-            name="Active Zone"
-            type="active"
-            cards={activeCards}
-            width={activeWidth}
+            name="Playmat"
+            type="playmat"
+            cards={playmatCards}
+            width={centerWidth}
             height={zoneHeight}
             isSelected={selectedZone === 1}
             selectedCard={selectedZone === 1 ? selectedCard : -1}
             showSubzones
-          />
-          {/* Review */}
-          <ZoneStrip
-            name="Review"
-            type="review"
-            cards={reviewCards}
-            width={reviewWidth}
-            height={zoneHeight}
-            isSelected={selectedZone === 2}
-            selectedCard={selectedZone === 2 ? selectedCard : -1}
           />
           {/* Graveyard */}
           <ZoneStrip
@@ -717,8 +593,8 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
             cards={graveyardCards}
             width={graveyardWidth}
             height={zoneHeight}
-            isSelected={selectedZone === 3}
-            selectedCard={selectedZone === 3 ? selectedCard : -1}
+            isSelected={selectedZone === 2}
+            selectedCard={selectedZone === 2 ? selectedCard : -1}
           />
         </Box>
         <BottomBar zones={zones} width={width} viewMode={viewMode} />
@@ -747,23 +623,6 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
       ? Math.max(20, Math.min(SIDE_MAX, Math.floor(width * 0.12)))
       : Math.max(12, Math.floor(width * 0.08));
   const centerWidth = width - deckWidth - graveyardWidth;
-  const activeCount = activeCards.length;
-  const reviewCount = reviewCards.length;
-  const totalCenter = activeCount + reviewCount;
-  let activeWidth: number;
-  let reviewWidth: number;
-  if (totalCenter === 0) {
-    activeWidth = Math.floor(centerWidth * 0.6);
-    reviewWidth = centerWidth - activeWidth;
-  } else {
-    const activePct = Math.max(0.25, Math.min(0.75, activeCount / totalCenter));
-    activeWidth = Math.max(20, Math.floor(centerWidth * activePct));
-    reviewWidth = Math.max(20, centerWidth - activeWidth);
-    if (activeWidth + reviewWidth > centerWidth) {
-      activeWidth = centerWidth - 20;
-      reviewWidth = 20;
-    }
-  }
 
   return (
     <Box flexDirection="column" height={height}>
@@ -801,27 +660,16 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
           </Box>
         )}
 
-        {/* Active Zone */}
+        {/* Playmat */}
         <ZoneStrip
-          name="Active Zone"
-          type="active"
-          cards={activeCards}
-          width={activeWidth}
+          name="Playmat"
+          type="playmat"
+          cards={playmatCards}
+          width={centerWidth}
           height={zoneHeight}
           isSelected={selectedZone === 1}
           selectedCard={selectedZone === 1 ? selectedCard : -1}
           showSubzones
-        />
-
-        {/* Review */}
-        <ZoneStrip
-          name="Review"
-          type="review"
-          cards={reviewCards}
-          width={reviewWidth}
-          height={zoneHeight}
-          isSelected={selectedZone === 2}
-          selectedCard={selectedZone === 2 ? selectedCard : -1}
         />
 
         {/* Graveyard — full height; empty zone renders as EMPTY_ZONE_HEIGHT strip */}
@@ -832,8 +680,8 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
             cards={graveyardCards}
             width={graveyardWidth}
             height={zoneHeight}
-            isSelected={selectedZone === 3}
-            selectedCard={selectedZone === 3 ? selectedCard : -1}
+            isSelected={selectedZone === 2}
+            selectedCard={selectedZone === 2 ? selectedCard : -1}
           />
         ) : (
           <Box flexDirection="column" width={graveyardWidth} height={zoneHeight}>
@@ -843,7 +691,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
               cards={graveyardCards}
               width={graveyardWidth}
               height={EMPTY_ZONE_HEIGHT}
-              isSelected={selectedZone === 3}
+              isSelected={selectedZone === 2}
               selectedCard={-1}
             />
           </Box>

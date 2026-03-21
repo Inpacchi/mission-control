@@ -26,8 +26,7 @@ export const ZONE_COLOR: Record<DeliverableStatus, ChalkInstance> = {
 // Zone glyphs — single-width geometric shapes for zone indicators
 export const ZONE_GLYPH: Record<string, string> = {
   deck: '◇',
-  active: '◆',
-  review: '◎',
+  playmat: '◆',
   graveyard: '✦',
 };
 

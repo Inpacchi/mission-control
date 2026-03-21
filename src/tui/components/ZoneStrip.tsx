@@ -3,7 +3,7 @@ import { Box, Text } from 'ink';
 import type { Deliverable } from '../../shared/types.js';
 import { DeliverableCard } from './DeliverableCard.js';
 
-type ZoneType = 'deck' | 'active' | 'review' | 'graveyard';
+type ZoneType = 'deck' | 'playmat' | 'graveyard';
 
 interface ZoneStripProps {
   name: string;
@@ -19,8 +19,7 @@ interface ZoneStripProps {
 // Single color map used for both zone header text and border (values are identical).
 const ZONE_COLOR: Record<ZoneType, string> = {
   deck: 'gray',
-  active: 'yellow',
-  review: 'cyan',
+  playmat: 'yellow',
   graveyard: 'green',
 };
 
@@ -29,6 +28,7 @@ const SUBZONE_ORDER: Record<string, number> = {
   plan: 1,
   'in-progress': 2,
   blocked: 3,
+  review: 4,
 };
 
 const SUBZONE_COLOR: Record<string, string> = {
@@ -36,12 +36,12 @@ const SUBZONE_COLOR: Record<string, string> = {
   plan: 'magenta',
   'in-progress': 'yellow',
   blocked: 'red',
+  review: 'cyan',
 };
 
 const EMPTY_PERSONALITY: Record<ZoneType, string> = {
   deck: 'shuffle some ideas in',
-  active: 'all quiet on the field',
-  review: 'nothing to review',
+  playmat: 'all quiet on the field',
   graveyard: 'the graveyard rests quiet',
 };
 
@@ -68,7 +68,7 @@ export function ZoneStrip({
   const headerColor = ZONE_COLOR[type];
   const borderColor = ZONE_COLOR[type];
 
-  // Sort active zone cards by subzone order
+  // Sort playmat cards by subzone order
   const sortedCards = useMemo(() => {
     if (!showSubzones) return cards;
     return [...cards].sort((a, b) => {
@@ -130,10 +130,10 @@ export function ZoneStrip({
         <Text dimColor>{countLabel}</Text>
       </Box>
 
-      {/* Subzone labels for Active Zone */}
+      {/* Subzone labels for Playmat */}
       {showSubzones && (
         <Box paddingX={1} gap={1}>
-          {(['spec', 'plan', 'in-progress', 'blocked'] as const).map((sub) => {
+          {(['spec', 'plan', 'in-progress', 'blocked', 'review'] as const).map((sub) => {
             const subCount = cards.filter((c) => c.status === sub).length;
             if (subCount === 0) return null;
             return (

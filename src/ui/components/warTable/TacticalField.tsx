@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Box, Flex } from '@chakra-ui/react';
 import type { Deliverable } from '@shared/types';
-import { isDeckZone, isActiveZone, isReviewZone, isGraveyardZone } from '@shared/zones';
+import { isDeckZone, isPlaymatZone, isGraveyardZone } from '@shared/zones';
 import { useDashboardStore } from '../../stores/dashboardStore';
 import { STATUS_ACCENT } from '../../utils/rarity';
 import { MiniCard } from '../cards/MiniCard';
@@ -24,13 +24,8 @@ export function TacticalField({ deliverables }: TacticalFieldProps) {
     [deliverables]
   );
 
-  const activeCards = useMemo(
-    () => deliverables.filter((d) => isActiveZone(d.status)),
-    [deliverables]
-  );
-
-  const reviewCards = useMemo(
-    () => deliverables.filter((d) => isReviewZone(d.status)),
+  const playmatCards = useMemo(
+    () => deliverables.filter((d) => isPlaymatZone(d.status)),
     [deliverables]
   );
 
@@ -115,24 +110,14 @@ export function TacticalField({ deliverables }: TacticalFieldProps) {
         {renderCards(deckCards)}
       </ZoneStrip>
 
-      {/* Active Zone — spec/plan/in-progress/blocked: min 120px, grows to fill */}
+      {/* Playmat — spec/plan/in-progress/blocked/review: min 120px, grows to fill */}
       <ZoneStrip
-        title="Active Zone"
-        cards={activeCards}
-        zoneType="active"
+        title="Playmat"
+        cards={playmatCards}
+        zoneType="playmat"
         zoneViewMode={zoneViewMode}
       >
-        {renderCards(activeCards)}
-      </ZoneStrip>
-
-      {/* Review Strip: shrinks first */}
-      <ZoneStrip
-        title="Review"
-        cards={reviewCards}
-        zoneType="review"
-        zoneViewMode={zoneViewMode}
-      >
-        {renderCards(reviewCards)}
+        {renderCards(playmatCards)}
       </ZoneStrip>
 
       {/* Graveyard — complete: shrinks first */}
