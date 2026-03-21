@@ -4,6 +4,41 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-21 (pass 9) — round-1 fix verification — useFileView.ts lines 51-121
+
+**Deliverable:** n/a (fix verification)
+**Scope:** `src/tui/hooks/useFileView.ts` lines 51-121 — `IGNORE`, `isDir()`, `scanAll()`
+**Review type:** Four-lens targeted review: overengineering, type safety, correctness, DRY.
+
+**Findings:** None new.
+
+**Prior findings confirmed FIXED:**
+- MEDIUM M1 (passes 7-8): Non-null assertions on `isDirMap.get()`. FIXED — all three sites now use `?? false` (lines 104, 105, 112 in current file).
+- setTimeout(0) fragility (file-search Enter handler): FIXED — synchronous recomputation using local `parents` set replaces the deferred pattern.
+
+**Pre-existing non-new items (not re-reported):**
+- MINOR: `isDir()` has one call site. Pre-existing; deliberate given the three-case comment documentation.
+- DRY: tree-skip loop duplicated in `visibleEntries` useMemo and file-search Enter handler. Pre-existing; intentional (avoids setTimeout state-settling wait, documented in-code).
+
+**Verdict:** CLEAN. No open findings in the reviewed range.
+
+---
+
+## 2026-03-21 (pass 8) — commit 359193a — symlinked directory fix (final state review)
+
+**Deliverable:** n/a (fix commit)
+**Scope:** `src/tui/hooks/useFileView.ts` lines 58-111 — `isDir()` helper and `scanAll()` function
+**Review type:** Four-lens targeted review: overengineering, type safety, correctness, DRY/architecture.
+
+**Findings:**
+- MEDIUM M1 (CARRIES FORWARD from pass 7): `isDirMap.get(a.name)!`, `isDirMap.get(b.name)!`, `isDirMap.get(item.name)!` at lines 95, 96, 103. Non-null assertions encode a structural invariant. Fix: `?? false` at all three sites. **RESOLVED in pass 9.**
+- MINOR m1: `isDir()` has exactly one call site (line 91). Could be inlined.
+
+**H1 and H2 from pass 6 confirmed fixed.**
+**Verdict:** MERGEABLE. MEDIUM M1 unresolved; no CRITICAL or HIGH.
+
+---
+
 ## 2026-03-21 (pass 7) — post-fix re-review — useFileView.ts cycle detection + Schwartzian transform
 
 **Deliverable:** n/a (fix re-review)

@@ -48,6 +48,8 @@ export function saveCollapsedState(projectPath: string, collapsed: Set<string>):
   } catch { /* ignore */ }
 }
 
+const MAX_SCAN_DEPTH = 20;
+
 // Directories/files to skip
 const IGNORE = new Set([
   'node_modules', '.git', 'dist', '.next', '.cache', '.turbo',
@@ -63,12 +65,19 @@ function isDir(item: fs.Dirent, fullPath: string): boolean {
       return fs.statSync(fullPath).isDirectory();
     } catch { return false; }
   }
+  // DT_UNKNOWN fallback: on Linux with certain filesystems (tmpfs, btrfs), readdir
+  // returns DT_UNKNOWN — isDirectory(), isSymbolicLink(), and isFile() all return false.
+  // If isFile() is also false, we cannot infer type from the Dirent; stat to confirm.
+  if (!item.isFile()) {
+    try { return fs.statSync(fullPath).isDirectory(); } catch { return false; }
+  }
   return false;
 }
 
 function scanAll(dirPath: string, depth: number, visited: Set<string> = new Set()): FileNode[] {
-  // Cycle guard: resolve the real path of this directory and skip if already visited.
-  // One realpathSync call per directory — not per item — keeps syscall overhead minimal.
+  if (depth >= MAX_SCAN_DEPTH) return [];
+  // Cycle guard: realpathSync throws ELOOP for OS-level symlink cycles;
+  // the visited Set catches application-level cycles (A→B→A→...).
   let realDir: string;
   try {
     realDir = fs.realpathSync(dirPath);
@@ -92,18 +101,20 @@ function scanAll(dirPath: string, depth: number, visited: Set<string> = new Set(
     }
 
     const sorted = filtered.sort((a, b) => {
-      const aDir = isDirMap.get(a.name)!;
-      const bDir = isDirMap.get(b.name)!;
+      const aDir = isDirMap.get(a.name) ?? false;
+      const bDir = isDirMap.get(b.name) ?? false;
       if (aDir && !bDir) return -1;
       if (!aDir && bDir) return 1;
       return a.name.localeCompare(b.name);
     });
     for (const item of sorted) {
       const fullPath = path.join(dirPath, item.name);
-      const dir = isDirMap.get(item.name)!;
+      const dir = isDirMap.get(item.name) ?? false;
       result.push({ name: item.name, path: fullPath, isDirectory: dir, depth });
       if (dir) {
-        result.push(...scanAll(fullPath, depth + 1, visited));
+        const children = scanAll(fullPath, depth + 1, visited);
+        // Loop push avoids spread's ~65K argument-count limit on large subtrees
+        for (let i = 0; i < children.length; i++) result.push(children[i]);
       }
     }
   } catch { /* ignore */ }
