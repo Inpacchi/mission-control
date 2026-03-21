@@ -4,6 +4,48 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-21 (pass 7) — post-fix re-review — useFileView.ts cycle detection + Schwartzian transform
+
+**Deliverable:** n/a (fix re-review)
+**Scope:** `src/tui/hooks/useFileView.ts` — `scanAll()` function, lines 69-111
+**Review type:** Targeted re-review of fix diff. Lenses: overengineering, type safety, correctness, DRY, contract safety.
+
+**Prior HIGH findings confirmed FIXED:**
+- H1 (symlink cycle infinite recursion): FIXED. `visited: Set<string>` passed by reference through recursive calls; `realpathSync` correctly resolves full chains; multi-hop cycles handled.
+- H2 (redundant `statSync` in sort comparator): FIXED. `isDirMap` pre-computed before sort; reused in loop body. No double stat.
+
+**Contract safety analysis:**
+- Default parameter `visited = new Set()` is evaluated at call time per JS semantics — correct. Each top-level `scanAll(projectPath, 0)` gets a fresh Set; recursive calls on line 106 share the same Set by reference.
+- `realpathSync(dirPath)` is called on the unresolved path (which may be a symlink chain). `realpathSync` resolves the entire chain from root — correct comparison against the visited real-path Set.
+
+**New finding (MEDIUM):**
+- MEDIUM-1: `isDirMap.get(a.name)!`, `isDirMap.get(b.name)!`, `isDirMap.get(item.name)!` at lines 95, 96, 103. Non-null assertions rely on implicit structural invariant that `filtered` is the exclusive input to both the map build and the sort/loop. TypeScript `!` does not catch `undefined` at runtime — a future refactor diverging the sort/loop input from `filtered` would silently store `undefined` into `FileNode.isDirectory`. Fix: `?? false`.
+
+**Verdict:** MERGEABLE. No CRITICAL or HIGH findings. MEDIUM-1 should be addressed before next refactor of `scanAll`.
+
+**Pattern learned:** `realpathSync` resolves full symlink chains, not just the final component — safe to call on unresolved paths. JS default parameter expressions are re-evaluated per call (unlike Python mutable defaults) — `visited = new Set()` is correct. Non-null assertion on Map.get() encodes an implicit structural invariant — prefer `?? false` for boolean Map values.
+
+---
+
+## 2026-03-21 (pass 6) — commit 5dc5592 — symlinked directory fix in useFileView.ts
+
+**Deliverable:** n/a (direct fix commit)
+**Scope:** `src/tui/hooks/useFileView.ts` — `isDir()` helper, `scanAll()` function
+**Review type:** Targeted fix review — overengineering, type safety, security, DRY, correctness, architecture
+
+**Findings:**
+- HIGH (H1): Symlink cycles cause infinite recursion in `scanAll`. Fix removed accidental protection the old bug provided. `isDir` now returns `true` for symlinked dirs, and `scanAll` recurses unconditionally when `dir === true`. A circular symlink (e.g. `project/link -> project/`) will stack-overflow the process. Requires visited-path tracking via `fs.realpathSync` set passed through recursive calls.
+- HIGH (H2): `fs.statSync` called inside sort comparator (lines 75-80). O(n log n) redundant stats per directory, each item potentially stat'd multiple times. Fix: compute `isDir` for each item once into a Map before sorting (Schwartzian transform), reuse the Map in the loop body — also eliminates M2.
+- MEDIUM (M1): `isDir` is a module-level helper with one consumer. Mild overengineering signal; fix for H2 collapses it into the scan loop anyway.
+- MEDIUM (M2): Double `isDir` call per item — once in sort comparator, once in loop body (line 84). Two reads of a potentially-changing symlink target. Resolved by H2 fix.
+- LOW (L1): `key.return` editor-open handler at line 418 does NOT need updating — guard checks `entry.isDirectory` which is now set from `isDir()`. Confirmed correct by inspection.
+
+**Verdict:** NOT MERGEABLE without addressing H1 and H2. H1 is a crash risk on any project with circular symlinks. H2 is a correctness (double-read) and performance concern.
+
+**Pattern learned:** Any scan function that recurses into symlinked directories requires visited-real-path tracking to prevent cycle crashes. Sort comparators in recursive scan functions are a common site for redundant stat calls — always precompute before sorting.
+
+---
+
 ## 2026-03-21 (pass 5) — post-fix re-review (third round) — Session content search + structured log viewer
 
 **Deliverable:** No assigned ID

@@ -73,10 +73,15 @@ const STATUS_PHASE_MAP: Record<DeliverableStatus, DeliverablePhase> = {
   blocked: 'blocked',
 };
 
-function deriveStatus(files: FileInfo[], frontmatterStatus?: DeliverableStatus): { status: DeliverableStatus; phase: DeliverablePhase } {
+function deriveStatus(files: FileInfo[], frontmatterStatus?: DeliverableStatus, completed?: string): { status: DeliverableStatus; phase: DeliverablePhase } {
   // Frontmatter status takes priority — allows execution skills to mark deliverables complete
   if (frontmatterStatus && STATUS_PHASE_MAP[frontmatterStatus]) {
     return { status: frontmatterStatus, phase: STATUS_PHASE_MAP[frontmatterStatus] };
+  }
+
+  // If frontmatter has a completed date, it's done
+  if (completed) {
+    return { status: 'complete', phase: 'done' };
   }
 
   // Fall back to file-suffix heuristic
@@ -115,8 +120,8 @@ function parseFrontmatter(content: string): {
     }
     const flavor = typeof data.flavor === 'string' ? data.flavor : undefined;
     const agents = Array.isArray(data.agents) ? data.agents.filter((a: unknown) => typeof a === 'string') : undefined;
-    const created = typeof data.created === 'string' ? data.created : undefined;
-    const completed = typeof data.completed === 'string' ? data.completed : undefined;
+    const created = data.created != null ? String(data.created) : undefined;
+    const completed = data.completed != null ? String(data.completed) : undefined;
     const dependsOn = Array.isArray(data.depends_on) ? data.depends_on.filter((d: unknown) => typeof d === 'string') : undefined;
     const tier = VALID_TIERS.includes(data.tier) ? (data.tier as DeliverableTier) : undefined;
     const frontmatterStatus = VALID_STATUSES.includes(data.status) ? (data.status as DeliverableStatus) : undefined;
@@ -146,8 +151,14 @@ function buildDeliverable(id: string, name: string, files: FileInfo[], catalog?:
   const primaryFile = specFile || planFile || resultFile;
   const frontmatter = primaryFile?.content ? parseFrontmatter(primaryFile.content) : {};
 
+  // Check result file for completed date (archive skill writes it there, not on the spec)
+  if (!frontmatter.completed && resultFile?.content) {
+    const resultFm = parseFrontmatter(resultFile.content);
+    if (resultFm.completed) frontmatter.completed = resultFm.completed;
+  }
+
   // Frontmatter status overrides file-suffix heuristic
-  const { status, phase } = deriveStatus(files, frontmatter.frontmatterStatus);
+  const { status, phase } = deriveStatus(files, frontmatter.frontmatterStatus, frontmatter.completed);
 
   return {
     id,

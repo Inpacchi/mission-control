@@ -44,3 +44,14 @@ gap, not a performance issue.
 
 `parseChronicle()` and `parseDeliverables()` duplicate the sort logic from
 `buildDeliverablesFromFiles()`. Minor maintainability issue, not a performance concern.
+
+## useFileView.ts — push(...spread) on recursive scanAll result (line 106)
+
+`result.push(...scanAll(fullPath, depth + 1, visited))` spreads the entire child array as
+call arguments. On large subtrees (thousands of FileNode entries) this can hit JS engine
+argument-count limits and creates a transient copy. Became more relevant after the symlink
+cycle guard was added — previously, deeply-linked trees triggered infinite recursion before
+accumulating a large result; now they terminate normally and return large arrays.
+
+Fix: replace with `Array.prototype.push.apply(result, scanAll(...))` or iterate with a
+`for...of` loop. Pre-existing issue, not introduced by the cycle-guard diff.

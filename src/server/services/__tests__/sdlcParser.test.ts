@@ -187,5 +187,26 @@ describe('sdlcParser', () => {
       expect(results).toHaveLength(1);
       expect(results[0].status).toBe('complete');
     });
+
+    it('should derive status "complete" when result frontmatter has completed date', async () => {
+      const specsDir = mkDir('docs', 'chronicle', 'specs');
+      const resultsDir = mkDir('docs', 'chronicle', 'results');
+      touch(specsDir, 'd5_search_spec.md', `---
+type: feature
+---
+# Spec
+`);
+      touch(resultsDir, 'd5_search_result.md', `---
+completed: 2026-03-16
+---
+# Done
+`);
+
+      const results = await parseDeliverables(tmpDir);
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe('D5');
+      expect(results[0].status).toBe('complete');
+      expect(results[0].phase).toBe('done');
+    });
   });
 });

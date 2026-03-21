@@ -4,6 +4,18 @@ description: Code patterns that have appeared as findings in more than one revie
 type: project
 ---
 
+## Symlink-following scan functions require cycle detection
+
+**Pattern:** A `scanAll`-style recursive function adds symlink-following logic (e.g., `fs.statSync` in `isDir()`) so that symlinked directories are recognized as directories and recursed into. Without a visited-real-path set (populated via `fs.realpathSync`), any circular symlink causes unbounded recursion and a stack overflow crash. The old code (treating symlinks as files) had accidental cycle protection; following symlinks removes it.
+**First seen:** 2026-03-21 — `scanAll` in `useFileView.ts` after commit 5dc5592. `isDir()` returns `true` for symlinked dirs; `scanAll` recurses unconditionally.
+**Mitigation:** Thread a `visited: Set<string>` parameter through recursive calls. Before recursing into a directory, resolve its real path with `fs.realpathSync` (catching errors) and skip if already in the set.
+
+## Sort comparator calling statSync — redundant stats, O(n log n) I/O
+
+**Pattern:** A sort comparator calls a function that may call `fs.statSync` (e.g., `isDir(item, path)` inside `.sort((a, b) => ...)`). JavaScript sort calls the comparator O(n log n) times; items are re-compared multiple times across sort passes, so the same path is stat'd more than once. In a recursive scan over many directories, redundant stats accumulate. On cold cache or network filesystems this is observable latency in a synchronous event-loop-blocking scan.
+**First seen:** 2026-03-21 — `scanAll` in `useFileView.ts` after commit 5dc5592, lines 75-80.
+**Mitigation:** Schwartzian transform — compute the sort key for each item once before sorting (store in a Map keyed by item name or path), reference the Map in the comparator. Reuse the Map in the subsequent loop body to avoid a second computation pass.
+
 ## cleanText-then-parseLogContent double-parse loses structured segments silently
 
 **Pattern:** A service function calls `cleanText(rawContent)` (which internally calls `parseLogContent` and flattens to plain text). The caller then passes that already-flattened string to `parseLogContent` a second time expecting to find structured segments (`task-notification`, `command`, etc.). The second parse finds no XML tags because `cleanText` already removed them, producing only `text` segments. All structured rendering branches become dead code — silently, with no error.
