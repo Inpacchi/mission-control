@@ -4,6 +4,36 @@ description: Code patterns that have appeared as findings in more than one revie
 type: project
 ---
 
+## cleanText-then-parseLogContent double-parse loses structured segments silently
+
+**Pattern:** A service function calls `cleanText(rawContent)` (which internally calls `parseLogContent` and flattens to plain text). The caller then passes that already-flattened string to `parseLogContent` a second time expecting to find structured segments (`task-notification`, `command`, etc.). The second parse finds no XML tags because `cleanText` already removed them, producing only `text` segments. All structured rendering branches become dead code — silently, with no error.
+**First seen:** 2026-03-21 (pass 4) — `getSessionTurns` calls `cleanText()` per turn; `buildSessionContent` calls `parseLogContent(turn.content)` on the result. `useSessionView.ts` lines 363–391.
+**Mitigation:** Choose one parse boundary. If a downstream caller needs structured segments, the upstream function must NOT flatten via `cleanText` — it should return raw extracted text. If the upstream function is shared and some callers need plain text and others need structure, add a separate `getRawTurns()` variant that skips `cleanText`.
+
+## readline early-exit leaks underlying ReadStream
+
+**Pattern:** `rl.close()` called inside `for await (const line of rl)` when an early-return condition is met. Closing the readline interface pauses line consumption but does not destroy the underlying `fs.ReadStream`. The file descriptor stays open until GC collects the stream. In a search loop over many files (e.g., `limit = 50`), up to 50 FDs can be leaked per search call.
+**First seen:** 2026-03-21 — `sessionContainsQuery` in `claudeSessions.ts` lines 205-206.
+**Mitigation:** Either (a) hold a reference to the `ReadStream` and call `stream.destroy()` after `rl.close()`, or (b) fuse the match scan and the summary parse into a single streaming pass that accumulates all needed data in one read.
+
+## Check-then-fetch double-read pattern in streaming file search
+
+**Pattern:** A search function reads a file once to check if it matches (`sessionContainsQuery`), then reads the same file a second time to extract structured data (`parseSessionSummary`). This creates a race window between reads (file could be modified/rotated) and doubles I/O per matched file. With debounced live search over a large session directory, this is a realistic latency issue.
+**First seen:** 2026-03-21 — `searchSessionContent` in `claudeSessions.ts` lines 162-165.
+**Mitigation:** Fuse the match scan and the structured parse into one streaming pass. The single pass accumulates both `matched: boolean` and all summary fields simultaneously.
+
+## Regex alternation shadowing — earlier branch consuming subset of later branch's intended inputs
+
+**Pattern:** A regex has two alternation branches (branch1 | branch2) where branch1 can match a strict subset of the inputs branch2 was designed to handle. Branch1 always wins when the input matches both. The content captured by branch2's extra groups is silently lost. This is hard to detect without testing the specific input class that only branch2 was designed for.
+**First seen:** 2026-03-21 — `COMMAND_BLOCK_RE` in `parseLogContent.ts` lines 36-37. Branch 1 handles `(message before name)` and `(name then args)`. Branch 2 handles `(name then message then args)`. When input is `<command-name>/x</command-name><command-message>m</command-message><command-args>a</command-args>`, Branch 1 matches just the name tag, consuming `end=32`. The message and args are swept as orphans and discarded. Empirically confirmed — `args` is `undefined` for this input.
+**Mitigation:** When writing multi-branch regex alternations for structured XML-like content, test each branch's "intended unique" input independently. Prefer named captures or multiple separate extraction passes (e.g., `extractTag()` style) over multi-branch alternation when tag ordering may vary.
+
+## Parse→render-ANSI→strip-ANSI→re-parse roundtrip in content pipeline
+
+**Pattern:** A "get log as text" service function (`getClaudeSessionLog`) processes structured data (JSONL), calls `cleanText()` (which calls `parseLogContent`) to strip XML framing from each message, and emits ANSI turn headers as part of its output. A downstream content-builder function (`buildSessionContent`) then strips the ANSI back out with `stripAnsi` and calls `parseLogContent` a second time to get structured segments for rendering. The parser runs twice; the intermediate ANSI round-trip adds no value and couples the two phases to each other's output format.
+**First seen:** 2026-03-21 — `getClaudeSessionLog` (claudeSessions.ts) → `buildSessionContent` (useSessionView.ts lines 363-368). `cleanText()` is called per message inside `getClaudeSessionLog`; `parseLogContent` is called again on the full concatenated result in `buildSessionContent`.
+**Mitigation:** The content pipeline should choose one representation boundary. Either (a) `getClaudeSessionLog` returns structured turn data (`{role, text}[]`) and the caller renders, or (b) it returns pre-rendered text and the caller does not re-parse. The current hybrid violates both: it renders to text but the caller needs structure.
+
 ## Parallel zone→Ink-color maps across TUI components
 
 **Pattern:** A plan instructs "import X from theme.ts — no local restatements." Agents comply for the specific named constant (e.g., `ZONE_GLYPH`) but leave or create separate *mapping objects* (e.g., `ZONE_COLOR: Record<ZoneType, string>`, `ZONE_INK_COLOR`) that cover the same domain with locally-defined values. These parallel maps silently diverge — in D8, `ZoneStrip.ZONE_COLOR.review = 'cyan'` while `HeaderBar.ZONE_INK_COLOR.review = 'yellow'` (REVIEW_ORANGE approximation).

@@ -4,6 +4,150 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-21 (pass 5) — post-fix re-review (third round) — Session content search + structured log viewer
+
+**Deliverable:** No assigned ID
+**Scope:** `claudeSessions.ts`, `parseLogContent.ts`, `useSessionView.ts`, `SessionBrowser.tsx`, `SessionHistory.tsx`
+**Review type:** Targeted re-review — all four stated fixes verified; all six lenses applied for new issues.
+
+**Pass-4 findings confirmed FIXED:**
+- extractTextContent type cast (`text?: string`): FIXED (claudeSessions.ts line 31).
+- `getSessionTurns` calling `cleanText`: FIXED — now uses `.trim()` only (lines 358, 363). Structured parsing pipeline restored.
+- `ORPHAN_TAG_RE` backreference: confirmed correct (was already correct in prior passes — RETIRED from carries).
+- `searchInput` object in dep array: FIXED — `searchHandleKey` and `searchReset` listed individually (lines 290-291).
+
+**Remaining open LOW findings (no HIGH/CRITICAL):**
+- LOW-1 (carry pass-4 LOW-2): Index-based keys in `FormattedLogContent`. `SessionHistory.tsx` lines 148-165.
+- LOW-2 (carry pass-4 LOW-3): `file.replace('.jsonl', '')` vs `path.basename`. `claudeSessions.ts` lines 59/171.
+- LOW-3 (new): Error string set as `logContent` on fetch failure routes through `FormattedLogContent` instead of explicit error display branch. `SessionHistory.tsx` lines 207-210, render at lines 473-486.
+
+**Verdict:** CLEAN — mergeable. No CRITICAL or HIGH findings. All four stated fixes are correctly applied.
+
+---
+
+## 2026-03-21 (pass 4) — post-fix re-review (second round) — Session content search + structured log viewer
+
+**Deliverable:** No assigned ID
+**Scope:** Same six files as pass 3.
+**Review type:** Targeted re-review — verified all pass-3 findings against current code, applied all six lenses for new issues.
+
+**Pass-3 findings confirmed FIXED:**
+- Pass-3 M1 (scanSession early-exit guard): FIXED. Line 246 is now `if (matched && timestamp)`.
+- Pass-3 M4 (detailContentHeight stale on resize): CLOSED — terminalHeight flows correctly from BoardApp via prop; downstream calculations update correctly.
+
+**Pass-3 findings still open (carry):**
+- Pass-3 M3 (incomplete stripAnsi): still present in renderMarkdown.ts, not touched by these fixes.
+- Pass-3 M5 (ORPHAN_TAG_RE mismatched tags): still present at parseLogContent.ts line 55. Promoted to MEDIUM-3.
+- Pass-3 L1 (searchInput object as dep): still present at useSessionView.ts line 290. Promoted to MEDIUM-5 due to Ink handler stability impact.
+
+**New finding introduced by the fix:**
+- MEDIUM-2 (NEW): `getSessionTurns` calls `cleanText()` which flattens all structured XML to plain text. `buildSessionContent` then calls `parseLogContent` again on already-flattened content — finds only text segments. All `task-notification`, `command`, `system-reminder`, `caveat` rendering arms in `renderSegment` are silently dead. Rich TUI structured display is broken. `useSessionView.ts` lines 363–391, `claudeSessions.ts` lines 348–370.
+
+**Other findings:**
+- MEDIUM-1: `extractTextContent` cast is `Array<{type: string; text: string}>` — `text` field is not present on tool-use entries. Runtime-safe but documents false contract. `claudeSessions.ts` lines 31–32.
+- LOW-2: `key=${i}-${seg.type}` in FormattedLogContent provides no benefit over index-only key for stateless segments. `SessionHistory.tsx` lines 151–165.
+- LOW-3: `file.replace('.jsonl', '')` should be `path.basename(file, '.jsonl')`. `claudeSessions.ts` line 59.
+
+**Verdict:** Mergeable (no HIGH/CRITICAL). MEDIUM-2 causes rich session display to be silently broken — task-notifications, commands, system-reminders, and caveats all render as plain text in the TUI. Should be fixed before feature is considered complete.
+
+---
+
+## 2026-03-21 (pass 3) — post-fix re-review — Session content search + structured log viewer
+
+**Deliverable:** No assigned ID
+**Scope:** `src/shared/parseLogContent.ts`, `src/server/services/claudeSessions.ts`, `src/tui/hooks/useSessionView.ts`, `src/ui/components/terminal/SessionHistory.tsx`
+**Review type:** Targeted post-fix re-review — all six lenses applied; all prior HIGH/MEDIUM findings verified.
+
+**Prior HIGH findings confirmed FIXED:** H1 (FD leak), H2 (double-read), H3 (COMMAND_BLOCK_RE alternation). No regressions introduced.
+**Prior MEDIUM findings confirmed FIXED:** M1 (useMemo), M6 (exhaustiveness), M7 (per-load-ID guard). extractTextContent helper and sessionId validation also correctly applied.
+
+**Remaining / new MEDIUM findings:**
+- M1 (NEW): `scanSession` early-exit guard requires `firstPrompt` to be truthy. Sessions with no user turn never early-exit — reads entire file after match confirmed. `claudeSessions.ts` lines 246–251. Fix: change guard to `matched && timestamp`.
+- M2 (CARRY): Double-parse pipeline in `buildSessionContent` unresolved. `getClaudeSessionLog` calls `cleanText()` per turn; `buildSessionContent` strips ANSI then calls `parseLogContent` again. Use `getSessionTurns` instead. `useSessionView.ts` lines 363–389.
+- M3 (CARRY): `stripAnsi` in `renderMarkdown.ts` only strips SGR sequences. Cursor-movement CSI sequences remain, causing `TURN_HEADER_RE` misses on real PTY output. Line 7 of renderMarkdown.ts.
+- M4 (NEW): No terminal-resize subscription — `detailContentHeight` used in `handleKey` scroll calculations goes stale after resize without re-memoization. `useSessionView.ts` lines 93, 135, 287–304.
+- M5 (CARRY from L2): `ORPHAN_TAG_RE` matches mismatched open/close tag pairs. Use backreference `/(command-args|command-message)>...<\/\1>/` to fix. `parseLogContent.ts` lines 54–55.
+
+**LOW findings:**
+- L1: `searchInput` object (not its methods) listed as `useCallback` dep — defeats memoization. `useSessionView.ts` line 290.
+
+**Verdict:** Mergeable (no HIGH/CRITICAL). M2+M3 together cause silent turn-split failure on real PTY logs with cursor-movement sequences. Recommend addressing before feature is considered complete.
+
+---
+
+## 2026-03-21 (pass 2) — commit c130394 — Session content search + structured log viewer (re-review)
+
+**Deliverable:** No assigned ID
+**Scope:** Same as pass 1. Full re-read of all six files plus dependencies (`useSessionHistory.ts`, `renderMarkdown.ts`, `useSearchInput.ts`, `sessions.ts` route).
+**Review type:** Full six-lens re-review. H1/H2 confirmed unfixed. Additional confirmed findings documented.
+
+**Confirmed new from pass 2 (not in pass 1 log):**
+- `buildSessionContent` relies on `stripAnsi` from `renderMarkdown.ts` which only strips SGR sequences — cursor-movement CSI sequences remain, causing `TURN_HEADER_RE` pattern misses on logs with movement codes adjacent to headers. (Recurring pattern: incomplete stripAnsi regex.)
+- `SeesionHistory.tsx` `handleViewLog` has no per-load-ID guard — confirmed by reading the useCallback. Same class as `useAdhocView.ts` finding (2026-03-18). Stale fetch result overwrites current session content on rapid clicks.
+- `extractTag` creates `new RegExp` per call — confirmed 4 calls per task-notification match.
+- Architecture: `useSessionView.ts` imports directly from `server/services/claudeSessions.ts` — same cross-layer coupling flagged in Round 3 for `useFileWatcher.ts`.
+
+**All HIGH findings (H1, H2) remain unresolved. Code not mergeable per HIGH policy.**
+
+---
+
+## 2026-03-21 — commit c130394 — Session content search + structured log viewer (full commit review)
+
+**Deliverable:** No assigned ID
+**Scope:** `src/shared/parseLogContent.ts` (NEW), `src/server/services/claudeSessions.ts`, `src/tui/hooks/useSessionView.ts`, `src/ui/components/terminal/SessionHistory.tsx`, `src/tui/SessionBrowser.tsx`, `src/tui/BoardApp.tsx`
+**Review type:** Full commit review — all six lenses applied, all specific concerns empirically verified in Node.js
+
+**HIGH findings (3 — 2 carried from prior review, 1 new):**
+- H1 (carried): `sessionContainsQuery` calls `rl.close()` on early match without `stream.destroy()`. Up to 50 FD leaks per search. Lines 185–209.
+- H2 (carried): `searchSessionContent` reads each matched file twice (scan + summary parse). Race window + double I/O. Lines 165–169.
+- H3 (NEW): `COMMAND_BLOCK_RE` alternation silently loses `args` when `<command-message>` follows `<command-name>`. Branch 1 matches first and consumes only the name tag; Branch 2 never runs. Orphan sweeper then strips the args content silently. Empirically confirmed. `parseLogContent.ts` lines 36–37.
+
+**MEDIUM findings (7):**
+- M1: `parseLogContent(logContent)` called inline in `SessionHistory.tsx` JSX without `useMemo`. Runs full 7-regex parse on every search keystroke re-render. Line 463.
+- M2: Double-parse pipeline — `getClaudeSessionLog` strips XML via `cleanText()` per message, then `buildSessionContent` strips ANSI and re-parses for structural turn-headers. Two `parseLogContent()` calls per session open.
+- M3: Content extraction pattern duplicated 4 times in `claudeSessions.ts` with varying join separators (lines 96–103, 199–205, 249–253, 264–270). Extract `extractTextFromContent(content, sep)`.
+- M4: `COMMAND_BLOCK_RE` two-alternation design — overengineered and still wrong for one case (see H3). A simpler single-pass extraction would be correct and clearer.
+- M5: `setSearching(true)` fires before debounce timer — spurious indicator per keystroke. `useSessionView.ts` line 68.
+- M6: `segmentsToPlainText` switch has no `assertNever` default — silent content drop if new `LogSegment` variant added. `parseLogContent.ts` lines 194–217.
+- M7: `handleViewLog` has no per-load-ID guard — stale fetch race if user clicks sessions rapidly. `SessionHistory.tsx` lines 188–208.
+
+**LOW findings (3):**
+- L1: `ChevronRight` imported but unused in `SessionHistory.tsx` line 3.
+- L2: `ORPHAN_TAG_RE` open/close tag names use independent alternations — matches mismatched pairs.
+- L3: `m.index!` non-null assertions are safe (matchAll guarantees index) but mask the type gap.
+
+**Verdict:** Not mergeable — H1, H2, H3 require resolution.
+
+**Pattern learned:**
+- Two-branch regex alternation where Branch 1 can match a subset of Branch 2's intended inputs will always shadow Branch 2. Verify by testing the "second branch" input class explicitly before shipping.
+- `parseLogContent` in JSX render body without `useMemo` is a recurring trap when the component has any other state (search input, filter) that causes re-renders.
+
+---
+
+## 2026-03-21 — Session content search + structured log viewer
+
+**Deliverable:** No assigned ID (new feature review)
+**Scope:** `src/server/services/claudeSessions.ts`, `src/tui/hooks/useSessionView.ts`, `src/ui/utils/parseLogContent.ts`, `src/ui/components/terminal/SessionHistory.tsx`
+**Review type:** New feature pass — all six lenses applied
+
+**HIGH findings (2):**
+- H1: `sessionContainsQuery` early-return path calls `rl.close()` but does not destroy the underlying `ReadStream`. File descriptor leak when match is found; up to 50 open FDs per search call. Fix: fuse scan + parse into a single streaming pass, or call `stream.destroy()` explicitly.
+- H2: `searchSessionContent` reads each matched file twice — once in `sessionContainsQuery`, once in `parseSessionSummary`. Double I/O per match and a race window between reads. Same fix as H1: single-pass fusion.
+
+**MEDIUM findings (6):**
+- M1: `COMMAND_BLOCK_RE` alternation in `parseLogContent.ts` has two overlapping branches; second branch shadows first for no-message commands. Functionally correct due to deduplication but intent is obscured.
+- M2: `TURN_HEADER_RE` role detection via `m[0].includes('User')` is correct but fragile; fails silently if a new header variant is added.
+- M3: Content extraction pattern (`typeof content === 'string'` / `Array.isArray` / filter-map) duplicated three times in `claudeSessions.ts`. Extract shared `extractTextFromContent` helper.
+- M4: `TASK_NOTIFICATION_RE` hardcodes English trailing text outside XML tags, inconsistent with all other patterns.
+- M5: `extractTag` creates `new RegExp` on every call; hot path during task-notification rendering.
+- M6: `setSearching(true)` fires immediately on keystroke, before debounce timer — shows spurious indicator on every keystroke.
+
+**Pattern learned:**
+- `rl.close()` inside `for await` does not destroy the underlying ReadStream. Early-exit from a readline loop requires `stream.destroy()` or fusion of match + parse into one pass.
+- Double-read pattern (check then fetch) in streaming file search is a correctness risk, not just a performance issue — fuse into a single pass that accumulates both match result and parsed fields.
+
+---
+
 ## 2026-03-20 — Round 3 Post-Fix Re-Review: fileWatcher, sdlcParser, useSdlcState, useFileWatcher
 
 **Deliverable:** No assigned ID (round 3 — fix verification pass)
