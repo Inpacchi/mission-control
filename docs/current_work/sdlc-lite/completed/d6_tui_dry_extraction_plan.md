@@ -4,7 +4,9 @@ type: refactor
 complexity: moderate
 effort: 3
 flavor: "Five patterns, one source of truth."
+status: complete
 created: 2026-03-18
+completed: 2026-03-18
 author: CC
 agents: [refactoring-specialist, frontend-developer]
 ---

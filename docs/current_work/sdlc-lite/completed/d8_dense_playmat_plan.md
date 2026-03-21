@@ -4,7 +4,9 @@ type: feature
 complexity: moderate
 effort: 4
 flavor: "The field adapts to any arena."
+status: complete
 created: 2026-03-20
+completed: 2026-03-20
 author: CC
 agents: [tui-developer, tui-designer, code-reviewer]
 ---

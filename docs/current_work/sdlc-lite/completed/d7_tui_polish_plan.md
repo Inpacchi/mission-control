@@ -4,7 +4,9 @@ type: feature
 complexity: moderate
 effort: 2
 flavor: "Polish is not vanity — it is respect for the user."
+status: complete
 created: 2026-03-18
+completed: 2026-03-18
 author: CC
 agents: [frontend-developer]
 ---
