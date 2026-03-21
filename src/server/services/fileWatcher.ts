@@ -21,14 +21,6 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandl
   const { projectPath, onUpdate, onStats } = options;
   const docsDir = path.join(projectPath, 'docs');
 
-  // If docs/ doesn't exist, create a no-op watcher
-  if (!fs.existsSync(docsDir)) {
-    console.warn('[fileWatcher] docs/ directory not found, watcher inactive');
-    return {
-      close: async () => {},
-    };
-  }
-
   // Only watch active work — chronicle is archived and doesn't change status
   const currentWorkDir = path.join(docsDir, 'current_work');
 
@@ -45,9 +37,11 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandl
   const handleChange = () => {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
+      if (closed) return;
       try {
         const deliverables = await parseCurrentWork(projectPath);
         onUpdate(deliverables);
+        restartCount = 0; // watcher is healthy, reset restart budget
 
         // Compute and broadcast stats
         if (onStats) {
@@ -72,18 +66,22 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandl
   };
 
   function startWatcher() {
-    watcher = chokidar.watch(currentWorkDir, {
+    const w = chokidar.watch(currentWorkDir, {
       ignoreInitial: true,
       persistent: true,
       ignored: /(^|[/\\])\./,
       awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
     });
 
-    watcher.on('add', handleChange);
-    watcher.on('change', handleChange);
-    watcher.on('unlink', handleChange);
+    w.on('ready', () => {
+      restartCount = 0;
+    });
 
-    watcher.on('error', (err: unknown) => {
+    w.on('add', handleChange);
+    w.on('change', handleChange);
+    w.on('unlink', handleChange);
+
+    w.on('error', (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[fileWatcher] Watcher error:', message);
 
@@ -92,7 +90,7 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandl
       if (restartCount < MAX_RESTARTS) {
         restartCount++;
         console.warn(`[fileWatcher] Restarting watcher (attempt ${restartCount}/${MAX_RESTARTS})...`);
-        watcher?.close().catch(() => {});
+        w.close().catch(() => {});
         setTimeout(() => {
           if (!closed) startWatcher();
         }, RESTART_DELAY_MS);
@@ -100,6 +98,8 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherHandl
         console.error('[fileWatcher] Max restarts reached, watcher permanently stopped. Restart mc to resume live updates.');
       }
     });
+
+    watcher = w;
   }
 
   startWatcher();

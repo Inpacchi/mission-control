@@ -52,7 +52,8 @@ type: project
 ## Broadcast shape vs. REST shape divergence
 **Pattern:** Server broadcasts `data: <array>` directly in WebSocket messages, but client-side hooks expect `data.<fieldName>: <array>` (the REST response envelope shape). This mismatch causes silent empty state.
 **First seen:** D2 review — `watcher:sdlc` update message broadcasts `data: Deliverable[]` but `useSdlcState` reads `data.deliverables`.
-**Mitigation:** When adding new WebSocket broadcasts, verify the payload shape against every consumer. Consider narrowing the WsMessage union to typed variants for each channel.
+**Extended (2026-03-20):** A narrower scope variant: a new parse function (`parseCurrentWork`) covers only `current_work/`, while the REST endpoint still uses `parseDeliverables` (current_work + chronicle). Any client that replaces its full deliverable list on receiving a watcher push will silently drop complete/chronicle entries. Same root cause — REST and WS are now backed by functions with different result sets.
+**Mitigation:** When adding new WebSocket broadcasts, verify the payload shape against every consumer. Consider narrowing the WsMessage union to typed variants for each channel. When changing which parse function backs a broadcast, audit all consumers to confirm they merge rather than replace their local state.
 
 ## Parallel slug functions for the same concept
 **Pattern:** Multiple services define their own slug derivation for the same input (project path), producing different output due to independent implementation.
@@ -62,6 +63,11 @@ type: project
 ## Inline formatters not fully migrated to shared utility
 **Pattern:** After extracting a shared utility (formatters.ts), one or more call sites still use locally-defined versions.
 **First seen:** D2 review — `formatCommitDate` in AdHocTracker.tsx post-migration.
+
+## Incomplete DRY extraction — sibling function left with old inline logic
+**Pattern:** A DRY extraction creates a shared helper (e.g., `buildDeliverablesFromFiles`). Some callers are migrated, but a sibling function in the same file is not. The sibling's inline logic is now a duplicate that silently diverges — particularly when the extracted helper adds new behavior (e.g., catalog-only idea entries) that the sibling's old inline path does not include.
+**First seen:** 2026-03-20 — `buildDeliverablesFromFiles` extracted in sdlcParser.ts; `parseDeliverables` migrated; `parseChronicle` left with the original inline group+sort loop plus a duplicate sort comparator.
+**Mitigation:** When reviewing a DRY extraction, grep for ALL callers of the pre-extraction logic (Map construction, grouping loops, sort comparators) in the same file. Flag any function that still uses the old pattern inline. Behavioral divergence (missing catalog-only entries) is the most dangerous consequence.
 
 ## Hardcoded hex values duplicated between component constants and theme tokens
 **Pattern:** Components define module-level color constants (e.g., `statusBadgeColors` in DeliverableCard.tsx) that duplicate values already defined in `theme/index.ts` tokens. New card components risk adding a third copy.
@@ -97,7 +103,8 @@ type: project
 ## Async useEffect missing cancellation — stale state flash
 **Pattern:** `useEffect` triggers an async operation (fs.readFile, fetch) and sets state in the `.then()` callback without checking whether the component is still mounted or the dependency has changed. When the dependency changes before the async op completes, the old result lands in state and briefly displays wrong content.
 **First seen:** D4 post-execution — DetailPanel.tsx useEffect for file reading lacks isCancelled flag. useDeliverables.ts (same repo) correctly uses a cancelled flag — the pattern exists to copy.
-**Mitigation:** Always use an `isCancelled` flag inside async useEffects. Return a cleanup function that sets `cancelled = true`. Check `if (!cancelled)` before every setState call.
+**Recurrence:** Round 3 (2026-03-20) — `useFileWatcher.ts` line 23 `parseDeliverables(projectPath).then(setDeliverables)` — initial-refresh promise has no cancellation guard. Note: the same effect's *watcher-event* async path was flagged in Round 1 M3; the initial-refresh path is a separate async invocation requiring its own guard.
+**Mitigation:** Always use an `isCancelled` flag inside async useEffects. Return a cleanup function that sets `cancelled = true`. Check `if (!cancelled)` before every setState call. When an effect contains multiple async calls (initial refresh + event-driven refresh), each needs its own guard — a single `cancelled` flag shared by all async callbacks in the effect is sufficient if it is checked in all of them.
 
 ## Unclamped scroll offset in detail views
 **Pattern:** A scroll offset state increments on key press without an upper bound. The consuming component uses `array.slice(offset, offset + pageSize)` — when offset exceeds array.length, slice returns [] and the view goes blank silently.

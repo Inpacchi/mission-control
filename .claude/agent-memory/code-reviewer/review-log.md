@@ -4,6 +4,87 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-20 — Round 3 Post-Fix Re-Review: fileWatcher, sdlcParser, useSdlcState, useFileWatcher
+
+**Deliverable:** No assigned ID (round 3 — fix verification pass)
+**Scope:** `src/server/services/fileWatcher.ts`, `src/server/services/sdlcParser.ts`, `src/ui/hooks/useSdlcState.ts`, `src/tui/hooks/useFileWatcher.ts`
+**Review type:** New-issues-only pass — all six lenses applied
+
+**Fix verification:** All three stated round 3 fixes verified correct. ID-keyed Map equality guard is sound. `name` field in equality check is correct. `restartCount = 0` on `ready` event gives each restarted watcher a fresh budget without resetting during error accumulation.
+
+**New MEDIUM findings:**
+- M1: `useFileWatcher.ts` line 23 — `parseDeliverables(projectPath).then(setDeliverables)` has no cancellation guard. On rapid projectPath change, old project's deliverables overwrite new project state after effect cleanup. Distinct from Round 1 M3 (which was about `handleChange` / `parseCurrentWork`). Fix: `cancelled` flag, check before `setDeliverables`.
+- M2: Merge + equality guard block (`[...incoming, ...preserved]` + `prevById` Map check) is identical in `useSdlcState.ts` lines 99-113 and `useFileWatcher.ts` lines 31-45. DRY violation; will require duplicate edits when Round 2 M1 sort fix is applied. Extract `mergeDeliverableLists` shared utility.
+- M3: `useFileWatcher.ts` lines 2-3 — TUI hook imports directly from `server/services/`. Hard-couples TUI layer to server internals. Architectural debt.
+
+**No CRITICAL or HIGH findings. Code is mergeable.**
+
+**Pattern learned:**
+- Initial-refresh promises in `useEffect` need cancellation guards independently of watcher-event promises. The two async paths are separate and each needs its own `cancelled` flag.
+- When identical logic spans two files and a future fix is known-pending (sort order fix), flag the DRY issue before the fix is applied — otherwise both sites require the same change twice.
+
+---
+
+## 2026-03-20 — Round 2 Post-Fix Re-Review: fileWatcher, sdlcParser, useSdlcState, useFileWatcher
+
+**Deliverable:** No assigned ID (round 2 — fix verification pass)
+**Scope:** `src/server/services/fileWatcher.ts`, `src/server/services/sdlcParser.ts`, `src/ui/hooks/useSdlcState.ts`, `src/tui/hooks/useFileWatcher.ts`
+**Review type:** New-issues-only pass — all six lenses applied to changed code
+
+**Fix verification:** All four fixes verified correct. Fix 3 (restartCount placement) is clean. Fix 1 (ID-based predicate) and Fix 2 (shallow equality guard) are logically correct — IDs are consistently uppercase-D-prefixed and sort order from server is consistent, so no false-equality or ID case-mismatch risk.
+
+**New MEDIUM finding:**
+- M1: `merged = [...incoming, ...preserved]` — preserved entries appended at end regardless of ID order. After any archive event (deliverable leaves current_work), the preserved entry moves from its sorted position to the end of the array. Display order diverges from the server's canonical ID sort permanently. Both hooks affected: `useSdlcState.ts` lines 100-103, `useFileWatcher.ts` lines 33-35. Fix: sort `merged` after construction using the same comparator as `buildDeliverablesFromFiles`.
+
+**New LOW finding:**
+- L1: `parseChronicle` updated comment says "chronicle contains only archived work with artifacts" but filter is `!== 'idea'` — admits `spec`, `plan`, `review`, `blocked` entries. Comment is more restrictive than code.
+
+**Pattern learned:**
+- ID-based merge `[...incoming, ...preserved]` is correct for set semantics but breaks sort order when preserved entries have lower IDs than incoming entries, or when entries transition out of the incoming set. Always sort the merged result.
+
+---
+
+## 2026-03-20 — Post-Fix Re-Review: fileWatcher, sdlcParser, useSdlcState, useFileWatcher
+
+**Deliverable:** No assigned ID (6-finding fix pass on prior review)
+**Scope:** `src/server/services/fileWatcher.ts`, `src/server/services/sdlcParser.ts`, `src/ui/hooks/useSdlcState.ts`, `src/tui/hooks/useFileWatcher.ts`
+**Review type:** Full six-lens pass — overengineering, type safety, contract safety, DRY, correctness
+
+**CRITICAL finding:**
+- C1: `status === 'complete'` filter in `useSdlcState.ts` line 99 and `useFileWatcher.ts` line 32 silently drops all real chronicle entries. Chronicle files are `spec/plan/result` type — no `COMPLETE`-suffix file exists. `deriveStatus` returns `status: 'review'` for deliverables with only a result file. The filter produces an empty set; all chronicle data loaded by initial REST fetch is discarded on every watcher push. The fix intent was correct but the predicate is wrong.
+
+**HIGH findings:**
+- H1: `restartCount = 0` at `fileWatcher.ts` line 98 resets inside `startWatcher()` unconditionally before any events. When errors recur at watcher startup, the counter is reset before the next error fires, making `MAX_RESTARTS` unenforced — infinite restart loop possible.
+- H2: `parseChronicle` filter `!== 'idea'` does not enforce terminal-state-only — will include `spec`, `review`, `blocked` entries from partially-archived deliverables without warning.
+
+**MEDIUM findings:**
+- M1: `fetchStats` and `fetchUntrackedCount` in `useSdlcState.ts` both call `GET /api/sdlc/stats` — redundant request on every watcher event, race risk on stats state.
+- M2: `useFileWatcher.ts` hardcodes `untracked: 0` on every stats update — untracked count is permanently 0 in TUI after first watcher fire.
+- M3: `watcher?.close()` does not cancel in-flight `parseCurrentWork` promises — background reads continue after close.
+
+**Pattern learned:**
+- Status-derived fields (from `deriveStatus`) do NOT reflect archival/completeness — they reflect only file suffix presence. A predicate intended to identify "chronicle entries" cannot use `status === 'complete'` because chronicle files are typically `result`-suffixed, yielding `status: 'review'`. Archival origin must be tracked structurally (a `source` field or origin path tag) rather than inferred from status.
+- When a fix resets a retry counter, verify it is reset AFTER a stability signal (e.g., ready event, first successful parse), not at construction time. Reset at construction = infinite retry.
+
+---
+
+## 2026-03-20 — fileWatcher + sdlcParser commit 7efe5b4 review
+
+**Deliverable:** No assigned ID (ad hoc commit)
+**Scope:** `src/server/services/fileWatcher.ts`, `src/server/services/sdlcParser.ts`
+**Review type:** Targeted review — overengineering, DRY, correctness, type safety, security, contract safety
+
+**Key findings:**
+- M1: `parseChronicle` not migrated to `buildDeliverablesFromFiles` — duplicate grouping+sort loop, behavioral divergence (no catalog-only idea entries in chronicle result vs. the extracted function which includes them).
+- M2: `restartCount` is never reset to 0 on successful parse after a restart — implements "3 total errors before permanent stop" not "3 consecutive errors." Contract not documented.
+- M4 (contract safety): `watcher:sdlc` WebSocket push now delivers `current_work/`-only deliverables (parseCurrentWork), while REST `GET /api/sdlc/deliverables` still delivers current_work + chronicle. Any client that replaces its full state on watcher push will silently drop complete/chronicle entries.
+
+**Pattern learned:**
+- When a partial DRY extraction is applied (some callers migrated, others not), always check ALL callers of the pre-extraction logic to flag the ones left behind. `parseChronicle` was left with the old inline pattern.
+- REST vs. WebSocket result set divergence is a recurring risk: when a new parse function narrows scope (parseCurrentWork vs. parseDeliverables), verify all consumers handle the narrower set without overwriting state that the full set provided.
+
+---
+
 ## 2026-03-20 — D8 Dense Playmat Board Redesign Round 2 Re-Review
 
 **Deliverable:** D8 (tier: lite) — Dense Playmat Board Redesign

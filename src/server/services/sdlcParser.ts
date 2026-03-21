@@ -236,33 +236,12 @@ export async function parseDeliverables(projectPath: string): Promise<Deliverabl
 
 export async function parseChronicle(projectPath: string): Promise<Deliverable[]> {
   const chronicleDir = path.join(projectPath, 'docs', 'chronicle');
-  const files = await scanDirectory(chronicleDir);
-
-  const catalogEntries = await parseCatalog(projectPath);
-  const catalogById = new Map(catalogEntries.map((e) => [e.id.toUpperCase(), e]));
-
-  const filesByDeliverable = new Map<string, FileInfo[]>();
-  for (const file of files) {
-    const key = file.id.toUpperCase();
-    const existing = filesByDeliverable.get(key) || [];
-    existing.push(file);
-    filesByDeliverable.set(key, existing);
-  }
-
-  const deliverables: Deliverable[] = [];
-  for (const [key, dFiles] of filesByDeliverable) {
-    const id = dFiles[0].id;
-    const name = dFiles[0].name;
-    const catalog = catalogById.get(key);
-    deliverables.push(buildDeliverable(id, name, dFiles, catalog));
-  }
-
-  return deliverables.sort((a, b) => {
-    const numA = parseInt(a.id.replace(/[Dd]/g, ''), 10) || 0;
-    const numB = parseInt(b.id.replace(/[Dd]/g, ''), 10) || 0;
-    if (numA !== numB) return numA - numB;
-    return a.id.localeCompare(b.id);
-  });
+  const [files, catalogEntries] = await Promise.all([
+    scanDirectory(chronicleDir),
+    parseCatalog(projectPath),
+  ]);
+  // Exclude idea-status entries — chronicle contains only archived work with artifacts.
+  return buildDeliverablesFromFiles(files, catalogEntries).filter((d) => d.status !== 'idea');
 }
 
 export async function getDeliverable(projectPath: string, deliverableId: string): Promise<Deliverable | undefined> {

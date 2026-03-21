@@ -23,9 +23,26 @@ export function useFileWatcher(projectPath: string, initialDeliverables: Deliver
     parseDeliverables(projectPath).then(setDeliverables);
 
     // Live updates via chokidar
+    // onUpdate receives only current_work deliverables; preserve any entries
+    // from the initial load whose IDs are not in the incoming set (e.g.
+    // chronicle entries, regardless of status).
     const watcher = createFileWatcher({
       projectPath,
-      onUpdate: setDeliverables,
+      onUpdate: (incoming) =>
+        setDeliverables((prev) => {
+          const incomingIds = new Set(incoming.map((d) => d.id));
+          const preserved = prev.filter((d) => !incomingIds.has(d.id));
+          const merged = [...incoming, ...preserved];
+          if (merged.length === prev.length) {
+            const prevById = new Map(prev.map((d) => [d.id, d]));
+            const unchanged = merged.every((d) => {
+              const p = prevById.get(d.id);
+              return p !== undefined && d.status === p.status && d.name === p.name && d.lastModified === p.lastModified;
+            });
+            if (unchanged) return prev;
+          }
+          return merged;
+        }),
       onStats: (s) => setStats({ ...s, untracked: 0 }),
     });
 
