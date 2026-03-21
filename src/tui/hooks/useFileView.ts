@@ -55,22 +55,55 @@ const IGNORE = new Set([
 ]);
 
 
-function scanAll(dirPath: string, depth: number): FileNode[] {
+function isDir(item: fs.Dirent, fullPath: string): boolean {
+  if (item.isDirectory()) return true;
+  // Symlinks: Dirent.isDirectory() returns false — follow the link to check the target
+  if (item.isSymbolicLink()) {
+    try {
+      return fs.statSync(fullPath).isDirectory();
+    } catch { return false; }
+  }
+  return false;
+}
+
+function scanAll(dirPath: string, depth: number, visited: Set<string> = new Set()): FileNode[] {
+  // Cycle guard: resolve the real path of this directory and skip if already visited.
+  // One realpathSync call per directory — not per item — keeps syscall overhead minimal.
+  let realDir: string;
+  try {
+    realDir = fs.realpathSync(dirPath);
+  } catch {
+    return [];
+  }
+  if (visited.has(realDir)) return [];
+  visited.add(realDir);
+
   const result: FileNode[] = [];
   try {
     const items = fs.readdirSync(dirPath, { withFileTypes: true });
-    const sorted = items
-      .filter((item) => !IGNORE.has(item.name))
-      .sort((a, b) => {
-        if (a.isDirectory() && !b.isDirectory()) return -1;
-        if (!a.isDirectory() && b.isDirectory()) return 1;
-        return a.name.localeCompare(b.name);
-      });
+    const filtered = items.filter((item) => !IGNORE.has(item.name));
+
+    // Pre-compute isDir for each item (Schwartzian transform) — avoids redundant
+    // statSync calls: without this, isDir() runs O(n log n) times in the comparator
+    // and again O(n) times in the loop body, doubling syscalls for symlinked dirs.
+    const isDirMap = new Map<string, boolean>();
+    for (const item of filtered) {
+      isDirMap.set(item.name, isDir(item, path.join(dirPath, item.name)));
+    }
+
+    const sorted = filtered.sort((a, b) => {
+      const aDir = isDirMap.get(a.name)!;
+      const bDir = isDirMap.get(b.name)!;
+      if (aDir && !bDir) return -1;
+      if (!aDir && bDir) return 1;
+      return a.name.localeCompare(b.name);
+    });
     for (const item of sorted) {
       const fullPath = path.join(dirPath, item.name);
-      result.push({ name: item.name, path: fullPath, isDirectory: item.isDirectory(), depth });
-      if (item.isDirectory()) {
-        result.push(...scanAll(fullPath, depth + 1));
+      const dir = isDirMap.get(item.name)!;
+      result.push({ name: item.name, path: fullPath, isDirectory: dir, depth });
+      if (dir) {
+        result.push(...scanAll(fullPath, depth + 1, visited));
       }
     }
   } catch { /* ignore */ }
