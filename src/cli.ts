@@ -69,7 +69,7 @@ program
   .option('--no-open', 'Do not open browser (with --web)')
   .option('-p, --port <number>', 'Server port (with --web)', '3002')
   .option('-b, --bind <address>', 'Bind address (with --web)', '127.0.0.1')
-  .option('--dev', 'Run in development mode');
+  .option('--dev', 'Skip static UI serving and browser open (with --web, expects Vite on :5173)');
 
 // Default action: board TUI or web server
 program.action(async (projectDir: string, opts: Record<string, string | boolean>) => {
@@ -82,50 +82,6 @@ program.action(async (projectDir: string, opts: Record<string, string | boolean>
     await launchBoard(projectPath);
   }
 });
-
-// Subcommands
-program
-  .command('board')
-  .description('Launch interactive board TUI')
-  .argument('[path]', 'Project directory', process.cwd())
-  .action(async (projectDir: string) => {
-    const projectPath = path.resolve(String(projectDir));
-    const { launchBoard } = await import('./tui/index.js');
-    await launchBoard(projectPath);
-  });
-
-program
-  .command('status')
-  .description('Print deliverable stats')
-  .argument('[path]', 'Project directory', process.cwd())
-  .action(async (projectDir: string) => {
-    const { runStatus } = await import('./tui/commands/status.js');
-    await runStatus(projectDir);
-  });
-
-program
-  .command('view')
-  .description('View deliverable document')
-  .argument('<id>', 'Deliverable ID (e.g., D1)')
-  .argument('[path]', 'Project directory', process.cwd())
-  .option('-s, --spec', 'View spec document')
-  .option('-p, --plan', 'View plan document')
-  .option('-r, --result', 'View result document')
-  .action(async (id: string, projectDir: string, opts: { spec?: boolean; plan?: boolean; result?: boolean }) => {
-    const { runView } = await import('./tui/commands/view.js');
-    const docType = opts.spec ? 'spec' : opts.plan ? 'plan' : opts.result ? 'result' : undefined;
-    await runView(id, projectDir, docType);
-  });
-
-program
-  .command('log')
-  .description('View a Claude Code conversation log')
-  .argument('[id]', 'Session ID')
-  .argument('[path]', 'Project directory', process.cwd())
-  .action(async (id: string | undefined, projectDir: string) => {
-    const { runLog } = await import('./tui/commands/log.js');
-    await runLog(id, projectDir);
-  });
 
 program
   .command('init-frontmatter')
