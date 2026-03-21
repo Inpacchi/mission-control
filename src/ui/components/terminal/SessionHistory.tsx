@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import { Box, Flex, Text, chakra } from '@chakra-ui/react';
-import { History, Search, ChevronDown, Terminal, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { History, Search, ChevronDown, Terminal, FileText, CheckCircle, XCircle, Zap, ChevronRight, User, Bot, Info, TerminalSquare } from 'lucide-react';
 import { useSessionHistory } from '../../hooks/useSessionHistory';
 import { formatDate } from '../../utils/formatters';
+import { parseLogContent, type LogSegment, type TaskNotification, type SlashCommand } from '../../../shared/parseLogContent.js';
 
 interface SessionHistoryProps {
   isOpen: boolean;
@@ -13,6 +14,159 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function TaskNotificationCard({ data }: { data: TaskNotification }) {
+  const isCompleted = data.status === 'completed';
+  const isError = data.status === 'error' || data.status === 'failed';
+  const accent = isError ? '#F87171' : isCompleted ? '#22C55E' : '#60A5FA';
+  const Icon = isError ? XCircle : isCompleted ? CheckCircle : Zap;
+
+  return (
+    <Box
+      my="2"
+      p="3"
+      bg="rgba(255,255,255,0.03)"
+      border="1px solid"
+      borderColor="border.subtle"
+      borderLeft="3px solid"
+      borderLeftColor={accent}
+      borderRadius="md"
+    >
+      <Flex align="center" gap="2" mb="1">
+        <Icon size={13} color={accent} style={{ flexShrink: 0 }} />
+        <Text fontSize="xs" fontWeight={600} color={accent} textTransform="uppercase" letterSpacing="0.04em">
+          {data.status}
+        </Text>
+        <Text fontSize="xs" color="text.muted" fontFamily="mono" ml="auto">
+          {data.taskId}
+        </Text>
+      </Flex>
+      <Text fontSize="sm" color="text.primary" lineHeight={1.5}>
+        {data.summary}
+      </Text>
+      {data.outputFile && (
+        <Text fontSize="xs" color="text.muted" fontFamily="mono" mt="1" wordBreak="break-all">
+          {data.outputFile}
+        </Text>
+      )}
+    </Box>
+  );
+}
+
+function CommandBadge({ data }: { data: SlashCommand }) {
+  return (
+    <Flex
+      display="inline-flex"
+      align="center"
+      gap="1"
+      my="1"
+      px="2"
+      py="3px"
+      bg="rgba(96,165,250,0.1)"
+      border="1px solid"
+      borderColor="rgba(96,165,250,0.25)"
+      borderRadius="sm"
+      fontSize="xs"
+      fontFamily="mono"
+    >
+      <TerminalSquare size={11} color="#60A5FA" style={{ flexShrink: 0 }} />
+      <Text as="span" color="#60A5FA" fontWeight={600}>{data.name}</Text>
+      {data.args && (
+        <Text as="span" color="text.muted" maxW="300px" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+          {data.args}
+        </Text>
+      )}
+    </Flex>
+  );
+}
+
+function TurnHeader({ role }: { role: 'user' | 'assistant' }) {
+  const isUser = role === 'user';
+  const Icon = isUser ? User : Bot;
+  const color = isUser ? '#FBBF24' : '#22D3EE';
+  const label = isUser ? 'User' : 'Assistant';
+
+  return (
+    <Flex
+      align="center"
+      gap="2"
+      my="2"
+      py="1"
+      borderBottom="1px solid"
+      borderColor="border.subtle"
+    >
+      <Icon size={12} color={color} style={{ flexShrink: 0 }} />
+      <Text fontSize="xs" fontWeight={700} color={color} textTransform="uppercase" letterSpacing="0.05em">
+        {label}
+      </Text>
+    </Flex>
+  );
+}
+
+function SystemReminderCollapsed() {
+  return (
+    <Flex
+      display="inline-flex"
+      align="center"
+      gap="1"
+      my="1"
+      px="2"
+      py="2px"
+      bg="rgba(255,255,255,0.03)"
+      borderRadius="sm"
+      fontSize="0.625rem"
+      color="text.muted"
+    >
+      <Info size={10} style={{ flexShrink: 0 }} />
+      <Text as="span">system context</Text>
+    </Flex>
+  );
+}
+
+function CaveatBlock({ content }: { content: string }) {
+  return (
+    <Box
+      my="2"
+      p="2 3"
+      bg="rgba(251,191,36,0.06)"
+      border="1px solid"
+      borderColor="rgba(251,191,36,0.2)"
+      borderRadius="md"
+      fontSize="xs"
+      color="text.secondary"
+      lineHeight={1.5}
+    >
+      {content}
+    </Box>
+  );
+}
+
+function FormattedLogContent({ segments }: { segments: LogSegment[] }) {
+  return (
+    <>
+      {segments.map((seg, i) => {
+        switch (seg.type) {
+          case 'task-notification':
+            return <TaskNotificationCard key={i} data={seg.data} />;
+          case 'command':
+            return <CommandBadge key={i} data={seg.data} />;
+          case 'turn-header':
+            return <TurnHeader key={i} role={seg.role} />;
+          case 'system-reminder':
+            return <SystemReminderCollapsed key={i} />;
+          case 'caveat':
+            return <CaveatBlock key={i} content={seg.content} />;
+          case 'text':
+            return (
+              <chakra.span key={i} whiteSpace="pre-wrap" wordBreak="break-all">
+                {seg.content}
+              </chakra.span>
+            );
+        }
+      })}
+    </>
+  );
 }
 
 export function SessionHistory({ isOpen, onToggle }: SessionHistoryProps) {
@@ -299,18 +453,19 @@ export function SessionHistory({ isOpen, onToggle }: SessionHistoryProps) {
                             <Text color="text.muted" fontSize="sm">
                               Loading log...
                             </Text>
-                          ) : (
-                            <chakra.pre
+                          ) : logContent ? (
+                            <Box
                               fontFamily="mono"
                               fontSize="xs"
                               lineHeight={1.5}
                               color="#C9D1D9"
-                              m={0}
-                              whiteSpace="pre-wrap"
-                              wordBreak="break-all"
                             >
-                              {logContent || 'No log content available'}
-                            </chakra.pre>
+                              <FormattedLogContent segments={parseLogContent(logContent)} />
+                            </Box>
+                          ) : (
+                            <Text color="text.muted" fontSize="sm">
+                              No log content available
+                            </Text>
                           )}
                         </Box>
                       )}

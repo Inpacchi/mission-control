@@ -2,19 +2,21 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Key } from 'ink';
 import type { ViewMode } from './useKeyboard.js';
 import type { ClaudeSession } from '../../server/services/claudeSessions.js';
-import { listClaudeSessions, getClaudeSessionLog } from '../../server/services/claudeSessions.js';
+import { listClaudeSessions, getClaudeSessionLog, searchSessionContent } from '../../server/services/claudeSessions.js';
 import { useListNavigation } from './useListNavigation.js';
 import { useSearchInput } from './useSearchInput.js';
 import { useDetailSearch } from './useDetailSearch.js';
 import { formatDate } from '../formatters.js';
 import { renderMarkdownToAnsi, stripAnsi } from '../renderMarkdown.js';
 import chalk from 'chalk';
+import { parseLogContent, type LogSegment } from '../../shared/parseLogContent.js';
 
 export interface SessionViewState {
   // List state
   sessions: ClaudeSession[];
   filteredSessions: ClaudeSession[];
   loading: boolean;
+  searching: boolean; // true while grep is running
   selectedIndex: number;
   listScrollOffset: number;
   // Search state
@@ -51,18 +53,42 @@ export function useSessionView(
   const [detailTitle, setDetailTitle] = useState('');
   const searchInput = useSearchInput();
   const searchQuery = searchInput.query;
+  const [searchResults, setSearchResults] = useState<ClaudeSession[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchIdRef = useRef(0);
 
-  // Filtered sessions derived from list + search query
-  const filteredSessions = useMemo(() => {
-    if (!searchQuery) return sessions;
-    const query = searchQuery.toLowerCase();
-    return sessions.filter(
-      (s) =>
-        s.title.toLowerCase().includes(query) ||
-        s.firstPrompt.toLowerCase().includes(query) ||
-        formatDate(s.timestamp, true).includes(query),
-    );
-  }, [sessions, searchQuery]);
+  // Grep session file contents when search query changes (debounced 300ms)
+  useEffect(() => {
+    if (!searchQuery) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    const id = ++searchIdRef.current;
+
+    const timer = setTimeout(() => {
+      searchSessionContent(projectPath, searchQuery, 50)
+        .then((results) => {
+          if (id === searchIdRef.current) {
+            setSearchResults(results);
+            setSearching(false);
+          }
+        })
+        .catch(() => {
+          if (id === searchIdRef.current) {
+            setSearchResults([]);
+            setSearching(false);
+          }
+        });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, projectPath]);
+
+  // Use search results when searching, otherwise show all sessions
+  const filteredSessions = searchResults ?? sessions;
 
   const rows = terminalHeight ?? process.stdout.rows ?? 24;
   const listViewportHeight = Math.max(1, rows - 3 - 1);
@@ -281,6 +307,7 @@ export function useSessionView(
     sessions,
     filteredSessions,
     loading,
+    searching,
     selectedIndex,
     listScrollOffset,
     searchQuery,
@@ -299,10 +326,34 @@ export function useSessionView(
 
 // ── Session content builder ─────────────────────────────────────────────────
 
-const USER_SENTINEL = '── User ──';
-const ASSISTANT_SENTINEL = '── Assistant ──';
-
-type Turn = { role: 'user' | 'assistant'; body: string };
+/**
+ * Render a single LogSegment to ANSI-styled text for the TUI.
+ */
+function renderSegment(seg: LogSegment): string {
+  switch (seg.type) {
+    case 'text':
+      return renderMarkdownToAnsi(seg.content);
+    case 'turn-header':
+      return seg.role === 'user'
+        ? chalk.bold.yellow('── User ──')
+        : chalk.bold.cyan('── Assistant ──');
+    case 'task-notification': {
+      const { status, summary, taskId } = seg.data;
+      const statusColor = status === 'completed' ? chalk.green
+        : status === 'error' || status === 'failed' ? chalk.red
+        : chalk.blue;
+      return `${statusColor(`[${status}]`)} ${chalk.white(summary)}${taskId ? chalk.dim(` (${taskId})`) : ''}`;
+    }
+    case 'command': {
+      const { name, args } = seg.data;
+      return chalk.blue(args ? `${name} ${chalk.dim(args)}` : name);
+    }
+    case 'system-reminder':
+      return chalk.dim('(system context)');
+    case 'caveat':
+      return ''; // strip caveats in TUI
+  }
+}
 
 async function buildSessionContent(
   projectPath: string,
@@ -312,59 +363,21 @@ async function buildSessionContent(
   const log = await getClaudeSessionLog(projectPath, session.id);
   if (!log) return '(could not read session log)';
 
-  // Strip ANSI so we can split on plain-text sentinel strings
+  // Strip ANSI so the shared parser can match plain-text patterns
   const plain = stripAnsi(log);
-
-  const turns: Turn[] = [];
-  let remaining = plain;
-
-  while (remaining.length > 0) {
-    const userIdx = remaining.indexOf(USER_SENTINEL);
-    const assistantIdx = remaining.indexOf(ASSISTANT_SENTINEL);
-
-    if (userIdx === -1 && assistantIdx === -1) break;
-
-    let role: 'user' | 'assistant';
-    let headerEnd: number;
-
-    if (assistantIdx === -1 || (userIdx !== -1 && userIdx < assistantIdx)) {
-      role = 'user';
-      headerEnd = userIdx + USER_SENTINEL.length;
-    } else {
-      role = 'assistant';
-      headerEnd = assistantIdx + ASSISTANT_SENTINEL.length;
-    }
-
-    remaining = remaining.slice(headerEnd);
-
-    const nextUser = remaining.indexOf(USER_SENTINEL);
-    const nextAssistant = remaining.indexOf(ASSISTANT_SENTINEL);
-    let bodyEnd: number;
-
-    if (nextUser === -1 && nextAssistant === -1) {
-      bodyEnd = remaining.length;
-    } else if (nextUser === -1) {
-      bodyEnd = nextAssistant;
-    } else if (nextAssistant === -1) {
-      bodyEnd = nextUser;
-    } else {
-      bodyEnd = Math.min(nextUser, nextAssistant);
-    }
-
-    turns.push({ role, body: remaining.slice(0, bodyEnd) });
-    remaining = remaining.slice(bodyEnd);
-  }
+  const segments = parseLogContent(plain);
 
   const parts: string[] = [];
-  for (const turn of turns) {
-    if (parts.length > 0) parts.push(separator);
-    if (turn.role === 'user') {
-      parts.push(chalk.bold.yellow('── User ──'));
-      parts.push(renderMarkdownToAnsi(turn.body));
-    } else {
-      parts.push(chalk.bold.cyan('── Assistant ──'));
-      // renderMarkdownToAnsi is synchronous and CPU-bound; acceptable here
-      parts.push(renderMarkdownToAnsi(turn.body));
+
+  for (const seg of segments) {
+    // Add separator between turns
+    if (seg.type === 'turn-header' && parts.length > 0) {
+      parts.push(separator);
+    }
+
+    const rendered = renderSegment(seg);
+    if (rendered) {
+      parts.push(rendered);
     }
   }
 

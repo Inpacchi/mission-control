@@ -318,6 +318,7 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
           sessions={sessions.sessions}
           filteredSessions={sessions.filteredSessions}
           loading={sessions.loading}
+          searching={sessions.searching}
           selectedIndex={sessions.selectedIndex}
           listScrollOffset={sessions.listScrollOffset}
           searchQuery={sessions.searchQuery}

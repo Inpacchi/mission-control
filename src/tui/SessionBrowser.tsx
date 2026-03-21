@@ -19,6 +19,7 @@ interface SessionBrowserProps {
   sessions: ClaudeSession[];
   filteredSessions: ClaudeSession[];
   loading: boolean;
+  searching: boolean; // true while grep is running
   selectedIndex: number;
   listScrollOffset: number;
   searchQuery: string;
@@ -38,6 +39,7 @@ export function SessionBrowser({
   sessions,
   filteredSessions,
   loading,
+  searching,
   selectedIndex,
   listScrollOffset,
   searchQuery,
@@ -114,13 +116,19 @@ export function SessionBrowser({
             <Text>
               <Text color="cyan">/</Text>{searchQuery}<Text color="cyan">▎</Text>
               {'  '}
-              <Text dimColor>({filteredSessions.length}/{sessions.length})</Text>
+              {searching
+                ? <Text dimColor>searching…</Text>
+                : <Text dimColor>({filteredSessions.length} found)</Text>
+              }
             </Text>
           ) : isSearchActive ? (
             <Text>
-              <Text dimColor>filter: </Text><Text color="yellow">{searchQuery}</Text>
+              <Text dimColor>search: </Text><Text color="yellow">{searchQuery}</Text>
               {'  '}
-              <Text dimColor>({filteredSessions.length}/{sessions.length})</Text>
+              {searching
+                ? <Text dimColor>searching…</Text>
+                : <Text dimColor>({filteredSessions.length} found)</Text>
+              }
             </Text>
           ) : (
             <Text dimColor>({sessions.length} total)</Text>
