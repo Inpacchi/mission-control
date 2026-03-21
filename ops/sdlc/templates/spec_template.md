@@ -1,5 +1,6 @@
 ---
 tier: full                 # full | lite
+status: spec               # spec | plan | in-progress | review | complete | blocked
 type: feature              # feature | bugfix | refactor | research | architecture
 complexity: moderate       # simple | moderate | complex | arch | moonshot — initial estimate
 effort: 3                  # 1-5 scale — initial estimate

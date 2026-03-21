@@ -1,5 +1,6 @@
 ---
 tier: full                 # full | lite
+status: complete           # spec | plan | in-progress | review | complete | blocked
 type: feature              # feature | bugfix | refactor | research | architecture
 complexity: moderate       # FINAL — adjust from plan if implementation was harder/easier than expected
 effort: 3                  # FINAL — the actual effort, not the estimate

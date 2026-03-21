@@ -227,8 +227,9 @@ Key feedback incorporated:
    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
    ```
 5. **Deployment guide (if applicable):** If the work touches infrastructure that requires manual deployment steps beyond an automatic CI/CD deploy (e.g., Cloud Functions, search index config, database indexes/rules, environment variables), present a concise deployment guide to the user. Include: deploy commands in order, any backfill/migration steps, and post-deploy verification checks. Skip this step for changes that deploy automatically.
-6. Move the plan file to `docs/current_work/sdlc-lite/completed/` — preserves the "why this approach" context for reconciliation
-7. Present the full commit to the user:
+6. **Update plan frontmatter:** Set `status: complete` and `completed: {YYYY-MM-DD}` (today's date) in the plan file's YAML frontmatter. This is the lifecycle source of truth — the parser derives board status from these fields.
+7. Move the plan file to `docs/current_work/sdlc-lite/completed/` — preserves the "why this approach" context for reconciliation
+8. Present the full commit to the user:
 
 ```
 Commit: {short-sha}

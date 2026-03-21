@@ -1,5 +1,6 @@
 ---
 tier: full                 # full | lite
+status: plan               # spec | plan | in-progress | review | complete | blocked
 type: feature              # feature | bugfix | refactor | research | architecture
 complexity: moderate       # RE-EVALUATE from spec — adjust if planning revealed more/less complexity
 effort: 3                  # RE-EVALUATE from spec — adjust if scope grew or shrank during planning
