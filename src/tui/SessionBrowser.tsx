@@ -151,7 +151,7 @@ export function SessionBrowser({
               ? session.title.slice(0, width - 43) + '...'
               : session.title;
 
-            const shortId = session.id.slice(0, 8);
+            const shortId = session.id.slice(-8);
 
             if (isSelected) {
               return (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export interface SessionLogEntry {
   id: string;
@@ -54,8 +54,10 @@ export function useSessionHistory(): UseSessionHistoryReturn {
     return res.text();
   }, []);
 
-  // Filter sessions by search query and date
-  const filtered = sessions.filter((session) => {
+  // Filter sessions by search query and date.
+  // Memoized: new Date() allocates per session per render — avoid on every
+  // keystroke. Recomputes only when the source list or filter values change.
+  const filtered = useMemo(() => sessions.filter((session) => {
     // Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -71,7 +73,7 @@ export function useSessionHistory(): UseSessionHistoryReturn {
     }
 
     return true;
-  });
+  }), [sessions, searchQuery, dateFilter]);
 
   return {
     sessions: filtered,

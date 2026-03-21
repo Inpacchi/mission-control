@@ -209,6 +209,13 @@ function buildAnsiRenderer(): RendererObject {
   };
 }
 
+// Shared singleton — Marked.parse() is stateless with respect to instance fields;
+// it does not write back to the instance between calls, so this is safe to share.
+// Hoisted out of renderMarkdownToAnsi to avoid allocating a new Marked instance
+// and renderer object on every call (previously: ~100+ allocations per session open).
+const _markedInstance = new Marked();
+_markedInstance.use({ renderer: buildAnsiRenderer() });
+
 /**
  * Render markdown to ANSI-styled terminal text.
  * Mermaid code blocks are replaced with a readable placeholder since they
@@ -219,10 +226,5 @@ export function renderMarkdownToAnsi(content: string): string {
     /```mermaid[\s\S]*?```/g,
     '> [Mermaid diagram — view with mc --web]'
   );
-
-  // Create a fresh instance per call to avoid mutating the global marked singleton.
-  const instance = new Marked();
-  const renderer = buildAnsiRenderer();
-  instance.use({ renderer });
-  return instance.parse(processed) as string;
+  return _markedInstance.parse(processed) as string;
 }

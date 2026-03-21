@@ -34,7 +34,7 @@ export async function runLog(sessionId: string | undefined, projectDir: string):
 
   // TTY: launch pager
   await launchTuiScreen(
-    React.createElement(Pager, { title: `Session Log: ${targetId.slice(0, 8)}…`, content: log, titleColor: 'cyan' }),
+    React.createElement(Pager, { title: `Session Log: …${targetId.slice(-8)}`, content: log, titleColor: 'cyan' }),
     { skipClear: true },
   );
 }

@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Key } from 'ink';
 import type { ViewMode } from './useKeyboard.js';
 import type { ClaudeSession } from '../../server/services/claudeSessions.js';
-import { listClaudeSessions, getClaudeSessionLog, searchSessionContent } from '../../server/services/claudeSessions.js';
+import { listClaudeSessions, getSessionTurns, searchSessionContent } from '../../server/services/claudeSessions.js';
 import { useListNavigation } from './useListNavigation.js';
 import { useSearchInput } from './useSearchInput.js';
 import { useDetailSearch } from './useDetailSearch.js';
 import { formatDate } from '../formatters.js';
-import { renderMarkdownToAnsi, stripAnsi } from '../renderMarkdown.js';
+import { renderMarkdownToAnsi } from '../renderMarkdown.js';
 import chalk from 'chalk';
 import { parseLogContent, type LogSegment } from '../../shared/parseLogContent.js';
 
@@ -51,8 +51,7 @@ export function useSessionView(
   const [sessionContent, setSessionContent] = useState<string | null>(null);
   const [detailScrollOffset, setDetailScrollOffset] = useState(0);
   const [detailTitle, setDetailTitle] = useState('');
-  const searchInput = useSearchInput();
-  const searchQuery = searchInput.query;
+  const { query: searchQuery, reset: searchReset, handleKey: searchHandleKey } = useSearchInput();
   const [searchResults, setSearchResults] = useState<ClaudeSession[] | null>(null);
   const [searching, setSearching] = useState(false);
   const searchIdRef = useRef(0);
@@ -65,10 +64,10 @@ export function useSessionView(
       return;
     }
 
-    setSearching(true);
     const id = ++searchIdRef.current;
 
     const timer = setTimeout(() => {
+      setSearching(true);
       searchSessionContent(projectPath, searchQuery, 50)
         .then((results) => {
           if (id === searchIdRef.current) {
@@ -230,7 +229,7 @@ export function useSessionView(
         }
         if (key.upArrow) { handleUp(); return true; }
         if (key.downArrow) { handleDown(); return true; }
-        const consumed = searchInput.handleKey(input, key);
+        const consumed = searchHandleKey(input, key);
         if (consumed) {
           if (key.escape) {
             setMode('list');
@@ -248,12 +247,12 @@ export function useSessionView(
       }
       if (input === '/') {
         setMode('search');
-        searchInput.reset();
+        searchReset();
         setSelectedIndex(0);
         return true;
       }
       if (key.escape && searchQuery) {
-        searchInput.reset();
+        searchReset();
         setSelectedIndex(0);
         return true;
       }
@@ -288,7 +287,8 @@ export function useSessionView(
       filteredSessions,
       selectedIndex,
       searchQuery,
-      searchInput,
+      searchHandleKey,
+      searchReset,
       handleDetailSearchKey,
       resetDetailSearch,
       detailMaxScroll,
@@ -352,6 +352,11 @@ function renderSegment(seg: LogSegment): string {
       return chalk.dim('(system context)');
     case 'caveat':
       return ''; // strip caveats in TUI
+    default: {
+      const _exhaustive: never = seg;
+      void _exhaustive;
+      return '';
+    }
   }
 }
 
@@ -360,26 +365,28 @@ async function buildSessionContent(
   session: ClaudeSession,
   separator: string,
 ): Promise<string> {
-  const log = await getClaudeSessionLog(projectPath, session.id);
-  if (!log) return '(could not read session log)';
-
-  // Strip ANSI so the shared parser can match plain-text patterns
-  const plain = stripAnsi(log);
-  const segments = parseLogContent(plain);
+  const turns = await getSessionTurns(projectPath, session.id);
+  if (!turns) return '(could not read session log)';
 
   const parts: string[] = [];
 
-  for (const seg of segments) {
+  for (const turn of turns) {
     // Add separator between turns
-    if (seg.type === 'turn-header' && parts.length > 0) {
+    if (parts.length > 0) {
       parts.push(separator);
     }
 
-    const rendered = renderSegment(seg);
-    if (rendered) {
-      parts.push(rendered);
+    // Emit turn header segment
+    const header = renderSegment({ type: 'turn-header', role: turn.role });
+    if (header) parts.push(header);
+
+    // Parse clean content and render each segment
+    const segments = parseLogContent(turn.content);
+    for (const seg of segments) {
+      const rendered = renderSegment(seg);
+      if (rendered) parts.push(rendered);
     }
   }
 
-  return parts.length > 0 ? parts.join('\n') : log;
+  return parts.length > 0 ? parts.join('\n') : '(empty session)';
 }

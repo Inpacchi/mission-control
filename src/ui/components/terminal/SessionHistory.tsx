@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Box, Flex, Text, chakra } from '@chakra-ui/react';
-import { History, Search, ChevronDown, Terminal, FileText, CheckCircle, XCircle, Zap, ChevronRight, User, Bot, Info, TerminalSquare } from 'lucide-react';
+import { History, Search, ChevronDown, Terminal, FileText, CheckCircle, XCircle, Zap, User, Bot, Info, TerminalSquare } from 'lucide-react';
 import { useSessionHistory } from '../../hooks/useSessionHistory';
 import { formatDate } from '../../utils/formatters';
 import { parseLogContent, type LogSegment, type TaskNotification, type SlashCommand } from '../../../shared/parseLogContent.js';
@@ -148,21 +148,25 @@ function FormattedLogContent({ segments }: { segments: LogSegment[] }) {
       {segments.map((seg, i) => {
         switch (seg.type) {
           case 'task-notification':
-            return <TaskNotificationCard key={i} data={seg.data} />;
+            return <TaskNotificationCard key={`${i}-${seg.type}`} data={seg.data} />;
           case 'command':
-            return <CommandBadge key={i} data={seg.data} />;
+            return <CommandBadge key={`${i}-${seg.type}`} data={seg.data} />;
           case 'turn-header':
-            return <TurnHeader key={i} role={seg.role} />;
+            return <TurnHeader key={`${i}-${seg.type}`} role={seg.role} />;
           case 'system-reminder':
-            return <SystemReminderCollapsed key={i} />;
+            return <SystemReminderCollapsed key={`${i}-${seg.type}`} />;
           case 'caveat':
-            return <CaveatBlock key={i} content={seg.content} />;
+            return <CaveatBlock key={`${i}-${seg.type}`} content={seg.content} />;
           case 'text':
             return (
-              <chakra.span key={i} whiteSpace="pre-wrap" wordBreak="break-all">
+              <chakra.span key={`${i}-${seg.type}`} whiteSpace="pre-wrap" wordBreak="break-all">
                 {seg.content}
               </chakra.span>
             );
+          default: {
+            const _exhaustive: never = seg;
+            return null;
+          }
         }
       })}
     </>
@@ -184,6 +188,7 @@ export function SessionHistory({ isOpen, onToggle }: SessionHistoryProps) {
   const [viewingLog, setViewingLog] = useState<string | null>(null);
   const [logContent, setLogContent] = useState<string>('');
   const [logLoading, setLogLoading] = useState(false);
+  const logLoadIdRef = useRef(0);
 
   const handleViewLog = useCallback(
     async (sessionId: string) => {
@@ -193,18 +198,30 @@ export function SessionHistory({ isOpen, onToggle }: SessionHistoryProps) {
         return;
       }
 
+      const loadId = ++logLoadIdRef.current;
       setViewingLog(sessionId);
       setLogLoading(true);
       try {
         const content = await fetchLog(sessionId);
+        if (logLoadIdRef.current !== loadId) return;
         setLogContent(content);
       } catch {
+        if (logLoadIdRef.current !== loadId) return;
         setLogContent('Failed to load log content');
       } finally {
-        setLogLoading(false);
+        if (logLoadIdRef.current === loadId) {
+          setLogLoading(false);
+        }
       }
     },
     [viewingLog, fetchLog]
+  );
+
+  // parseLogContent runs 7 regex passes over the full log string. Memoize so
+  // it only re-runs when logContent changes — not on every hover-driven re-render.
+  const parsedLogSegments = useMemo(
+    () => (logContent ? parseLogContent(logContent) : []),
+    [logContent],
   );
 
   return (
@@ -460,7 +477,7 @@ export function SessionHistory({ isOpen, onToggle }: SessionHistoryProps) {
                               lineHeight={1.5}
                               color="#C9D1D9"
                             >
-                              <FormattedLogContent segments={parseLogContent(logContent)} />
+                              <FormattedLogContent segments={parsedLogSegments} />
                             </Box>
                           ) : (
                             <Text color="text.muted" fontSize="sm">

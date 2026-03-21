@@ -32,9 +32,15 @@ export type LogSegment =
 const TASK_NOTIFICATION_RE =
   /<task-notification>[\s\S]*?<\/task-notification>\s*(?:Read the output file to retrieve the result:[^\n]*\n?)?/g;
 
-/** Slash command blocks: <command-name> + optional <command-args> + optional <command-message> */
-const COMMAND_BLOCK_RE =
-  /(?:<command-message>[^<]*<\/command-message>\s*)?<command-name>\/([^<]+)<\/command-name>\s*(?:<command-args>([^<]*)<\/command-args>)?|<command-name>\/([^<]+)<\/command-name>\s*(?:<command-message>[^<]*<\/command-message>)?\s*(?:<command-args>([^<]*)<\/command-args>)?/g;
+/**
+ * Slash command blocks: anchored on <command-name>.
+ * Sibling <command-args> and <command-message> tags are extracted from a
+ * context window around the match, so tag order never causes silent drops.
+ */
+const COMMAND_BLOCK_RE = /<command-name>\/([^<]+)<\/command-name>/g;
+
+/** Window size (chars) to search before/after <command-name> for sibling tags */
+const COMMAND_SIBLING_WINDOW = 200;
 
 /** System reminders */
 const SYSTEM_REMINDER_RE = /<system-reminder>[\s\S]*?<\/system-reminder>/g;
@@ -46,15 +52,21 @@ const CAVEAT_RE = /<local-command-caveat>([\s\S]*?)<\/local-command-caveat>/g;
 const COMMAND_STDOUT_RE = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/g;
 
 /** Orphaned tags: standalone <command-args>, <command-message> not captured by COMMAND_BLOCK_RE */
-const ORPHAN_TAG_RE = /<(?:command-args|command-message)>[^<]*<\/(?:command-args|command-message)>/g;
+const ORPHAN_TAG_RE = /<(command-args|command-message)>[^<]*<\/\1>/g;
 
 /** User/Assistant turn headers (with or without ANSI color codes) */
 const TURN_HEADER_RE = /\x1b\[1;33m── User ──\x1b\[0m|\x1b\[1;36m── Assistant ──\x1b\[0m|── User ──|── Assistant ──/g;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+const _tagRegexCache = new Map<string, RegExp>();
+
 function extractTag(xml: string, tag: string): string {
-  const re = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`);
+  let re = _tagRegexCache.get(tag);
+  if (!re) {
+    re = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`);
+    _tagRegexCache.set(tag, re);
+  }
   const m = xml.match(re);
   return m ? m[1].trim() : '';
 }
@@ -93,16 +105,44 @@ export function parseLogContent(raw: string): LogSegment[] {
   }
 
   // Slash commands
+  // COMMAND_BLOCK_RE anchors on <command-name>. We look in a context window
+  // before and after the match for sibling <command-args> and <command-message>
+  // tags, so their order relative to <command-name> never causes silent drops.
   for (const m of raw.matchAll(COMMAND_BLOCK_RE)) {
-    const name = (m[1] || m[3] || '').trim();
-    const args = (m[2] || m[4] || '').trim();
+    const name = m[1].trim();
     if (!name) continue;
+
+    const matchStart = m.index!;
+    const matchEnd = matchStart + m[0].length;
+
+    // Build a window around the <command-name> tag to find sibling tags
+    const winStart = Math.max(0, matchStart - COMMAND_SIBLING_WINDOW);
+    const winEnd = Math.min(raw.length, matchEnd + COMMAND_SIBLING_WINDOW);
+    const window = raw.slice(winStart, winEnd);
+
+    const args = extractTag(window, 'command-args') || undefined;
+
+    // Determine block extent: include any <command-message> immediately before
+    const beforeSlice = raw.slice(winStart, matchStart);
+    const msgBefore = beforeSlice.match(/<command-message>[^<]*<\/command-message>\s*$/);
+
+    // Include any <command-args> or <command-message> immediately after
+    const afterSlice = raw.slice(matchEnd, winEnd);
+    const afterSiblings = afterSlice.match(
+      /^(?:\s*(?:<command-args>[^<]*<\/command-args>|<command-message>[^<]*<\/command-message>))*/,
+    );
+
+    const blockStart = msgBefore ? matchStart - msgBefore[0].length : matchStart;
+    const blockEnd = afterSiblings?.[0]
+      ? matchEnd + afterSiblings[0].length
+      : matchEnd;
+
     matches.push({
-      start: m.index!,
-      end: m.index! + m[0].length,
+      start: blockStart,
+      end: blockEnd,
       segment: {
         type: 'command',
-        data: { name: `/${name}`, args: args || undefined },
+        data: { name: `/${name}`, args },
       },
     });
   }
@@ -213,6 +253,11 @@ export function segmentsToPlainText(segments: LogSegment[]): string {
       case 'turn-header':
         // Handled by the caller (getClaudeSessionLog adds its own headers)
         break;
+      default: {
+        const _exhaustive: never = seg;
+        void _exhaustive;
+        break;
+      }
     }
   }
 
