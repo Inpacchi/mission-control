@@ -142,7 +142,7 @@ export function useChronicleView(
           return searchInput.handleKey(input, key);
         }
 
-        if (input === 'b' || input === 'B') {
+        if (input === 'b' || input === 'B' || (key.escape && !searchQuery)) {
           setViewMode('board');
           return true;
         }

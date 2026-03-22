@@ -182,8 +182,8 @@ export function useSessionView(
         const searchConsumed = handleDetailSearchKey(input, key);
         if (searchConsumed) return true;
 
-        // Back / clear search
-        if (input === 'b' || input === 'B') {
+        // Back to list
+        if (input === 'b' || input === 'B' || key.escape) {
           setViewMode('sessions');
           setSessionContent(null);
           setDetailScrollOffset(0);
@@ -241,7 +241,7 @@ export function useSessionView(
       }
 
       // ── Session list mode ───────────────────────────────────────────────────
-      if (input === 'b' || input === 'B') {
+      if (input === 'b' || input === 'B' || (key.escape && !searchQuery)) {
         setViewMode('board');
         return true;
       }

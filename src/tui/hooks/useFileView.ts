@@ -398,7 +398,7 @@ export function useFileView(
       }
 
       // ── Browse mode ──────────────────────────────────────────────────────────
-      if (input === 'b' || input === 'B') {
+      if (input === 'b' || input === 'B' || key.escape) {
         setViewMode('board');
         return true;
       }

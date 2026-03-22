@@ -85,7 +85,7 @@ export function FileBrowser({
     return (
       <Box flexDirection="column" padding={1}>
         <Text>No files found.</Text>
-        <Text dimColor>b: back  q: quit</Text>
+        <Text dimColor>Esc/b: back  q: quit</Text>
       </Box>
     );
   }

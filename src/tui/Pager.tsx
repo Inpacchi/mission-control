@@ -260,7 +260,7 @@ export function Pager({ title, content, titleColor = 'cyan', filePath, onBack }:
               const parts = ['↑↓: scroll', 'u/d: half', 'PgUp/Dn: page', '/: search'];
               if (activeSearch) parts.push('n/p: next/prev');
               if (filePath) parts.push('e: edit');
-              if (onBack) parts.push('b: back');
+              if (onBack) parts.push('Esc/b: back');
               parts.push('q: quit');
               right = ' ' + parts.join('  ') + ' ';
             }

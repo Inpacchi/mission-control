@@ -48,7 +48,7 @@ const S = {
   docType:   { key: '1/2/3', label: 'doc type' },
   grep:      { key: 'g', label: 'grep' },
   edit:      { key: 'e', label: 'edit' },
-  back:      { key: 'b', label: 'back' },
+  back:      { key: 'Esc/b', label: 'back' },
   quit:      { key: 'q', label: 'quit' },
 } as const;
 
