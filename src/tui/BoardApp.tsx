@@ -17,6 +17,7 @@ import { ChronicleList } from './ChronicleList.js';
 import { SessionBrowser } from './SessionBrowser.js';
 import { AdhocBrowser } from './AdhocBrowser.js';
 import { FileBrowser } from './FileBrowser.js';
+import { IdeaBrowser } from './IdeaBrowser.js';
 import type { ViewMode } from './hooks/useKeyboard.js';
 
 // Side zones (Deck, Graveyard) fixed width — 20 chars; minimum and cap are both 20
@@ -64,7 +65,8 @@ function HelpOverlay({ width }: { width: number }): React.ReactElement {
     '  ↑↓          Navigate between cards',
     '  Enter        View card detail',
     '  n            Open project notes in $EDITOR',
-    '  c            Browse chronicle',
+    '  d            Browse deck',
+    '  g            Browse graveyard',
     '  s            Browse sessions',
     '  a            Show adhoc commits',
     '  f            Browse files',
@@ -83,14 +85,14 @@ function HelpOverlay({ width }: { width: number }): React.ReactElement {
     '  b            Back to board',
     '',
     '',
-    '  Sub-views (chronicle / sessions / adhoc / files):',
+    '  Sub-views (deck / graveyard / sessions / adhoc / files):',
     '  b / Esc      Back to board',
     '  /            Search / filter',
     '  n / p        Next / previous match',
     '  Enter        Open selected item',
     '',
     '',
-    '  Chronicle detail:',
+    '  Graveyard detail:',
     '  1 / 2 / 3   Switch to spec / plan / result',
     '',
     '',
@@ -225,8 +227,10 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
     sessions,
     adhoc,
     files,
+    ideas,
   } = useKeyboard({
     zones,
+    deckCards,
     projectPath,
     onExit: exit,
     onOpenEditor: openEditor,
@@ -356,6 +360,31 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
           detailActiveSearch={adhoc.detailActiveSearch}
           detailCurrentMatchIndex={adhoc.detailCurrentMatchIndex}
           detailMatchingLines={adhoc.detailMatchingLines}
+          height={height - 2}
+        />
+      </ViewLayout>
+    );
+  }
+
+  // Ideas views
+  if (viewMode === 'ideas' || viewMode === 'idea-detail') {
+    return (
+      <ViewLayout height={height} width={width} zones={zones} viewMode={viewMode} searchMode={ideas.searchMode}>
+        <IdeaBrowser
+          entries={ideas.entries}
+          filteredEntries={ideas.filteredEntries}
+          selectedIndex={ideas.selectedIndex}
+          listScrollOffset={ideas.scrollOffset}
+          searchQuery={ideas.searchQuery}
+          searchMode={ideas.searchMode}
+          viewMode={viewMode}
+          activeDocType={ideas.activeDocType}
+          detailScrollOffset={ideas.detailScrollOffset}
+          projectPath={projectPath}
+          detailMaxScrollRef={ideas.detailMaxScrollRef}
+          detailActiveSearch={ideas.detailActiveSearch}
+          detailCurrentMatchIndex={ideas.detailCurrentMatchIndex}
+          detailMatchingLines={ideas.detailMatchingLines}
           height={height - 2}
         />
       </ViewLayout>

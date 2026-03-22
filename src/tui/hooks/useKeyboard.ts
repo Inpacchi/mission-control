@@ -10,6 +10,8 @@ import { useAdhocView } from './useAdhocView.js';
 import type { AdhocViewState } from './useAdhocView.js';
 import { useFileView } from './useFileView.js';
 import type { FileViewState } from './useFileView.js';
+import { useIdeaView } from './useIdeaView.js';
+import type { IdeaViewState } from './useIdeaView.js';
 
 export type ViewMode =
   | 'board'
@@ -26,7 +28,9 @@ export type ViewMode =
   | 'files'
   | 'file-search'
   | 'file-grep-input'
-  | 'file-grep-results';
+  | 'file-grep-results'
+  | 'ideas'
+  | 'idea-detail';
 
 export type DetailSearchMode = 'normal' | 'search';
 
@@ -38,6 +42,7 @@ interface Zone {
 
 interface UseKeyboardOptions {
   zones: Zone[];
+  deckCards: Deliverable[];
   projectPath: string;
   onExit: () => void;
   onOpenEditor?: () => void;
@@ -68,10 +73,12 @@ interface UseKeyboardResult {
   sessions: SessionViewState;
   adhoc: AdhocViewState;
   files: FileViewState;
+  ideas: IdeaViewState;
 }
 
 export function useKeyboard({
   zones,
+  deckCards,
   projectPath,
   onExit,
   onOpenEditor,
@@ -126,6 +133,7 @@ export function useKeyboard({
   const sessionView = useSessionView(projectPath, setCurrentViewMode, terminalHeight);
   const adhocView = useAdhocView(projectPath, setCurrentViewMode, terminalHeight);
   const fileView = useFileView(projectPath, setCurrentViewMode, terminalHeight);
+  const ideaView = useIdeaView(deckCards, projectPath, setCurrentViewMode, terminalHeight);
 
   // Board and detail keyboard logic extracted as a closure.
   // Has direct access to all board/detail state variables above.
@@ -151,9 +159,10 @@ export function useKeyboard({
 
       // Navigate to sibling views
       if (input === 'f') { setCurrentViewMode('files'); return; }
-      if (input === 'c') { setCurrentViewMode('chronicle'); return; }
+      if (input === 'g') { setCurrentViewMode('chronicle'); return; }
       if (input === 'a') { setCurrentViewMode('adhoc'); return; }
       if (input === 's') { setCurrentViewMode('sessions'); return; }
+      if (input === 'd') { setCurrentViewMode('ideas'); return; }
 
       // Zone navigation: Left/Right
       if (key.leftArrow || key.rightArrow) {
@@ -360,6 +369,10 @@ export function useKeyboard({
       fileView.handleKey(input, key, currentViewMode);
       return;
     }
+    if (currentViewMode.startsWith('idea')) {
+      ideaView.handleKey(input, key, currentViewMode);
+      return;
+    }
   };
   useInput(useCallback((input: string, key: import('ink').Key) => handlerRef.current(input, key), []));
 
@@ -383,5 +396,6 @@ export function useKeyboard({
     sessions: sessionView.state,
     adhoc: adhocView.state,
     files: fileView.state,
+    ideas: ideaView.state,
   };
 }

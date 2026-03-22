@@ -1,9 +1,9 @@
 /**
- * ChronicleList — presentational component.
+ * IdeaBrowser — presentational component.
  *
  * Pure rendering only. No useInput, no useApp, no exit() calls.
- * All state is managed by useChronicleView and passed as props.
- * Visual output is identical to the previous standalone version.
+ * All state is managed by useIdeaView and passed as props.
+ * Follows the same pattern as ChronicleList.
  */
 import React from 'react';
 import { Box, Text, useStdout } from 'ink';
@@ -13,16 +13,14 @@ import { complexityToRarity, RARITY_INK_COLOR } from './theme.js';
 import { DetailPanel } from './components/DetailPanel.js';
 import { formatDate } from './formatters.js';
 
-
-interface ChronicleListProps {
+interface IdeaBrowserProps {
   entries: Deliverable[];
   filteredEntries: Deliverable[];
-  loading: boolean;
   selectedIndex: number;
   listScrollOffset: number;
   searchQuery: string;
   searchMode: boolean;
-  viewMode: ViewMode; // 'chronicle' | 'chronicle-detail'
+  viewMode: ViewMode; // 'ideas' | 'idea-detail'
   activeDocType: DocType;
   detailScrollOffset: number;
   projectPath: string;
@@ -34,10 +32,9 @@ interface ChronicleListProps {
   height?: number;
 }
 
-export function ChronicleList({
+export function IdeaBrowser({
   entries,
   filteredEntries,
-  loading,
   selectedIndex,
   listScrollOffset,
   searchQuery,
@@ -51,27 +48,19 @@ export function ChronicleList({
   detailCurrentMatchIndex,
   detailMatchingLines,
   height: heightProp,
-}: ChronicleListProps): React.ReactElement {
+}: IdeaBrowserProps): React.ReactElement {
   const { stdout } = useStdout();
   const width = stdout?.columns ?? 80;
   const height = heightProp ?? stdout?.rows ?? 24;
 
   const listViewportHeight = Math.max(1, height - 3);
 
-  if (loading) {
-    return (
-      <Box flexDirection="column" height={height}>
-        <Text dimColor>Loading chronicle…</Text>
-      </Box>
-    );
-  }
-
   if (entries.length === 0) {
     return (
       <Box flexDirection="column" height={height} paddingX={1}>
-        <Text bold color="cyan">Graveyard</Text>
+        <Text bold color="gray">Deck</Text>
         <Text dimColor>─────────────────────────────────────</Text>
-        <Text dimColor>No archived deliverables. Complete deliverables are archived via 'Let's organize the chronicles'.</Text>
+        <Text dimColor>No ideas yet. Drop a .md file in docs/current_work/ideas/ to get started.</Text>
         <Text> </Text>
         <Text dimColor>Press b to go back, q to quit.</Text>
       </Box>
@@ -79,7 +68,7 @@ export function ChronicleList({
   }
 
   // Detail view — delegated to shared DetailPanel
-  if (viewMode === 'chronicle-detail') {
+  if (viewMode === 'idea-detail') {
     const entry = filteredEntries[selectedIndex];
     if (!entry) {
       return (
@@ -114,7 +103,7 @@ export function ChronicleList({
       {/* Header */}
       <Box flexDirection="column" paddingX={1}>
         <Box>
-          <Text bold color="cyan">Graveyard  </Text>
+          <Text bold color="gray">Deck  </Text>
           {searchMode ? (
             <Text>
               <Text color="cyan">/</Text>{searchQuery}<Text color="cyan">▎</Text>
@@ -128,7 +117,7 @@ export function ChronicleList({
               <Text dimColor>({displayEntries.length}/{entries.length})</Text>
             </Text>
           ) : (
-            <Text dimColor>({entries.length} archived chronicles)</Text>
+            <Text dimColor>({entries.length} ideas)</Text>
           )}
         </Box>
         <Text dimColor>─{'─'.repeat(Math.max(0, width - 3))}</Text>
@@ -137,14 +126,14 @@ export function ChronicleList({
       {/* Entry list */}
       <Box flexDirection="column" flexGrow={1} paddingX={1}>
         {displayEntries.length === 0 && isSearchActive ? (
-          <Text dimColor>No entries match "{searchQuery}"</Text>
+          <Text dimColor>No ideas match "{searchQuery}"</Text>
         ) : visibleEntries.map((entry, i) => {
           const absoluteIndex = listScrollOffset + i;
           const isSelected = absoluteIndex === selectedIndex;
           const rarity = complexityToRarity(entry.complexity);
-          const idColor = RARITY_INK_COLOR[rarity] ?? 'white';
+          const color = RARITY_INK_COLOR[rarity] ?? 'white';
           const dateStr = formatDate(entry.lastModified);
-          const nameAvail = Math.max(10, width - entry.id.length - dateStr.length - 8);
+          const nameAvail = Math.max(10, width - dateStr.length - 4);
           const truncName =
             entry.name.length > nameAvail
               ? entry.name.slice(0, Math.max(1, nameAvail - 1)) + '…'
@@ -153,14 +142,13 @@ export function ChronicleList({
           if (isSelected) {
             return (
               <Text key={entry.id} bold inverse>
-                {` [${entry.id}] ${truncName}  ${dateStr}`}
+                {` ${truncName}  ${dateStr}`}
               </Text>
             );
           }
           return (
             <Box key={entry.id}>
-              <Text color={idColor}>[{entry.id}] </Text>
-              <Text>{truncName}  </Text>
+              <Text color={color}>{truncName}  </Text>
               <Text dimColor>{dateStr}</Text>
             </Box>
           );

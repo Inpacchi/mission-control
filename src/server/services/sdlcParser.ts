@@ -99,6 +99,7 @@ async function scanIdeas(projectPath: string): Promise<Deliverable[]> {
       name,
       status: 'idea',
       phase: 'idea',
+      specPath: filePath,
       lastModified: stat.mtime.toISOString(),
       createdAt: stat.mtime.toISOString(),
       cardType: frontmatter.cardType,

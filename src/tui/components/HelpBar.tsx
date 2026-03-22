@@ -67,7 +67,8 @@ function getShortcuts(viewMode: ViewMode): Shortcut[] {
   switch (viewMode) {
     case 'board':
       return [
-        { key: 'c', label: 'chronicle' },
+        { key: 'd', label: 'deck' },
+        { key: 'g', label: 'graveyard' },
         { key: 's', label: 'sessions' },
         { key: 'a', label: 'adhoc' },
         { key: 'f', label: 'files' },
@@ -96,6 +97,10 @@ function getShortcuts(viewMode: ViewMode): Shortcut[] {
     case 'file-grep-input':
     case 'file-grep-results':
       return [S.navigate, S.search, S.open, S.grep, ...BACK];
+    case 'ideas':
+      return [S.navigate, S.search, S.open, ...BACK];
+    case 'idea-detail':
+      return DETAIL_BASE;
     default: {
       const _exhaustive: never = viewMode;
       return [S.quit];
