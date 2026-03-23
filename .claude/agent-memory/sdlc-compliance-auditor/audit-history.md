@@ -126,3 +126,30 @@ The migration had no git commit at time of audit. This is an unusual state — f
 - coding.md "Code Assertion Without Verification" anti-pattern added
 
 **New persistent issue to watch:** software-architect's hardcoded Knowledge Context is now a Warning (not Info) because new knowledge files added to the context map will be silently missed. Each migration adds entries; agent won't see them. Recommend fixing before next migration.
+
+---
+
+## 2026-03-23 Audit (Post-migration: 99a189c → 9eb502c)
+
+**Score:** 9.2/10
+**Trigger:** Post-migration verification focused on §7 Migration Integrity
+**Follow-through rate from 2026-03-21:** 3/3 substantive items done; commit-step gap is a recurring pattern (4th occurrence)
+
+**Key findings:**
+- W1: Migration applied but not committed — same pattern as 2026-03-17, 2026-03-17b, 2026-03-21. 52 modified, 14 untracked, 7 staged deletions.
+- I1: `.sdlc-manifest.json` has 3 duplicate keys (sdlc-archive, sdlc-resume, sdlc-status each appear twice). Cosmetic.
+- I2: `product-research/risk-assessment-framework.yaml` exists but not wired to active agent mapping — acceptable until BA agent exists.
+
+**Everything else PASS:**
+- All 7 stale files staged for deletion (create-test-suite, sdlc-reconciliation, test-loop, BOOTSTRAP.md, MIGRATE.md, architecture/risk-assessment-framework.yaml, architecture/typescript-patterns.yaml)
+- All 14 new files/directories present and correct
+- All agent-context-map paths resolve
+- 11/11 agents have Knowledge Context + knowledge_feedback
+- New knowledge dirs (business-analysis/, coding/) present and wired
+- New process docs (manager-rule, review-fix-loop, finding-classification, discipline_capture) all present
+- CLAUSE.md and CLAUDE-SDLC.md use correct skill names (sdlc-reconcile, sdlc-migrate)
+- Process Maturity Tracker markers preserved, 9 disciplines current
+
+**Recurring pattern confirmed:** "Migration uncommitted at audit time" has occurred in 4 consecutive migration audits (2026-03-17, 2026-03-17b, 2026-03-21, 2026-03-23). The migration script applies changes correctly but does not automatically commit. Should be flagged as a process gap — the sdlc-migrate skill should prompt for commit before declaring completion.
+
+**software-architect hardcoded knowledge paths (W5 from prior audit):** This was resolved in this migration — all 11 agents now use the self-lookup pattern. RESOLVED.
