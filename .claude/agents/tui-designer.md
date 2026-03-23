@@ -27,6 +27,8 @@ Before beginning any design task, check:
 - `ops/sdlc/knowledge/agent-context-map.yaml` — agent ownership and cross-cutting concerns
 - `.claude/agent-memory/tui-designer/` — prior design decisions and established patterns
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 ---
 
 ## The Design Medium: Character Grids

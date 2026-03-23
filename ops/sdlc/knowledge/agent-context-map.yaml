@@ -7,7 +7,7 @@
 # relevant patterns."
 #
 # Mapped to Mission Control's actual agents in .claude/agents/.
-# Last updated: 2026-03-19
+# Last updated: 2026-03-23
 
 mappings:
   # ── Architecture / System Design ──────────────────────────────────
@@ -15,17 +15,18 @@ mappings:
     - ops/sdlc/knowledge/architecture/backend-capability-assessment.yaml
     - ops/sdlc/knowledge/architecture/technology-patterns.yaml
     - ops/sdlc/knowledge/architecture/pipeline-design-patterns.yaml
-    - ops/sdlc/knowledge/architecture/typescript-patterns.yaml
+    - ops/sdlc/knowledge/architecture/domain-boundary-gotchas.yaml
+    - ops/sdlc/knowledge/coding/typescript-patterns.yaml
     - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
     - ops/sdlc/knowledge/architecture/api-design-methodology.yaml
     - ops/sdlc/knowledge/architecture/deployment-patterns.yaml
     - ops/sdlc/knowledge/architecture/knowledge-management-methodology.yaml
-    - ops/sdlc/knowledge/architecture/risk-assessment-framework.yaml
-    - ops/sdlc/knowledge/architecture/domain-boundary-gotchas.yaml
+    - ops/sdlc/knowledge/architecture/token-economics.yaml
+    - ops/sdlc/knowledge/product-research/risk-assessment-framework.yaml
 
   # ── TUI (primary interface) ────────────────────────────────────────
   tui-developer:
-    - ops/sdlc/knowledge/architecture/typescript-patterns.yaml
+    - ops/sdlc/knowledge/coding/typescript-patterns.yaml
     - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
     - ops/sdlc/knowledge/design/tui-patterns.yaml
     - ops/sdlc/knowledge/testing/gotchas.yaml
@@ -40,17 +41,20 @@ mappings:
   ui-ux-designer:
     - ops/sdlc/knowledge/design/ux-modeling-methodology.yaml
     - ops/sdlc/knowledge/design/ascii-conventions.yaml
+    - ops/sdlc/knowledge/design/accessibility-testability-principles.yaml
     - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
 
   frontend-developer:
     - ops/sdlc/knowledge/design/ux-modeling-methodology.yaml
-    - ops/sdlc/knowledge/architecture/typescript-patterns.yaml
+    - ops/sdlc/knowledge/coding/typescript-patterns.yaml
+    - ops/sdlc/knowledge/coding/code-quality-principles.yaml
+    - ops/sdlc/knowledge/design/accessibility-testability-principles.yaml
     - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
 
   # ── Performance (cross-stack) ────────────────────────────────────────
   performance-engineer:
     - ops/sdlc/knowledge/architecture/technology-patterns.yaml
-    - ops/sdlc/knowledge/architecture/typescript-patterns.yaml
+    - ops/sdlc/knowledge/coding/typescript-patterns.yaml
     - ops/sdlc/knowledge/design/tui-patterns.yaml
     - ops/sdlc/knowledge/testing/gotchas.yaml
     - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
@@ -58,7 +62,8 @@ mappings:
   # ── Backend ────────────────────────────────────────────────────────
   backend-developer:
     - ops/sdlc/knowledge/architecture/technology-patterns.yaml
-    - ops/sdlc/knowledge/architecture/typescript-patterns.yaml
+    - ops/sdlc/knowledge/coding/typescript-patterns.yaml
+    - ops/sdlc/knowledge/coding/code-quality-principles.yaml
     - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
     - ops/sdlc/knowledge/architecture/api-design-methodology.yaml
 
@@ -70,7 +75,8 @@ mappings:
     - ops/sdlc/knowledge/testing/component-catalog.yaml
     - ops/sdlc/knowledge/testing/testing-paradigm.yaml
     - ops/sdlc/knowledge/architecture/debugging-methodology.yaml
-    - ops/sdlc/knowledge/architecture/typescript-patterns.yaml
+    - ops/sdlc/knowledge/coding/typescript-patterns.yaml
+    - ops/sdlc/knowledge/coding/code-quality-principles.yaml
     - ops/sdlc/knowledge/architecture/security-review-taxonomy.yaml
     - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
     - ops/sdlc/knowledge/architecture/investigation-report-format.yaml
@@ -102,3 +108,11 @@ mappings:
   sdlc-compliance-auditor:
     - ops/sdlc/knowledge/architecture/investigation-report-format.yaml
     - ops/sdlc/knowledge/architecture/knowledge-management-methodology.yaml
+    - ops/sdlc/knowledge/architecture/domain-boundary-gotchas.yaml
+
+  # ── Business Analysis ──────────────────────────────────────────────
+  # No dedicated BA agent in this project yet. If one is created, wire it here.
+  # business-analyst:
+  #   - ops/sdlc/knowledge/business-analysis/requirements-feedback-loops.yaml
+  #   - ops/sdlc/knowledge/product-research/risk-assessment-framework.yaml
+  #   - ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml

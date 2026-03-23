@@ -36,6 +36,8 @@ ops/sdlc/knowledge/agent-context-map.yaml
 
 This file maps subsystems to known gotchas, prior bug patterns, and relevant file paths. If it exists, read it first. If you discover new patterns during your investigation, append them after you close the bug.
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 Also check `.claude/agent-memory/debug-specialist/` for prior investigation notes from previous sessions. These notes persist across sessions and may contain directly relevant findings.
 
 ---

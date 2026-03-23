@@ -13,7 +13,7 @@ description: >
 
 # SDLC-Lite Planning
 
-Domain worker agents write the plan and review it. You are the manager and never do work yourself. This skill registers a deliverable ID, produces a plan saved to `docs/current_work/sdlc-lite/`, then enters plan mode so the user gets the standard execution prompt with the option to clear context.
+Domain worker agents write the plan and review it. You are the manager and never do work yourself. This skill produces a plan saved to `docs/current_work/sdlc-lite/`, then enters plan mode so the user gets the standard execution prompt with the option to clear context.
 
 **This skill produces the plan. It does NOT execute it.** Execution happens via `sdlc-lite-execute`.
 
@@ -68,11 +68,7 @@ Refer to the full agent table in the `sdlc-plan` skill if you need the complete 
 
 ## Manager Rule
 
-**The manager (you) never writes plan content.** This applies unconditionally: before dispatching agents, while incorporating review feedback, after re-review, and at every other point in this skill. There is no phase of this skill in which it is correct for you to produce plan text yourself. If you need a plan written or revised — dispatch the worker domain agent who wrote it. If you notice a problem with the plan — dispatch the relevant worker agent to fix it. Noticing a problem yourself does not authorize you to revise the plan yourself.
-
-**The size of a revision is not a valid reason to self-revise.** "This is a small wording change" or "I'm just incorporating the feedback" is not an exception. Every plan content change goes through the worker agent who wrote it.
-
-**Orchestrator-editable content:** Process documentation (Worker Agent Reviews section, dependency table metadata, date stamps, mechanical count updates) is not domain content — the orchestrator may write these directly. The boundary is: if it requires domain judgment about code, architecture, or implementation, dispatch. If it's summarizing review outcomes or fixing table formatting, do it yourself.
+Read and follow `ops/sdlc/process/manager-rule.md` — the canonical definition of this rule. It applies unconditionally for the entire session.
 
 ## Steps
 
@@ -178,35 +174,15 @@ Plan review — dispatching:
 
 **Every checkbox must have a corresponding agent dispatch. Count the checkboxes. Count the dispatches. They must match.** If the count doesn't match, stop and fix.
 
+**Writing agent in review:** The worker agent that wrote the plan (step 2) may be included as a reviewer for self-verification, but cross-domain reviewers typically provide higher marginal value. Whether or not the writing agent reviews, the checklist must reflect only the agents actually dispatched — the count-must-match rule applies to the dispatched set, not the step-1 list.
+
 Dispatch all review worker agents in parallel. Collect feedback.
 
-If agents have findings, classify each finding individually in a table before acting — no narrative paragraphs, no blanket dismissals:
+If agents have findings, classify per `ops/sdlc/process/finding-classification.md`. Planning context uses FIX, DECIDE, and PRE-EXISTING only. Output the classification table, then:
 
-```
-| # | Finding | Agent | Classification | Severity | Rationale |
-|---|---------|-------|---------------|----------|-----------|
-| 1 | specific finding | agent-name | FIX / DECIDE / PRE-EXISTING | critical / major / minor | why |
-| 2 | ... | ... | ... | ... | ... |
-```
-
-Severity applies only to FIX findings. DECIDE and PRE-EXISTING leave Severity blank.
-- **critical**: changes the approach, adds or removes files, or changes a phase assignment
-- **major**: in-scope quality issue that doesn't change scope
-- **minor**: style, polish, or low-impact correction
-
-| Classification | When | Action |
-|---------------|------|--------|
-| **FIX** | Finding is in scope and the plan should address it — including low-severity or stylistic findings that have a clear corrective action | Include in revision dispatch |
-| **DECIDE** | Trade-off or product decision the user should make | Invoke the `AskUserQuestion` tool with the finding description and options. Do not type the question as conversational text. Block until the user answers. |
-| **PRE-EXISTING** | Finding exists in code the plan does not touch | No action — must cite the file and explain why it's out of scope |
-
-**These are the only valid classification types. Do not invent new ones. Severity labels belong in the Severity column, not the Classification column. Do not use narrative dismissals ("ignoring," "off-track," "not relevant"). Every finding gets a row in the table.**
-
-**Low-severity in-scope findings:** If a finding is in scope but has no actionable correction (e.g., purely informational, already consistent with the plan), classify it as FIX with a rationale of "acknowledged, no revision needed." It still gets a row. Do not create a new classification for it.
-
-**PRE-EXISTING rules:** A finding qualifies as pre-existing ONLY if the finding's file is not in the plan's Files list. If the file appears in the Files list, any finding about that file is in scope — regardless of whether the finding is about the specific function the plan modifies.
-
-Only FIX findings go to the writing worker agent for revision. DECIDE findings go to the user. PRE-EXISTING findings require no action but must appear in the table.
+- Only FIX findings go to the writing worker agent for revision
+- DECIDE findings go to the user via `AskUserQuestion`
+- PRE-EXISTING findings require no action but must appear in the table
 
 If there are FIX findings, re-dispatch the worker domain agent who wrote the plan (from step 2) with only the FIX findings. That worker agent produces the revision. You do not write the revision. Output a dispatch checklist before re-dispatching:
 
@@ -240,6 +216,10 @@ Key feedback incorporated:
 - Omit worker agents that found no issues
 
 **Format check:** After appending the Worker Agent Reviews section, verify that every bullet begins with `[agent-name]` in square brackets. If any bullet is missing the bracket prefix, correct only the bracket prefix — do not rephrase the finding.
+
+### 3a. Discipline Capture
+
+Run the discipline capture protocol per `ops/sdlc/process/discipline_capture.md`. Context format: `[DNN — planning]`. This includes structured gap detection (using the finding classification table and agent dispatch data from this session) followed by the freeform insight scan.
 
 ### 4. Save Plan to File
 
@@ -278,6 +258,10 @@ Claude has written up a plan and is ready to execute. Would you like to proceed?
 
 When execution begins (whether in this session or a fresh one), `sdlc-lite-execute` loads the plan from the saved file.
 
+### Session Handoff
+
+The Manager Rule remains in effect per `ops/sdlc/process/manager-rule.md` — see the Session Scope section.
+
 ## Red Flags
 
 | Thought | Reality |
@@ -291,6 +275,7 @@ When execution begins (whether in this session or a fresh one), `sdlc-lite-execu
 | "The constraint is specified but the value isn't known yet" | That's a DECIDE finding. Mark it `USER DECISION NEEDED` so the reviewer routes it. |
 | "Only one domain is involved" | Most tasks touch 2+ domains. Check again. |
 | "I'll write the plan mode content from memory" | Follow step 5 exactly: Read the file with the Read tool, then paste the full Read output into EnterPlanMode. Working from memory produces summaries. |
+| "The plan is done, let me just quickly fix this other thing" | Manager Rule applies for the full session. Dispatch the domain agent. |
 
 ## Integration
 

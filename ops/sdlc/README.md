@@ -20,36 +20,27 @@ The framework is designed to be adopted incrementally — start with the core pr
 | `playbooks/` | Recipes for recurring task types (add your own as patterns emerge) |
 | `skills/` | Claude Code skills for SDLC workflow automation |
 | `agents/` | Agent definitions — `sdlc-compliance-auditor` + `AGENT_TEMPLATE.md` for adding your own |
-| `skeleton/` | Directory structure manifest for bootstrapping new projects |
+| `skeleton/` | Directory structure manifest for project initialization |
 | `plugins/` | Plugin setup guides (context7 is required; oberskills, design-for-ai are optional) |
-| `improvement-ideas/` | Design proposals for evolving the SDLC itself |
 
 ## Quick Start
 
-### 1. Bootstrap a New Project
+### 1. Initialize a Project
 
 ```bash
-# Clone or copy cc-sdlc to your machine
+# Clone cc-sdlc to your machine
 git clone https://github.com/Inpacchi/cc-sdlc ~/src/ops/sdlc
-
-# Or set it up as a pnpm/npm package — see skeleton/manifest.json
 ```
 
 Open your project in Claude Code and say:
 
-> "Let's implement the SDLC process from `~/src/ops/sdlc`"
+> "Initialize SDLC in this project"
 
-CC will scan your existing documentation, propose a categorization, create the directory structure, and add the SDLC compliance section to your CLAUDE.md.
+The `sdlc-initialize` skill auto-detects whether this is a greenfield project or a retrofit (existing code/docs), then walks through: skeleton installation, CLAUDE.md authoring, agent creation, knowledge wiring, and verification.
 
-See `BOOTSTRAP.md` for the full CC initialization walkthrough.
+### 2. Use the Process
 
-### 2. Adopt the Skills
-
-Copy the `skills/` directory into your project's `.claude/skills/` and the `agents/` directory into `.claude/agents/`. Add the `CLAUDE-SDLC.md` content to your project's `CLAUDE.md`.
-
-### 3. Use the Process
-
-Once bootstrapped, the core workflow is:
+Once initialized, the core workflow is:
 
 ```
 Idea → Spec (CD approves) → Plan (reviewed) → Execute → Review → Result → Chronicle
@@ -61,7 +52,7 @@ Idea → Spec (CD approves) → Plan (reviewed) → Execute → Review → Resul
 |---------|-------------|
 | "Let's build X" / "New feature" | Invokes `sdlc-plan` — spec + plan |
 | "Execute the plan" | Invokes `sdlc-execute` — implement + review + result |
-| "Let's catalog our ad hoc work" | Invokes `sdlc-reconciliation` — reconciles untracked commits |
+| "Let's catalog our ad hoc work" | Invokes `sdlc-reconcile` — reconciles untracked commits |
 | "Let's organize the chronicles" | Invokes `sdlc-archive` — moves completed work to archive |
 | "Let's run an SDLC compliance audit" | Invokes `sdlc-compliance-auditor` agent |
 
@@ -79,21 +70,21 @@ Sequential identifiers (D1, D2, ... Dnn) that track work across the project life
 - **CC (Claude Code):** The entire agent system — specs, plans, implements, reviews
 
 ### Three Tiers
-Not everything needs a full spec → plan → result cycle. **SDLC-Lite** registers a deliverable ID (tier: lite) and produces a plan — no spec or result doc. **Direct dispatch** skips the plan entirely — CD steers in real-time, agents do the work. Reconcile untracked work periodically with `sdlc-reconciliation`.
+Not everything needs a full spec → plan → result cycle. **SDLC-Lite** registers a deliverable ID (tier: lite) and produces a plan — no spec or result doc. **Direct dispatch** skips the plan entirely — CD steers in real-time, agents do the work. Reconcile untracked work periodically with `sdlc-reconcile`.
 
 ## Knowledge Layer
 
-The framework includes a three-tier knowledge layer:
+The framework includes a two-tier knowledge layer:
 
 ```
-Disciplines (parking lots) → Knowledge YAMLs (structured patterns) → Skills (automation)
+Disciplines (parking lots + triage markers) → Knowledge YAMLs / Skills (structured patterns + automation)
 ```
 
-- `disciplines/` — Persistent files for capturing insights per domain as they emerge
-- `knowledge/` — Structured YAML patterns that skills load at runtime
+- `disciplines/` — Persistent files for capturing insights per domain as they emerge. Entries are triaged with markers (`[READY TO PROMOTE]`, `[NEEDS VALIDATION]`, `[DEFERRED]`) and promoted directly to knowledge or skills when validated.
+- `knowledge/` — Structured YAML patterns that agents load at runtime via `agent-context-map.yaml`
 - `skills/` — Automation that queries the knowledge layer before dispatching agents
 
-This layer starts mostly empty and fills in as your project accumulates insights.
+This layer starts mostly empty and fills in as your project accumulates insights. Planning and execution skills prompt for discipline capture at natural checkpoints.
 
 ## Plugins
 

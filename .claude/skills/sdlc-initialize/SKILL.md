@@ -211,13 +211,38 @@ Report the output to CD. If any files were skipped (already exist), note them.
 
 **1c. Verify installation.**
 
+Validate against `skeleton/manifest.json` source_files — every file listed must exist at its target path. Report any missing files.
+
 ```
 SKELETON CHECK
 Directories created: [count]
 Files installed: [count]
 Files skipped: [count]
 .sdlc-manifest.json: [exists/missing]
+
+Required directories:
+[ ] docs/current_work/audits/
+[ ] ops/sdlc/playbooks/
+[ ] ops/sdlc/plugins/
+[ ] ops/sdlc/examples/
+
+Required files (commonly missed):
+[ ] ops/sdlc/knowledge/README.md
+[ ] ops/sdlc/knowledge/architecture/README.md
+[ ] ops/sdlc/knowledge/data-modeling/README.md
+[ ] ops/sdlc/knowledge/design/README.md
+[ ] ops/sdlc/knowledge/product-research/README.md
+[ ] ops/sdlc/knowledge/testing/README.md
+[ ] .claude/skills/sdlc-migrate/SKILL.md
+[ ] .claude/agents/AGENT_TEMPLATE.md
+[ ] .claude/agents/AGENT_SUGGESTIONS.md
+[ ] .claude/agents/sdlc-compliance-auditor.md
+[ ] ops/sdlc/plugins/README.md
+[ ] ops/sdlc/plugins/context7-setup.md
+[ ] ops/sdlc/plugins/lsp-setup.md
 ```
+
+If any are missing, re-run `setup.sh` with `--force` or copy them manually. Do not proceed to Phase 2 with missing files.
 
 ### Phase 2: Write CLAUDE.md
 
@@ -293,6 +318,21 @@ The `sdlc-compliance-auditor` is already installed by setup.sh — do not recrea
 **4c. Report progress.**
 
 After each agent is created, report to CD: "Created [agent-name] — [domain coverage]." After all agents are created, list the full roster.
+
+**4d. Spec-vs-roster reconciliation.**
+
+Before moving to Phase 5, compare the created agent roster against any agent roles mentioned in the spec (e.g., FR requirements that reference "domain agents" or list specific roles). If the spec lists agents that were not created, or agents were created that the spec doesn't mention:
+
+```
+ROSTER RECONCILIATION
+Spec-listed roles:    [list from spec FRs/NFRs]
+Created agents:       [list from .claude/agents/]
+Match:                [yes / deviations listed below]
+Deviations:
+  - [role] — [not created / created but not in spec] — [reason]
+```
+
+Present deviations to CD. This prevents the neuroloom-bootstrap gap where spec-listed agents were silently dropped without a deviation record.
 
 ### Phase 5: Wire the Agent-Context Map
 
@@ -396,6 +436,22 @@ Check for language-appropriate LSP plugin based on the spec's technology stack.
 
 **Optional plugins:** Mention oberskills and design-for-ai if relevant to the project type. Do not block on these.
 
+### Phase 9a: Assess Initial Maturity Levels
+
+Read the maturity level definitions in `ops/sdlc/disciplines/process-improvement.md` (§ Process Maturity Levels). For each of the 9 disciplines, assess the initial level based on what was just set up:
+
+**Level 1 (Initial)** — parking lot file exists with at least one entry but no knowledge store directory for this discipline.
+
+**Level 2 (Managed)** — knowledge store directory exists with at least one validated YAML file AND the agent-context-map wires those files to relevant agents AND parking lot has been seeded.
+
+For most fresh installations, the assessment is straightforward:
+- Disciplines that received knowledge seeding in Phases 6-8 AND have entries in `agent-context-map.yaml` → Level 2
+- Disciplines with only parking lot seeding from Phase 7 → Level 1
+
+Update the Process Maturity Tracker table in `ops/sdlc/disciplines/process-improvement.md` with the assessed levels and evidence. The tracker was copied from the cc-sdlc source with source-repo levels — it must be adjusted to reflect this project's actual state.
+
+This is a quick assessment (2-3 minutes total), not a gate. Present the tracker to CD as informational.
+
 ### Phase 10: Final Verification
 
 Run through the verification checklist:
@@ -403,20 +459,32 @@ Run through the verification checklist:
 ```
 INITIALIZATION COMPLETE — VERIFICATION
 
+Skeleton & Infrastructure:
 [ ] Spec: D1 spec exists in docs/current_work/specs/
 [ ] Skeleton: setup.sh completed, .sdlc-manifest.json present
+[ ] All upstream READMEs copied (knowledge/README.md, knowledge/*/README.md)
+[ ] All scaffold directories exist: playbooks/, plugins/, examples/, docs/current_work/audits/
 [ ] CLAUDE.md: exists with all required sections
 [ ] Catalog: docs/_index.md has D1 registered
-[ ] Agents: created via /plugin-dev:agent-development
+
+Agents:
+[ ] All agents created via /plugin-dev:agent-development — confirmed
     Created: [list all agents]
+[ ] Spec-vs-roster reconciliation complete — all spec-listed roles created or deviation logged
+[ ] AGENT_TEMPLATE.md and AGENT_SUGGESTIONS.md present in .claude/agents/
 [ ] Context map: agent-context-map.yaml wired to actual agent filenames
+[ ] All knowledge files mapped in agent-context-map.yaml (no unmapped YAMLs)
+
+Knowledge & Disciplines:
 [ ] Knowledge: upstream carried + stack-specific seeded
     Stack-specific files: [list]
 [ ] Disciplines: all 9 initialized with project context
 [ ] Testing: gotchas.yaml seeded with stack-specific entries
-[ ] Plugins:
-    context7: [installed / NOT INSTALLED]
-    LSP: [installed / not applicable / NOT INSTALLED]
+[ ] Maturity tracker: updated with project-assessed levels (not source-repo levels)
+
+Plugins:
+[ ] context7: [installed / NOT INSTALLED]
+[ ] LSP: [installed / not applicable / NOT INSTALLED]
 ```
 
 Present the checklist to CD. If any items failed, note them and suggest remediation.
@@ -437,18 +505,24 @@ For existing projects with code and documentation that need cc-sdlc integrated.
 
 ### Phase R1: Discovery
 
-Follow BOOTSTRAP.md Phase 1 exactly:
-
 1. Scan the project for existing documentation (markdown files, docs/, design/, specs/)
-2. Categorize each document: Spec, Planning, Result, Roadmap, Reference, Issue
-3. Group related documents into logical concepts
+2. Categorize each document:
+
+| Category | Indicators |
+|----------|------------|
+| **Spec** | "Specification", "Design", requirements, API definitions |
+| **Planning** | "Instructions", "How to", implementation steps |
+| **Result** | "COMPLETE", "DONE", completion records |
+| **Roadmap** | Future plans, phases, milestones |
+| **Reference** | API docs, architecture overview, README |
+| **Issue** | "BLOCKED", problems, open questions |
+
+3. Group related documents into logical concepts (domains/features)
 4. Check for existing agents in `.claude/agents/`
 
 ### Phase R2: Proposal
 
-Follow BOOTSTRAP.md Phase 2:
-
-1. Present categorization table to CD
+1. Present categorization table to CD (files found, proposed type, proposed concept)
 2. Propose concept groupings for the chronicle
 3. Propose which existing docs map to which SDLC artifact types
 4. Get CD approval via `AskUserQuestion` before acting
@@ -465,6 +539,7 @@ Follow BOOTSTRAP.md Phase 2:
 6. Create domain agents (same as Greenfield Phase 4 — via `/plugin-dev:agent-development`)
 7. Wire agent-context map (same as Greenfield Phase 5)
 8. Seed knowledge and disciplines (same as Greenfield Phases 6–8, informed by existing codebase patterns)
+9. Assess initial maturity levels (same as Greenfield Phase 9a)
 
 ### Phase R4: Verification
 
@@ -500,7 +575,6 @@ Same as Greenfield Phase 10, plus:
 ## Integration
 
 - **Feeds into:** `sdlc-plan` (first deliverable), `sdlc-lite-plan` (first lightweight task), `sdlc-status` (health check)
-- **References:** `BOOTSTRAP.md` (retrofit reference)
 - **Uses:** `/plugin-dev:agent-development` (agent creation), Context7 (knowledge verification), `AskUserQuestion` (CD gates)
 - **Produces:** Fully initialized SDLC framework with project-specific agents, knowledge, and disciplines
 - **Borrows from:** `sdlc-idea` (ideation principles for Phase 0), spec template (Phase 0c structure)

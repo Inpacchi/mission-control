@@ -42,6 +42,8 @@ Before implementing anything non-trivial, check:
 
 If these files exist and contain relevant context, let them constrain your approach. Do not override documented architectural decisions without surfacing the conflict to the CD.
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 ---
 
 ## Communication Protocol

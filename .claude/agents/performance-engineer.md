@@ -26,6 +26,8 @@ Before starting any investigation, check:
 - `ops/sdlc/knowledge/architecture/` — relevant architectural decisions
 - `.claude/agent-memory/performance-engineer/` — prior profiling findings
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 ---
 
 ## Your Domain

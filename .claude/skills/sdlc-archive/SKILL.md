@@ -42,25 +42,23 @@ Use AskUserQuestion to confirm. If the user adjusts mappings, apply their change
 
 For each approved deliverable:
 
-1. **Verify frontmatter lifecycle fields:** Check that all artifact files (spec, plan, result) have `status: complete` and `completed: {YYYY-MM-DD}` in their YAML frontmatter. If missing, backfill before archiving — the parser derives board status from these fields, so archives without them will show stale status if ever re-read.
-
-2. **Create concept directory** if it doesn't exist:
+1. **Create concept directory** if it doesn't exist:
    ```
    docs/chronicle/{concept_name}/specs/
    docs/chronicle/{concept_name}/planning/
    docs/chronicle/{concept_name}/results/
    ```
 
-3. **Copy files** from `docs/current_work/{type}/` to `docs/chronicle/{concept_name}/{type}/`
+2. **Copy files** from `docs/current_work/{type}/` to `docs/chronicle/{concept_name}/{type}/`
 
-4. **Update or create `_index.md`** in the concept directory with:
+3. **Update or create `_index.md`** in the concept directory with:
    - Overview of the concept
    - Deliverables table listing all files with purpose and dependencies
    - Key decisions from the spec/result
 
-5. **Remove archived files** from `docs/current_work/`
+4. **Remove archived files** from `docs/current_work/`
 
-6. **Update `docs/_index.md`**:
+5. **Update `docs/_index.md`**:
    - Move the deliverable row from "Active Work" to "Completed & Archived"
    - Update its status to "Archived"
    - Add a link to the concept chronicle
@@ -89,5 +87,5 @@ Ask for confirmation before committing.
 
 ## Integration
 - **Depends on:** `docs/current_work/` (source of completed deliverables), `docs/_index.md` (catalog)
-- **Fed by:** `sdlc-status` (identifies archivable work), `sdlc-reconciliation` (catalogs ad hoc work first)
+- **Fed by:** `sdlc-status` (identifies archivable work), `sdlc-reconcile` (catalogs ad hoc work first)
 - **Updates:** `docs/_index.md`, `docs/chronicle/`

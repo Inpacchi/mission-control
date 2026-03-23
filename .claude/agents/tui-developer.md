@@ -38,6 +38,8 @@ Before implementing anything non-trivial, check:
 - `ops/sdlc/knowledge/architecture/` — architectural decision records
 - `.claude/agent-memory/tui-developer/` — prior session findings
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 ---
 
 ## Your Domain

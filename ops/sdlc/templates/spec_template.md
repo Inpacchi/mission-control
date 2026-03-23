@@ -1,17 +1,9 @@
----
-tier: full                 # full | lite
-status: spec               # spec | plan | in-progress | review | complete | blocked
-type: feature              # feature | bugfix | refactor | research | architecture
-complexity: moderate       # simple | moderate | complex | arch | moonshot — initial estimate
-effort: 3                  # 1-5 scale — initial estimate
-flavor: ""                 # the vision — what this deliverable aspires to be
-created: YYYY-MM-DD
-author: CC                 # CD | CC
-depends_on: []             # [D1, D5] or empty
-agents: []                 # [software-architect, frontend-developer, etc.]
----
-
 # DNN: Feature Name — Specification
+
+**Status:** Draft
+**Created:** YYYY-MM-DD
+**Author:** [Name]
+**Depends On:** [D1, D5, etc. or "None"]
 
 ---
 

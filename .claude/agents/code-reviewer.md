@@ -36,6 +36,8 @@ Before reviewing, check for relevant domain context:
 
 3. **SDLC context:** If a deliverable ID is referenced (e.g., D7, D12a), check `docs/current_work/` for the relevant spec and plan. Review findings against the intended design, not just general best practices.
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 ---
 
 ## Communication Protocol

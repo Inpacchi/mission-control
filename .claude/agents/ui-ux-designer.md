@@ -21,6 +21,8 @@ Before beginning any design task, check for relevant agent context in `ops/sdlc/
 
 Also check `.claude/agent-memory/ui-ux-designer/` for any persistent memory from prior design sessions (decisions made, patterns established, open design questions).
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 ---
 
 ## Communication Protocol

@@ -33,6 +33,8 @@ Before starting substantive work, check for relevant knowledge artifacts:
 
 If these files do not exist yet, proceed using the codebase itself as the source of truth.
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 ## Communication Protocol
 
 Follow the canonical agent communication protocol defined in `ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml`. Emit structured JSON progress updates during longer tasks and complete every task with a structured handoff.

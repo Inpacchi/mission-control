@@ -43,6 +43,8 @@ ops/sdlc/knowledge/testing/advanced-test-patterns.yaml
 ops/sdlc/knowledge/architecture/agent-communication-protocol.yaml
 ```
 
+In your handoff, optionally include a `knowledge_feedback` section listing which loaded files were useful, which were not relevant to this task, and any knowledge you wished you had but didn't find (see `agent-communication-protocol.yaml` for the format).
+
 If any of these files exist, read them before designing test cases. They encode hard-won project-specific knowledge. If they do not yet exist, note that you will be the first to populate them after completing this engagement.
 
 Also check `.claude/agent-memory/sdet/` for any memory files from prior sessions before beginning work.
