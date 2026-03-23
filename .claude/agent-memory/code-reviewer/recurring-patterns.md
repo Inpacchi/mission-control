@@ -4,6 +4,24 @@ description: Code patterns that have appeared as findings in more than one revie
 type: project
 ---
 
+## Render-phase ref write-back creates one-cycle gap for key handlers
+
+**Pattern:** A component writes a computed value to a ref during its render phase (e.g., `if (maxScrollRef) maxScrollRef.current = maxScroll;` in `DetailPanel.tsx` line 164). A hook reads that ref inside a key handler to clamp a scroll offset. When the ref's source of truth changes — because a new file loaded, a doc type switched, or `selectedFilePath` changed — the ref holds the *previous* render's value at the moment the next key event fires. The clamp is applied against stale data for one key event. The component self-corrects on next render via `clampedOffset = Math.min(scrollOffset, maxScroll)`, but the transient overrun is observable (blank or clipped content for one frame).
+**First seen:** 2026-03-22 (pass 12) — `useBrowserView.ts` reads `detailMaxScrollRef.current` in `handleKey` (lines 214, 220, 229, 232); `DetailPanel.tsx` writes `maxScrollRef.current = maxScroll` at line 164 during render. `useDetailSearch` computes `detailMaxScroll` from the same `detailLines` in the same hook tick — that value is always current and is the safer clamp source.
+**Mitigation:** Where the same data is available to both the hook and the component, compute the derived value in the hook itself (same tick as the data) rather than reading it back from a ref that the component will write later. Ref write-back from the render phase is appropriate when the value is too expensive to recompute in the hook (e.g., requires traversing rendered output), but not when the hook already has the source array.
+
+## Hook/component viewport height formula divergence
+
+**Pattern:** A shared hook computes `listViewportHeight` from raw `terminalHeight` (e.g., `rows - 3 - 1`), while the paired presentational component receives `height = terminalHeight - 2` from the parent and computes `height - 3`. The two expressions resolve to different values (`total - 4` vs `total - 5`). The hook drives `useListNavigation`'s scroll clamping; the component drives the visible slice. When they disagree by one row, the navigation logic believes one more item is visible than the component actually renders. Under scroll, the selected item can fall off the bottom of the visible window.
+**First seen:** 2026-03-22 (pass 11) — `useBrowserView.ts` line 96 (`rows - 3 - 1`) vs `BrowserList.tsx` line 84 (`height - 3` where height is passed as `terminalHeight - 2`).
+**Mitigation:** Hook and component must use the same effective formula. Either (a) the hook receives the already-reduced height (post-BottomBar subtraction) and both use the same small constant, or (b) both explicitly derive from raw `terminalHeight` with the same total constant. Document the accounting in comments: what each subtracted row represents.
+
+## Dead internal state fields in shared hook's public BrowserViewState
+
+**Pattern:** A shared browser-view hook exposes an internal field (e.g., `selectedFilePath`, `detailSearchMode`) in its public `BrowserViewState` interface. The field is needed internally (for `useFileContent` or `useDetailSearch`) but is not consumed by any caller, component, or render path. Callers receive the field silently and ignore it; future callers may read a stale or misapplied value.
+**First seen:** 2026-03-22 (pass 11) — `BrowserViewState` in `useBrowserView.ts` includes `selectedFilePath: string | undefined` (line 29) and `detailSearchMode: boolean` (line 33). Neither is passed through `BrowserList`, `IdeaBrowser`, `ChronicleList`, or `DetailPanel`.
+**Mitigation:** When extracting a shared hook from two or more concrete views, audit every exported state field against actual consumer usage. Fields that only drive internal behavior (file loading, sub-hook delegation) should not appear on the public state interface.
+
 ## Symlink-following scan functions require cycle detection
 
 **Pattern:** A `scanAll`-style recursive function adds symlink-following logic (e.g., `fs.statSync` in `isDir()`) so that symlinked directories are recognized as directories and recursed into. Without a visited-real-path set (populated via `fs.realpathSync`), any circular symlink causes unbounded recursion and a stack overflow crash. The old code (treating symlinks as files) had accidental cycle protection; following symlinks removes it.
@@ -158,12 +176,12 @@ type: project
 **First seen:** D3 plan review — plan claimed frontmatter parsing would piggyback on existing file reads in `scanDirectory()`, but `scanDirectory()` only stats files, never reads content.
 
 ## Sub-view wrapper pattern in BoardApp.tsx
-**Pattern:** Each sub-view routed from BoardApp uses an identical three-layer wrapper: `<Box column height={height}><Box column flexGrow={1}><SubView height={height-2}/></Box><BottomBar/></Box>`. As of the BottomBar consolidation pass, this appears 5 times (detail, chronicle, sessions, adhoc, files).
+**Pattern:** Each sub-view routed from BoardApp uses an identical three-layer wrapper: `<Box column height={height}><Box column flexGrow={1}><SubView height={height-2}/></Box><BottomBar/></Box>`. As of the BottomBar consolidation pass, this appears 5 times (detail, chronicle, sessions, adhoc, files). After commit 4f05d98 (Deck browser), it appears 6 times — ideas block added.
 **First seen:** BottomBar consolidation review (2026-03-18) — BoardApp.tsx lines 215–360.
 **Mitigation:** Extract a `SubViewShell` component that accepts `children` and the three BottomBar props, eliminating the repeated structure.
 
 ## `useDimensions`-worthy pattern in presentational TUI components
-**Pattern:** Every presentational sub-view component imports `useStdout` and resolves `height` and `width` via `const height = heightProp ?? stdout?.rows ?? 24` and `const width = stdout?.columns ?? 80`. Appears in 5 files (ChronicleList, SessionBrowser, AdhocBrowser, PagerView, FileBrowser).
+**Pattern:** Every presentational sub-view component imports `useStdout` and resolves `height` and `width` via `const height = heightProp ?? stdout?.rows ?? 24` and `const width = stdout?.columns ?? 80`. Appears in 5 files before commit 4f05d98; IdeaBrowser.tsx adds a 6th (lines 52-54).
 **First seen:** BottomBar consolidation review (2026-03-18).
 **Mitigation:** Extract `useDimensions(heightProp?: number): { width: number; height: number }` hook. BoardApp's resize-listener pattern is different in kind and stays separate.
 

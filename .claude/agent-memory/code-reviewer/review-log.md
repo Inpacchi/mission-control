@@ -4,6 +4,66 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-22 (pass 12) — final review pass — useBrowserView + BrowserList (post-fix verification)
+
+**Deliverable:** n/a (targeted final pass — overengineering, DRY, type safety, correctness, contract safety)
+**Scope:** `src/tui/hooks/useBrowserView.ts`, `src/tui/components/BrowserList.tsx`, `src/tui/hooks/useIdeaView.ts`, `src/tui/hooks/useChronicleView.ts`, `src/tui/IdeaBrowser.tsx`, `src/tui/ChronicleList.tsx` — dependencies read: `useDetailSearch.ts`, `DetailPanel.tsx`, `useListNavigation.ts`
+**Review type:** Targeted six-lens; build passes; prior findings (viewport height off-by-one, dead state fields, hardcoded separator) confirmed FIXED.
+
+**Findings:**
+- MEDIUM-1 (Correctness): `detailMaxScrollRef` initialized to `Infinity` and written by `DetailPanel` during render. `handleKey` reads the ref to clamp scroll, but the ref holds the prior render's value when `selectedFilePath` just changed (doc switch, new entry). `useDetailSearch.detailMaxScroll` is computed from the same `detailLines` already available in `useBrowserView` and is the safer clamping source. Symptom: unclamped downward scroll for one key event after switching entries or doc types.
+- MEDIUM-2 (DRY / Type Safety): `IdeaBrowserProps` and `ChronicleListProps` duplicate ~90% of `BrowserListProps` instead of deriving via `Omit<BrowserListProps, ...>`. Future `BrowserListProps` additions must be manually propagated to both wrappers or the TypeScript interface becomes misleading (runtime spread still passes values, but the documented surface lags).
+- LOW-1 (Type Safety): `detailMaxScrollRef` initialized to `Infinity` with no comment explaining the sentinel; undocumented in `BrowserListProps` interface.
+- LOW-2 (Correctness): Doc-type switch in detail mode looks up `filteredEntries[selectedIndex]` — theoretically stale if async `entries` load completes while already in detail mode (chronicle only, narrow timing window). Not a bug in practice today.
+
+**Contract safety:** CLEAN. Pass 11 fixes verified. ViewMode routing, prop threading, `detailMatchingLines` vs `detailMatchLinesRef` path confirmed correct.
+**Security:** CLEAN.
+**Verdict:** MERGEABLE. No CRITICAL or HIGH. MEDIUM-1 (render-cycle gap in maxScroll clamping) is the only finding worth acting on before shipping; MEDIUM-2 is low-urgency maintenance debt.
+
+**Pattern learned:** Ref write-back from render phase (component writes to ref during render → hook reads ref in key handler) has a one-render-cycle gap when the source of truth changes between keypress and next render. Prefer computing the derived value in the hook itself from the same data source where possible.
+
+---
+
+## 2026-03-22 (pass 11) — post-fix re-review — useBrowserView + BrowserList shared abstraction
+
+**Deliverable:** n/a (DRY fix verification — follow-up to pass 10 findings)
+**Scope:** `src/tui/hooks/useBrowserView.ts` (NEW), `src/tui/components/BrowserList.tsx` (NEW), `src/tui/hooks/useIdeaView.ts` (REWRITTEN), `src/tui/hooks/useChronicleView.ts` (REWRITTEN), `src/tui/IdeaBrowser.tsx` (REWRITTEN), `src/tui/ChronicleList.tsx` (REWRITTEN), `src/tui/BoardApp.tsx` (UNCHANGED — contract verify), `src/tui/hooks/useKeyboard.ts` (UNCHANGED — contract verify)
+**Review type:** Targeted six-lens: overengineering, DRY, type safety, correctness, contract safety.
+
+**Findings:**
+- MEDIUM-1: Viewport height formula mismatch. `useBrowserView` computes `listViewportHeight = rows - 4` (rows - 3 - 1); `BrowserList` computes `height - 3` where `height` is `total - 2` from BoardApp, giving `total - 5`. Hook and component disagree by one row — navigation can select an item that is not visible.
+- MEDIUM-2: `selectedFilePath` and `detailSearchMode` are internal hook state fields exposed in `BrowserViewState` but consumed by no caller, component, or render path. Two dead fields in the public state interface; silent contract noise.
+- LOW-1: `resolveIdeaDocPath` silently ignores its `_docType` parameter. If `enableDocTypeSwitch` were ever set `true` for ideas by mistake, 1/2/3 keys would silently do nothing. The ignored parameter is misleading.
+- LOW-2: Empty-state separator hardcoded at 37 chars in `BrowserList.tsx` line 98 (carry-forward from the pre-refactor originals; all other separators use `width-3` formula). Pre-existing but now consolidated in one file — easy to fix.
+
+**Contract safety:** CLEAN. BoardApp → ChronicleList/IdeaBrowser → BrowserList prop mapping verified. `detailMatchingLines` (array) flows to `DetailPanel.detailMatchingLines` correctly; no `detailMatchLinesRef` confusion on this path. `useChronicleView` spread pattern is clean.
+**Security:** CLEAN. No new PTY/exec paths introduced by the abstraction.
+**Verdict:** MERGEABLE. No CRITICAL or HIGH. MEDIUM-1 (viewport height) is observable as a scroll bug and should be fixed before shipping; MEDIUM-2 (dead state fields) is technical debt that should be addressed soon.
+
+---
+
+## 2026-03-22 (pass 10) — commit 4f05d98 — Deck browser view + TCG theme renames
+
+**Deliverable:** n/a (feature commit)
+**Scope:** `src/tui/hooks/useIdeaView.ts` (NEW), `src/tui/IdeaBrowser.tsx` (NEW), `src/tui/hooks/useKeyboard.ts`, `src/tui/BoardApp.tsx`, `src/tui/components/HelpBar.tsx`, `src/tui/ChronicleList.tsx`, `src/server/services/sdlcParser.ts`
+**Review type:** Full six-lens review per commit scope.
+
+**Findings:**
+- MEDIUM-1: useIdeaView.ts is ~85% structural clone of useChronicleView.ts; IdeaBrowser.tsx is near-clone of ChronicleList.tsx. Adds 6th instance of sub-view wrapper and useDimensions pattern. listViewportHeight and detailContentHeight formulas duplicated — likely divergence point for future layout changes. A shared `useBrowserView` hook could unify both.
+- MEDIUM-2: `activeDocType` field in IdeaViewState is always `'auto'`, never updates, is threaded through 5 prop hops to DetailPanel for no effect. Dead state field creating misleading interface contract.
+- MEDIUM-3: Private `resolveDocPath` in useIdeaView.ts has same `auto` resolution as chronicle's version; different signatures prevent direct reuse but the logic body is identical.
+- LOW-1: activeDocType plumbing through 5 layers serving no purpose — could hardcode `'auto'` at DetailPanel call site.
+- LOW-2: Agent memory files committed as part of feature commit (`.claude/agent-memory/tui-developer/`). The patterns_new_browser_view.md codifies the copy-paste approach flagged in MEDIUM-1.
+- LOW-3: Empty-state separator string hardcoded at 37 chars in both IdeaBrowser and ChronicleList — pre-existing in chronicle, newly copied.
+
+**Contract safety:** CLEAN. ViewMode union, HelpBar exhaustive switch, useKeyboard routing, BoardApp ideas block — all wired correctly.
+**Security:** CLEAN. No new PTY spawn paths. resolveDocPath source is controlled (sdlcParser path.join).
+**Verdict:** MERGEABLE. No CRITICAL or HIGH. MEDIUM-1 is the significant accumulating debt item.
+
+**Pattern learned:** When a new browser view is added by copying an existing one, check whether the `activeDocType` field (or any field initialized to a constant and never mutated) should be stripped from the state interface. Dead state fields in exported interfaces are silent contract debt.
+
+---
+
 ## 2026-03-21 (pass 9) — round-1 fix verification — useFileView.ts lines 51-121
 
 **Deliverable:** n/a (fix verification)
