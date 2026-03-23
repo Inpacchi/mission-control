@@ -4,6 +4,26 @@ description: Running log of completed reviews — date, deliverable ID, files re
 type: project
 ---
 
+## 2026-03-23 (pass 13) — bug-fix commit — playmat card selection mismatch
+
+**Deliverable:** n/a (targeted bug fix)
+**Scope:** `src/tui/BoardApp.tsx` (lines 180–190), `src/tui/components/ZoneStrip.tsx` (full), `src/tui/hooks/useKeyboard.ts` (full)
+**Review type:** Targeted: overengineering, DRY, correctness, type safety.
+
+**Findings:**
+- MEDIUM-1 (DRY): `SUBZONE_ORDER` constant now duplicated between `BoardApp.tsx` (inline in `useMemo`) and `ZoneStrip.tsx` (module-level). Two copies = same class of bug can recur if a new playmat status is added to one but not the other. Should be extracted to `src/tui/shared/zones.ts` or a constants file.
+- MEDIUM-2 (Correctness / Structural): `ZoneStrip` still re-sorts cards it receives, creating two sources of sort truth. Now a no-op for pre-sorted input, but correct behavior depends on both implementations staying in sync. `ZoneStrip` should be made a pure display component; sort ownership should live entirely in `BoardApp`.
+- MINOR-1 (Correctness / Risk): `showSubzones=false` guard in `ZoneStrip` bypasses the sort — correct for current callsites (deck/graveyard always `showSubzones=false`) but any future misuse would reintroduce the original bug class. Resolved by MEDIUM-2 above.
+- MINOR-2 (Overengineering): `SUBZONE_ORDER` declared inside the `useMemo` factory rather than at module scope — constructs a new object on every memoization miss, implies it varies per call when it is a pure constant.
+
+**Fix correctness:** VERIFIED. `clampCard`, card count reads, and `Enter` handler all index into `zones[zone]?.cards` which is now pre-sorted. No other zones have this mismatch. Unknown-status fallback `?? 99` behavior matches `ZoneStrip` exactly.
+**Security:** CLEAN.
+**Verdict:** MERGEABLE. No CRITICAL or HIGH. MEDIUM-1 (`SUBZONE_ORDER` deduplication) is immediate follow-on work — same structural cause as the original bug.
+
+**Pattern reinforced:** Sort logic in a rendering component that is not shared with the keyboard/navigation hook is a latent index mismatch. Any component that re-orders its input for display must either: (a) receive pre-ordered input from the caller, or (b) expose its ordering so the keyboard hook can use the same sequence. Having both is the fragile state this commit fixed but did not fully resolve.
+
+---
+
 ## 2026-03-22 (pass 12) — final review pass — useBrowserView + BrowserList (post-fix verification)
 
 **Deliverable:** n/a (targeted final pass — overengineering, DRY, type safety, correctness, contract safety)

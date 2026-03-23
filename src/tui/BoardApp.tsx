@@ -178,7 +178,14 @@ export function BoardApp({ projectPath, initialDeliverables }: BoardAppProps): R
     [deliverables]
   );
   const playmatCards = useMemo(
-    () => deliverables.filter((d) => isPlaymatZone(d.status)),
+    () => {
+      const SUBZONE_ORDER: Record<string, number> = {
+        spec: 0, plan: 1, 'in-progress': 2, blocked: 3, review: 4,
+      };
+      return deliverables
+        .filter((d) => isPlaymatZone(d.status))
+        .sort((a, b) => (SUBZONE_ORDER[a.status] ?? 99) - (SUBZONE_ORDER[b.status] ?? 99));
+    },
     [deliverables]
   );
   const graveyardCards = useMemo(

@@ -23,14 +23,6 @@ const ZONE_COLOR: Record<ZoneType, string> = {
   graveyard: 'green',
 };
 
-const SUBZONE_ORDER: Record<string, number> = {
-  spec: 0,
-  plan: 1,
-  'in-progress': 2,
-  blocked: 3,
-  review: 4,
-};
-
 const SUBZONE_COLOR: Record<string, string> = {
   spec: 'blue',
   plan: 'magenta',
@@ -68,16 +60,6 @@ export function ZoneStrip({
   const headerColor = ZONE_COLOR[type];
   const borderColor = ZONE_COLOR[type];
 
-  // Sort playmat cards by subzone order
-  const sortedCards = useMemo(() => {
-    if (!showSubzones) return cards;
-    return [...cards].sort((a, b) => {
-      const orderA = SUBZONE_ORDER[a.status] ?? 99;
-      const orderB = SUBZONE_ORDER[b.status] ?? 99;
-      return orderA - orderB;
-    });
-  }, [cards, showSubzones]);
-
   // Virtual scroll: compute visible window
   const availableLines = height - HEADER_HEIGHT - (showSubzones ? SUBZONE_HEADER_HEIGHT : 0);
   const visibleCount = Math.max(1, Math.floor(availableLines / CARD_HEIGHT));
@@ -85,13 +67,13 @@ export function ZoneStrip({
   // Keep selected card in view — centers the selection so both up and down
   // navigation remain visible without requiring stateful tracking.
   const scrollOffset = useMemo(() => {
-    if (selectedCard < 0 || sortedCards.length === 0) return 0;
-    const maxOffset = Math.max(0, sortedCards.length - visibleCount);
+    if (selectedCard < 0 || cards.length === 0) return 0;
+    const maxOffset = Math.max(0, cards.length - visibleCount);
     const idealOffset = Math.max(0, selectedCard - Math.floor(visibleCount / 2));
     return Math.min(idealOffset, maxOffset);
-  }, [selectedCard, sortedCards.length, visibleCount]);
+  }, [selectedCard, cards.length, visibleCount]);
 
-  const visibleCards = sortedCards.slice(scrollOffset, scrollOffset + visibleCount);
+  const visibleCards = cards.slice(scrollOffset, scrollOffset + visibleCount);
 
   // Count label
   const countLabel = `(${cards.length})`;
@@ -165,10 +147,10 @@ export function ZoneStrip({
       </Box>
 
       {/* Scroll indicator when there are more cards than visible */}
-      {sortedCards.length > visibleCount && (
+      {cards.length > visibleCount && (
         <Box justifyContent="flex-end" paddingX={1}>
           <Text dimColor>
-            {scrollOffset + visibleCount < sortedCards.length ? '▼' : ''}
+            {scrollOffset + visibleCount < cards.length ? '▼' : ''}
             {scrollOffset > 0 ? '▲' : ''}
           </Text>
         </Box>
